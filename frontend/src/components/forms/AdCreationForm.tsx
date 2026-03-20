@@ -4,8 +4,9 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { MagicWand01Icon, ArrowDown01Icon, ArrowRight01Icon, Link01Icon, Upload01Icon, Add01Icon, Mic01Icon, Settings01Icon, ArrowUp01Icon } from "@hugeicons/core-free-icons"
+import { MagicWand01Icon, ArrowDown01Icon, ArrowRight01Icon, Link01Icon, Upload01Icon, Add01Icon, Mic01Icon, Settings01Icon, ArrowUp01Icon, Loading01Icon } from "@hugeicons/core-free-icons"
 import { useState } from "react"
+import { createAdJob, getAdJobStatus, getAdJobResult } from "@/lib/api"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -50,6 +51,9 @@ const formSchema = z.object({
 export function AdCreationForm() {
   const [isProductOpen, setIsProductOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generationProgress, setGenerationProgress] = useState(0)
+  const [videoResult, setVideoResult] = useState<string | null>(null)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -70,10 +74,62 @@ export function AdCreationForm() {
     },
   })
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // In a real app, this would submit to the backend.
-    console.log("Form Submitted:", values)
-    alert("Form submitted! Check console for values.")
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      setIsGenerating(true)
+      setGenerationProgress(0)
+
+      // Format payload to exactly match PRD Sec 11.1
+      const payload = {
+        prompt: values.prompt,
+        aspect_ratio: values.aspect_ratio,
+        duration_sec: parseInt(values.duration_sec, 10),
+        language: values.language,
+        tone: values.tone,
+        cta: values.cta,
+        product_info: {
+          name: values.product_name,
+          description: values.product_description,
+          benefits: values.product_benefits ? values.product_benefits.split(",").map(b => b.trim()) : [],
+        },
+        urls: values.product_urls ? [values.product_urls] : [],
+        subtitle_style: values.subtitle_style,
+        voice_id: values.voice_id
+      }
+      
+      const job = await createAdJob(payload)
+      
+      // Simulate polling interval for MVP Mock Experience
+      let cumulativeProgress = 0;
+      const pollInterval = window.setInterval(async () => {
+        const status = await getAdJobStatus(job.id)
+        cumulativeProgress += status.progress
+        setGenerationProgress(Math.min(cumulativeProgress, 99))
+        
+        if (cumulativeProgress >= 100) {
+          window.clearInterval(pollInterval)
+          const result = await getAdJobResult(job.id)
+          setVideoResult(result.video_url)
+          setIsGenerating(false)
+        }
+      }, 1500)
+      
+    } catch (error) {
+      console.error(error)
+      setIsGenerating(false)
+      alert("Failed to generate ad. Check console for details.")
+    }
+  }
+
+  if (videoResult) {
+    return (
+      <div className="w-full flex flex-col items-center animate-in fade-in slide-in-from-bottom-8 duration-700">
+        <video src={videoResult} controls autoPlay className="w-full max-w-[400px] h-[720px] object-cover bg-black rounded-[32px] shadow-2xl border border-white/10" />
+        <Button onClick={() => setVideoResult(null)} variant="outline" className="mt-8 rounded-full px-8 h-12 text-sm uppercase tracking-wider font-semibold">
+          Create Another Video
+        </Button>
+      </div>
+    )
   }
 
   return (
@@ -104,13 +160,24 @@ export function AdCreationForm() {
                         <div className="text-foreground/40 hover:text-foreground/80 cursor-pointer transition-colors" title="Voice to text">
                           <HugeiconsIcon icon={Mic01Icon} strokeWidth={2} className="w-5 h-5 mr-1" />
                         </div>
-                        <Button type="submit" size="icon" className="w-8 h-8 rounded-full bg-foreground text-background hover:scale-105 transition-transform">
-                          <HugeiconsIcon icon={ArrowUp01Icon} strokeWidth={3} className="w-4 h-4" />
+                        <Button disabled={isGenerating} type="submit" size="icon" className="w-9 h-9 relative rounded-full bg-foreground text-background hover:scale-105 transition-all outline-none border-none">
+                          {isGenerating ? (
+                            <HugeiconsIcon icon={Loading01Icon} strokeWidth={2.5} className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <HugeiconsIcon icon={ArrowUp01Icon} strokeWidth={3} className="w-5 h-5" />
+                          )}
                         </Button>
                       </div>
                     </div>
                   </div>
                 </FormControl>
+                {isGenerating && (
+                  <div className="absolute -bottom-6 left-0 right-0 flex items-center justify-center animate-in fade-in">
+                      <div className="w-full max-w-[200px] h-1.5 bg-foreground/10 rounded-full overflow-hidden">
+                         <div className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out" style={{ width: `${generationProgress}%` }} />
+                      </div>
+                  </div>
+                )}
                 <FormMessage className="text-center" />
               </FormItem>
             )}
