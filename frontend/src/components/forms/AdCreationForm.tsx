@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { MagicWand01Icon, ArrowDown01Icon, ArrowRight01Icon, Link01Icon, Upload01Icon, Add01Icon, Mic01Icon, Settings01Icon, ArrowUp01Icon, Loading01Icon } from "@hugeicons/core-free-icons"
+import { ArrowDown01Icon, ArrowRight01Icon, Link01Icon, Upload01Icon, Add01Icon, Mic01Icon, Settings01Icon, ArrowUp01Icon, Loading01Icon } from "@hugeicons/core-free-icons"
 import { useState } from "react"
 import { createAdJob, getAdJobStatus, getAdJobResult } from "@/lib/api"
 
@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button"
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,

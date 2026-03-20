@@ -34,10 +34,10 @@ export interface AdJobStatusResponse {
 export interface AdJobResultResponse {
   video_url: string;
   thumbnail_url: string;
-  script: any;
-  subtitles: any[];
-  transcript: any[];
-  metadata: any;
+  script: Record<string, unknown>;
+  subtitles: Record<string, unknown>[];
+  transcript: Record<string, unknown>[];
+  metadata: Record<string, unknown>;
 }
 
 /**
