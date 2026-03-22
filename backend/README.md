@@ -1,99 +1,167 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Phanes UGC - Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+This is the NestJS backend for the Prompt-to-Ad Video Generator MVP.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Architecture
 
-## Description
+The backend follows the PRD specifications with the following components:
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **API Layer**: NestJS REST API with endpoints for ad creation, status checking, and result retrieval
+- **Database**: Cloud Firebase (Firestore) for data persistence
+- **AI Services**: 
+  - Gemini 2.5 Pro for LLM tasks (brief generation, script generation, scene planning)
+  - Veo 3 for video and audio generation
+  - Imagen 4 for image generation
+- **Storage**: Google Cloud Storage (EU region)
+- **Queue**: Cloud Tasks / Pub/Sub for async job processing
+- **Rendering**: Remotion on Cloud Run
 
-## Project setup
+## Project Structure
 
-```bash
-$ npm install
+```
+backend/
+├── src/
+│   ├── ads/               # Ad management module
+│   │   ├── ads.controller.ts  # REST endpoints
+│   │   ├── ads.service.ts     # Business logic
+│   │   ├── ads.module.ts     # Module definition
+│   │   └── dto/              # Data transfer objects
+│   │       ├── create-ad.dto.ts
+│   │       └── ad-response.dto.ts
+│   ├── ai/                 # AI services
+│   │   ├── llm.service.ts    # Gemini 2.5 Pro integration
+│   │   ├── veo.service.ts   # Veo 3 integration
+│   │   ├── imagen.service.ts # Imagen 4 integration
+│   │   └── ai.module.ts
+│   ├── storage/            # Cloud Storage service
+│   │   ├── storage.service.ts
+│   │   └── storage.module.ts
+│   ├── pipeline/          # Async job processing
+│   │   ├── pipeline.service.ts
+│   │   └── pipeline.module.ts
+│   ├── config/            # Configuration
+│   │   └── firebase.config.ts
+│   ├── auth/              # Authentication
+│   │   └── firebase-auth.guard.ts
+│   ├── app.module.ts
+│   └── main.ts
+├── .env.example
+├── package.json
+└── tsconfig.json
 ```
 
-## Compile and run the project
+## API Endpoints
 
-```bash
-# development
-$ npm run start
+### POST /api/v1/ads
+Create a new ad generation job.
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+**Request Body:**
+```json
+{
+  "prompt": "Create a 30 second TikTok ad for...",
+  "platform": "tiktok",
+  "aspect_ratio": "9:16",
+  "duration_sec": 30,
+  "language": "en",
+  "tone": "direct",
+  "cta": "Learn more",
+  "product_info": {
+    "name": "Product Name",
+    "description": "Description",
+    "benefits": ["benefit1", "benefit2"]
+  }
+}
 ```
 
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+**Response:**
+```json
+{
+  "id": "ad_abc123",
+  "status": "queued"
+}
 ```
 
-## Deployment
+### GET /api/v1/ads/:id
+Get ad job status and progress.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+**Response:**
+```json
+{
+  "id": "ad_abc123",
+  "status": "processing",
+  "progress": 45,
+  "stages": {
+    "scrape": "done",
+    "brief": "done",
+    "script": "done",
+    "assets": "running",
+    "voice": "pending",
+    "subtitles": "pending",
+    "render": "pending"
+  }
+}
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### GET /api/v1/ads/:id/result
+Get completed ad result (only available when status is "completed").
 
-## Resources
+### POST /api/v1/ads/:id/scenes/:sceneId/regenerate
+Regenerate a specific scene.
 
-Check out a few resources that may come in handy when working with NestJS:
+## Setup
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+1. Install dependencies:
+```bash
+npm install
+```
 
-## Support
+2. Copy `.env.example` to `.env` and configure:
+```bash
+cp .env.example .env
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+3. Configure Firebase credentials:
+   - Create a Firebase project
+   - Enable Firestore and Storage
+   - Download service account key
+   - Set environment variables
 
-## Stay in touch
+4. Run the development server:
+```bash
+npm run start:dev
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Environment Variables
 
-## License
+| Variable | Description |
+|----------|-------------|
+| FIREBASE_PROJECT_ID | Firebase project ID |
+| FIREBASE_PRIVATE_KEY | Firebase service account private key |
+| FIREBASE_CLIENT_EMAIL | Firebase service account email |
+| GCS_BUCKET_NAME | Google Cloud Storage bucket name |
+| GCS_LOCATION | Storage location (e.g., EU) |
+| GEMINI_API_KEY | Google Gemini API key |
+| REMOTION_RENDER_URL | Remotion Cloud Run URL |
+| PORT | Server port (default: 3000) |
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
-# phanesUGC
+## Pipeline Stages
+
+The ad generation pipeline runs through these stages:
+
+1. **scrape** - Product URL scraping (optional)
+2. **brief** - Creative brief generation via Gemini
+3. **script** - Script generation via Gemini
+4. **assets** - Visual asset generation via Veo/Imagen
+5. **voice** - Voiceover generation via Veo 3
+6. **subtitles** - Subtitle generation and sync
+7. **render** - Final video rendering via Remotion
+
+## Mock Mode
+
+The backend runs in mock mode when API keys are not configured. Mock services return placeholder data for development.
+
+## Notes
+
+- All external services (Gemini, Veo, Imagen) have mock fallbacks
+- The pipeline is designed to be async via Cloud Tasks/Pub/Sub
+- Currently runs synchronously for MVP simplicity
