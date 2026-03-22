@@ -1,4 +1,4 @@
-export const USE_MOCK = true;
+export const USE_MOCK = false;
 
 // Models based on PRD Section 11.1
 export interface AdJobRequest {
@@ -61,7 +61,11 @@ export async function createAdJob(payload: AdJobRequest): Promise<AdJobResponse>
     body: JSON.stringify(payload),
   });
   
-  if (!res.ok) throw new Error("Failed to create ad job");
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error("API Error:", res.status, errorText);
+    throw new Error(`Failed to create ad job: ${res.status} ${errorText}`);
+  }
   return res.json();
 }
 

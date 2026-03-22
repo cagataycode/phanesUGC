@@ -81,6 +81,7 @@ export function AdCreationForm() {
       // Format payload to exactly match PRD Sec 11.1
       const payload = {
         prompt: values.prompt,
+        platform: "tiktok", // Default platform
         aspect_ratio: values.aspect_ratio,
         duration_sec: parseInt(values.duration_sec, 10),
         language: values.language,
