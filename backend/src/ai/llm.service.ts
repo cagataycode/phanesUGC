@@ -22,8 +22,21 @@ export class LlmService {
       this.model = null;
     } else {
       this.genAI = new GoogleGenerativeAI(apiKey);
-      this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-pro-preview-0506' });
+      this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     }
+  }
+
+  /**
+   * Extract JSON from markdown-wrapped response
+   */
+  private parseJsonResponse<T>(text: string): T {
+    // Remove markdown code blocks
+    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[1]) as T;
+    }
+    // Try direct parse if no markdown
+    return JSON.parse(text) as T;
   }
 
   /**
@@ -44,7 +57,7 @@ export class LlmService {
       const text = response.text();
 
       // Parse JSON response
-      const brief = JSON.parse(text) as CreativeBriefDto;
+      const brief = this.parseJsonResponse<CreativeBriefDto>(text);
       return brief;
     } catch (error) {
       this.logger.error('Failed to generate creative brief', error);
@@ -71,7 +84,7 @@ export class LlmService {
       const text = response.text();
 
       // Parse JSON response
-      const script = JSON.parse(text) as ScriptDto;
+      const script = this.parseJsonResponse<ScriptDto>(text);
       return script;
     } catch (error) {
       this.logger.error('Failed to generate script', error);
@@ -98,7 +111,7 @@ export class LlmService {
       const text = response.text();
 
       // Parse JSON response
-      const scenes = JSON.parse(text) as SceneDto[];
+      const scenes = this.parseJsonResponse<SceneDto[]>(text);
       return scenes;
     } catch (error) {
       this.logger.error('Failed to plan scenes', error);

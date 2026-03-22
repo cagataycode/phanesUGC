@@ -149,6 +149,21 @@ export class AdsService {
 
     if (this.useMock) {
       data = mockAdsStore.get(adId);
+      // In mock mode, simulate progress
+      if (data && data.status === AdStatus.QUEUED) {
+        // Simulate async processing
+        data.status = AdStatus.PROCESSING;
+        data.progress = 50;
+        data.stages = {
+          scrape: StageStatus.DONE,
+          brief: StageStatus.DONE,
+          script: StageStatus.DONE,
+          assets: StageStatus.DONE,
+          voice: StageStatus.RUNNING,
+          subtitles: StageStatus.PENDING,
+          render: StageStatus.PENDING,
+        };
+      }
     } else if (this.adsCollection) {
       const doc = await this.adsCollection.doc(adId).get();
       data = doc.data() as AdDocument | undefined;
@@ -175,6 +190,33 @@ export class AdsService {
 
     if (this.useMock) {
       data = mockAdsStore.get(adId);
+      // In mock mode, return mock result even if not completed
+      if (data) {
+        return {
+          video_url: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+          thumbnail_url: 'https://images.unsplash.com/photo-1616469829581-73993eb86b02?w=400',
+          script: {
+            title: 'Test Ad',
+            hook: 'Check out this amazing product!',
+            voiceover_lines: [{ scene: 1, text: 'Hello world' }],
+            cta: 'Learn more'
+          },
+          subtitles: [
+            { start: 0, end: 2, text: 'Check out this' },
+            { start: 2, end: 4, text: 'amazing product!' }
+          ],
+          transcript: [
+            { text: 'Hello', start: 0, end: 1, words: [{ word: 'Hello', start: 0, end: 1 }] }
+          ],
+          metadata: {
+            platform: data.platform,
+            aspect_ratio: data.aspect_ratio,
+            duration_sec: data.duration_sec,
+            language: data.language,
+            created_at: data.created_at,
+          },
+        };
+      }
     } else if (this.adsCollection) {
       const doc = await this.adsCollection.doc(adId).get();
       data = doc.data() as AdDocument | undefined;

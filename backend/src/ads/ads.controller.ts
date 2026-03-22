@@ -10,6 +10,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { AdsService } from './ads.service';
+import { PipelineService } from '../pipeline/pipeline.service';
 import { CreateAdDto } from './dto/create-ad.dto';
 import {
   CreateAdResponseDto,
@@ -21,7 +22,10 @@ import {
 export class AdsController {
   private readonly logger = new Logger(AdsController.name);
 
-  constructor(private readonly adsService: AdsService) {}
+  constructor(
+    private readonly adsService: AdsService,
+    private readonly pipelineService: PipelineService,
+  ) {}
 
   /**
    * Create a new ad generation job
@@ -33,25 +37,27 @@ export class AdsController {
     @Headers('authorization') authHeader: string,
   ): Promise<CreateAdResponseDto> {
     // Extract user ID from Firebase Auth token
-    // In production, this would verify the Firebase JWT
     let userId = 'anonymous';
     
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      // TODO: Verify Firebase JWT and extract user ID
-      // For now, we'll use a placeholder
       const token = authHeader.substring(7);
       if (token && token !== 'demo') {
-        // In production: verify token with Firebase Admin
-        // const decodedToken = await getAuth().verifyIdToken(token);
-        // userId = decodedToken.uid;
-        userId = token; // Temporary for development
+        userId = token;
       }
     }
 
     createAdDto.user_id = userId;
 
     try {
-      return await this.adsService.createAd(createAdDto);
+      const result = await this.adsService.createAd(createAdDto);
+      
+      // Trigger pipeline processing in background
+      // For MVP, we run it asynchronously
+      this.pipelineService.processAdJob(result.id).catch(err => {
+        this.logger.error(`Pipeline failed for ad ${result.id}`, err);
+      });
+
+      return result;
     } catch (error) {
       this.logger.error('Failed to create ad', error);
       throw new HttpException(

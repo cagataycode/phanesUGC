@@ -34,7 +34,7 @@ import { Separator } from "@/components/ui/separator"
 const formSchema = z.object({
   prompt: z.string().min(5, "Prompt must be at least 5 characters."),
   aspect_ratio: z.enum(["9:16", "1:1", "16:9"]),
-  duration_sec: z.enum(["15", "30", "45", "60"]),
+  duration_sec: z.enum(["8", "15", "30", "45", "60"]),
   language: z.enum(["en", "de"]),
   tone: z.string().optional(),
   target_audience: z.string().optional(),
@@ -59,7 +59,7 @@ export function AdCreationForm() {
     defaultValues: {
       prompt: "",
       aspect_ratio: "9:16",
-      duration_sec: "30",
+      duration_sec: "8",
       language: "en",
       tone: "direct",
       target_audience: "",
@@ -283,6 +283,12 @@ export function AdCreationForm() {
                     >
                       <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl>
+                          <RadioGroupItem value="8" />
+                        </FormControl>
+                        <FormLabel className="font-normal">8</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
                           <RadioGroupItem value="15" />
                         </FormControl>
                         <FormLabel className="font-normal">15</FormLabel>
@@ -292,6 +298,12 @@ export function AdCreationForm() {
                           <RadioGroupItem value="30" />
                         </FormControl>
                         <FormLabel className="font-normal">30</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="45" />
+                        </FormControl>
+                        <FormLabel className="font-normal">45</FormLabel>
                       </FormItem>
                       <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl>
