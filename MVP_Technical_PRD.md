@@ -463,47 +463,46 @@ This may be API-only in MVP if UI complexity is constrained.
 
 ## 8.1 Architecture Overview
 
-The MVP shall use an asynchronous pipeline architecture.
+The MVP uses an asynchronous pipeline architecture implemented with NestJS.
 
 ```text
-Client App
-  -> API Backend
-  -> Job Queue
-  -> Pipeline Workers
-      -> Scraping service
-      -> LLM service
-      -> Asset service
-      -> TTS service
-      -> Subtitle engine
-      -> Render service
-  -> Object Storage
-  -> Database
+Client App (Frontend)
+  -> NestJS API Backend
+  -> Cloud Tasks / Pub/Sub
+  -> Pipeline Service
+      -> Gemini 2.5 Pro (LLM)
+      -> Veo 3 (Video/Audio)
+      -> Imagen 4 (Images)
+      -> Speech-to-Text (Subtitles)
+      -> Remotion (Rendering)
+  -> Google Cloud Storage
+  -> Cloud Firebase (Firestore)
 ```
 
-## 8.2 Recommended Components
+## 8.2 Implemented Components
 
 ### Backend API
-- FastAPI or NestJS
+- **NestJS** - TypeScript framework with modular architecture
 
 ### Database
-- PostgreSQL
+- **Cloud Firebase (Firestore)** - NoSQL document database
 
 ### Queue / Jobs
-- Redis + BullMQ / RQ / Celery equivalent
+- **Cloud Tasks / Pub/Sub** - Google Cloud native async processing
 
 ### Storage
-- EU object storage for source and rendered files
+- **Google Cloud Storage (EU)** - EU data residency for compliance
 
 ### Rendering
-- Remotion for composition layer
+- **Remotion on Cloud Run** - Code-based video composition
 - FFmpeg workers for media processing and encoding
 
 ### AI Services
-- LLM provider for brief/script generation
-- TTS provider with timing metadata
-- transcription/alignment fallback provider
-- optional video/image generation provider
-- optional stock media provider
+- **Gemini 2.5 Pro** - LLM for brief/script generation
+- **Veo 3** - Unified model for video and audio generation
+- **Imagen 4** - Image generation
+- **Google Speech-to-Text** - Subtitle alignment
+- **Firebase Authentication** - User authentication
 
 ---
 
@@ -933,37 +932,46 @@ A generated ad is considered acceptable if:
 
 ---
 
-## 19. Open Technical Decisions
+## 19. Resolved Technical Decisions
 
-The following decisions must be finalized during implementation kickoff:
+The following decisions have been finalized for MVP implementation:
 
-1. backend framework selection
-2. queue framework selection
-3. primary LLM provider
-4. primary TTS provider
-5. subtitle alignment fallback provider
-6. stock media provider
-7. renderer stack: Remotion vs managed render API
-8. storage vendor and region strategy
-9. authentication method for users and internal services
-10. file retention policy
+| # | Decision | Resolution | Notes |
+|---|----------|------------|-------|
+| 1 | Backend Framework | **NestJS** | TypeScript framework with excellent support for modules and DI |
+| 2 | Queue Framework | **Cloud Tasks / Pub/Sub** | Google Cloud native async job processing |
+| 3 | Primary LLM Provider | **Gemini 2.5 Pro** | For brief/script/scene generation |
+| 4 | TTS Provider | **Not needed - Veo 3** | Veo 3 handles voice generation natively |
+| 5 | Video Generation | **Veo 3** | Primary visual generation |
+| 6 | Image Generation | **Imagen 4** | For static image generation |
+| 7 | Subtitle Alignment | **Google Speech-to-Text** | For subtitle timing and sync |
+| 8 | Stock Media Provider | **TBD** | Can be added in Phase 2 |
+| 9 | Renderer Stack | **Remotion on Cloud Run** | Code-based video composition |
+| 10 | Storage | **Google Cloud Storage (EU)** | EU data residency |
+| 11 | Authentication | **Firebase Authentication** | User auth via Firebase |
+| 12 | Database | **Cloud Firebase (Firestore)** | NoSQL document database |
+| 13 | File Retention Policy | **TBD** | To be defined based on storage costs |
 
 ---
 
-## 20. Recommended MVP Build Decision
+## 20. MVP Implementation Strategy
 
-For the MVP, the most practical implementation strategy is:
+For the MVP, the implemented strategy is:
 
-- asynchronous pipeline backend
-- product URL scraping as optional enrichment
-- LLM-generated brief/script
-- uploaded assets + stock media as primary visual path
-- optional generated scenes only where beneficial
-- TTS with timing metadata
-- subtitle post-processing for readability
-- renderer-controlled final export with burned captions
+- **asynchronous pipeline backend** with NestJS
+- **Cloud Firebase** for data persistence (Firestore)
+- **Cloud Tasks / Pub/Sub** for async job processing
+- **product URL scraping** as optional enrichment (Phase 2)
+- **Gemini 2.5 Pro** for brief/script generation
+- **Veo 3** for video generation and voiceover
+- **Imagen 4** for image generation
+- **uploaded assets** as primary visual path
+- **Google Speech-to-Text** for subtitle alignment
+- **Remotion on Cloud Run** for video rendering
+- **Google Cloud Storage (EU)** for asset storage
+- **Firebase Authentication** for user auth
 
-This approach minimizes instability while maximizing the probability of producing a social-ready ad.
+This approach uses Google-native AI services to minimize complexity while producing high-quality social-ready ads.
 
 ---
 
