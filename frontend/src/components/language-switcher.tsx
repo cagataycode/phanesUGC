@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/routing";
 import {
   Select,
@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/select";
 
 export function LanguageSwitcher() {
-  const t = useTranslations();
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
