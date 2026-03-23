@@ -19,14 +19,15 @@ export function initializeFirebase(config: FirebaseConfig): void {
     return;
   }
 
-  // Initialize Firebase Admin
-  const adminConfig: { projectId: string; credential: ReturnType<typeof cert> } = {
-    projectId: config.projectId,
-    credential: cert(config.privateKey.replace(/\\n/g, '\n')),
-  };
-
+  // Initialize Firebase Admin with service account credentials
   try {
-    adminApp = initAdminApp(adminConfig);
+    adminApp = initAdminApp({
+      credential: cert({
+        projectId: config.projectId,
+        clientEmail: config.clientEmail,
+        privateKey: config.privateKey.replace(/\\n/g, '\n'),
+      }),
+    });
     adminDb = getFirestoreAdmin(adminApp);
     isInitialized = true;
     console.log('Firebase initialized successfully');
