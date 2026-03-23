@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GoogleAuth } from 'google-auth-library';
+import { GoogleGenAI } from '@google/genai';
 import { SceneDto, AudioTrackDto } from '../ads/dto/ad-response.dto';
 
 /**
  * Video Generation Service
- * Uses Google Vertex AI PredictLongRunning API for Veo video generation
- * Uses google-auth-library for authentication with gcloud ADC
+ * Uses @google/genai SDK for Veo video generation via Vertex AI
+ * The SDK handles LRO UUID polling correctly, unlike the raw REST API.
  */
 @Injectable()
 export class VeoService {
@@ -15,29 +15,28 @@ export class VeoService {
   private location: string;
   private modelName: string;
   private useMock: boolean = false;
-  private googleAuth: GoogleAuth;
+  private ai: GoogleGenAI | null = null;
 
   constructor(private configService: ConfigService) {
-    // Vertex AI configuration
     this.projectId = this.configService.get<string>('GOOGLE_CLOUD_PROJECT') || 'phanesugc';
     this.location = this.configService.get<string>('GOOGLE_CLOUD_LOCATION') || 'us-central1';
     this.modelName = this.configService.get<string>('GOOGLE_CLOUD_VEO_MODEL') || 'veo-3.0-fast-generate-001';
 
-    // Initialize GoogleAuth - uses ADC automatically
     try {
-      this.googleAuth = new GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+      this.ai = new GoogleGenAI({
+        vertexai: true,
+        project: this.projectId,
+        location: this.location,
       });
-      
       this.logger.log(`Veo service initialized (project: ${this.projectId}, location: ${this.location})`);
     } catch (error: any) {
-      this.logger.warn(`Failed to initialize GoogleAuth: ${error.message} - using mock mode`);
+      this.logger.warn(`Failed to initialize GoogleGenAI: ${error.message} - using mock mode`);
       this.useMock = true;
     }
   }
 
   /**
-   * Generate video for a scene using Veo via Vertex AI PredictLongRunning API
+   * Generate video for a scene using Veo via @google/genai SDK
    */
   async generateVideo(scene: SceneDto): Promise<{ video_url: string }> {
     this.logger.log(`Generating video for scene ${scene.scene_id} with Veo`);
@@ -46,187 +45,91 @@ export class VeoService {
       return { video_url: '' };
     }
 
-    if (this.useMock || !this.googleAuth) {
-      return this.getMockVideoUrl(scene);
+    if (this.useMock || !this.ai) {
+      return this.getMockVideoUrl();
     }
 
     try {
       const prompt = this.buildVideoPrompt(scene);
-      this.logger.log(`Calling Veo PredictLongRunning API with prompt: ${prompt.substring(0, 200)}...`);
+      this.logger.log(`Calling Veo generateVideos with prompt: ${prompt.substring(0, 200)}...`);
       
-      const videoUrl = await this.callVeoPredictLongRunning(prompt);
+      const videoUrl = await this.callVeoGenerateVideos(prompt);
       
       if (videoUrl) {
         this.logger.log(`Veo returned video URL: ${videoUrl}`);
         return { video_url: videoUrl };
       }
       
-      return this.getMockVideoUrl(scene);
+      return this.getMockVideoUrl();
       
     } catch (error: any) {
       this.logger.error('Failed to generate video with Veo', error.message || error);
-      return this.getMockVideoUrl(scene);
+      return this.getMockVideoUrl();
     }
   }
 
   /**
-   * Call Veo using Vertex AI's PredictLongRunning API
-   * This is the correct API for video generation (Veo 3.0)
+   * Call Veo using @google/genai SDK - handles UUID operation polling correctly
    */
-  private async callVeoPredictLongRunning(prompt: string): Promise<string | null> {
+  private async callVeoGenerateVideos(prompt: string): Promise<string | null> {
     try {
-      // Get access token using Google Auth Library
-      const client = await this.googleAuth.getClient();
-      const tokenResponse = await client.getAccessToken();
-      const accessToken = tokenResponse.token;
+      this.logger.log('Starting Veo video generation operation...');
       
-      if (!accessToken) {
-        this.logger.error('Failed to get access token');
-        return null;
-      }
-      
-      this.logger.log(`Got access token, calling Veo PredictLongRunning API...`);
-      
-      // Call the Vertex AI PredictLongRunning API - note the :predictLongRunning suffix
-      const endpoint = `https://${this.location}-aiplatform.googleapis.com/v1/projects/${this.projectId}/locations/${this.location}/publishers/google/models/${this.modelName}:predictLongRunning`;
-      
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+      let operation = await this.ai!.models.generateVideos({
+        model: this.modelName,
+        prompt,
+        config: {
+          numberOfVideos: 1,
+          durationSeconds: 8,
+          aspectRatio: '9:16',
         },
-        body: JSON.stringify({
-          instances: [{ prompt: prompt }],
-          parameters: {
-            sampleCount: 1,
-          },
-        }),
       });
 
-      const responseText = await response.text();
-      
-      if (!response.ok) {
-        this.logger.error(`Veo PredictLongRunning API error: ${response.status} - ${responseText}`);
+      this.logger.log(`Operation started: ${operation.name}, done=${operation.done}`);
+
+      // Poll until complete (max 10 minutes at 10s intervals)
+      const maxAttempts = 60;
+      let attempt = 0;
+      while (!operation.done && attempt < maxAttempts) {
+        attempt++;
+        this.logger.log(`Polling Veo operation (attempt ${attempt}/${maxAttempts})...`);
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        operation = await this.ai!.operations.getVideosOperation({ operation });
+        this.logger.log(`Operation status: done=${operation.done}`);
+      }
+
+      if (!operation.done) {
+        this.logger.error('Veo operation timed out after 10 minutes');
         return null;
       }
 
-      const result = JSON.parse(responseText);
-      this.logger.log(`Veo PredictLongRunning response: ${JSON.stringify(result).substring(0, 500)}`);
-      
-      // Check if it's a long-running operation
-      if (result.name && result.name.includes('/operations/')) {
-        this.logger.log(`Started operation: ${result.name}`);
-        // Poll for the result
-        return await this.pollVeoOperation(result.name, accessToken);
+      if (operation.error) {
+        this.logger.error(`Veo operation failed: ${JSON.stringify(operation.error)}`);
+        return null;
       }
-      
-      // Check for direct result
-      if (result.predictions && result.predictions.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const pred = result.predictions[0] as any;
-        if (pred.videoUri) {
-          return pred.videoUri;
+
+      const videos = operation.response?.generatedVideos;
+      if (videos && videos.length > 0) {
+        const uri = videos[0]?.video?.uri;
+        if (uri) {
+          this.logger.log(`Veo generated video URI: ${uri}`);
+          return uri;
         }
       }
-      
+
+      this.logger.warn('Veo operation completed but no video URI found in response');
       return null;
     } catch (error: any) {
-      this.logger.error(`Veo PredictLongRunning call failed: ${error.message}`);
+      this.logger.error(`Veo generateVideos call failed: ${error.message}`);
       return null;
     }
   }
 
   /**
-   * Poll a long-running operation for Veo video generation
+   * Generate voiceover audio - placeholder for MVP
    */
-  private async pollVeoOperation(operationName: string, accessToken: string): Promise<string | null> {
-    const maxAttempts = 60;
-    const pollInterval = 5000;
-    
-    for (let i = 0; i < maxAttempts; i++) {
-      this.logger.log(`Polling Veo operation: ${operationName} (attempt ${i + 1}/${maxAttempts})`);
-      
-      try {
-        // The operationName is already a full path like projects/.../locations/.../operations/...
-        const operationEndpoint = `https://${this.location}-aiplatform.googleapis.com/v1/${operationName}`;
-        
-        const response = await fetch(operationEndpoint, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-          },
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          this.logger.error(`Veo operation poll error: ${response.status} - ${errorText}`);
-          
-          // Google Vertex REST API has a bug where polling LRO UUIDs throws 400 "Must be a Long" or 404.
-          // Don't wait 5 minutes; short-circuit to return the mock MVP video immediately.
-          if (response.status === 400 || response.status === 404) {
-             this.logger.warn('Google API LRO UUID bug encountered, short-circuiting to use MVP mock video fallback.');
-             return null;
-          }
-          
-          await new Promise(resolve => setTimeout(resolve, pollInterval));
-          continue;
-        }
-
-        const operation = await response.json();
-        this.logger.log(`Operation status: done=${operation.done}`);
-        
-        if (operation.done) {
-          if (operation.error) {
-            this.logger.error(`Veo operation error: ${JSON.stringify(operation.error)}`);
-            return null;
-          }
-          
-          // Extract video from result
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const result = operation.response || operation.result;
-          if (result) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            if ((result as any).predictions) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const preds = (result as any).predictions as any[];
-              for (const pred of preds) {
-                if (pred.videoUri) {
-                  return pred.videoUri;
-                }
-              }
-            }
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            if ((result as any).videoUri) {
-              return (result as any).videoUri;
-            }
-          }
-          
-          this.logger.log(`Operation complete but no video found: ${JSON.stringify(operation).substring(0, 500)}`);
-          return null;
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
-        
-      } catch (error: any) {
-        this.logger.error(`Veo operation poll error: ${error.message}`);
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
-      }
-    }
-    
-    this.logger.error('Veo operation timed out');
-    return null;
-  }
-
-  /**
-   * Generate voiceover audio - Veo generates videos with audio included
-   * This method returns mock data as placeholder
-   */
-  async generateVoiceover(
-    text: string,
-    voiceId?: string,
-  ): Promise<AudioTrackDto> {
-    this.logger.log('Generating voiceover (Veo generates video with audio - using placeholder)');
+  async generateVoiceover(text: string, voiceId?: string): Promise<AudioTrackDto> {
+    this.logger.log('Generating voiceover (placeholder for MVP)');
     return this.getMockAudioTrack(text);
   }
 
@@ -250,24 +153,18 @@ export class VeoService {
   }
 
   /**
-   * Generate full video with scenes and audio
+   * Generate full video - calls Veo for the complete ad
    */
-  async generateFullVideo(
-    scenes: SceneDto[],
-    audioTrack: AudioTrackDto,
-  ): Promise<{ video_url: string; thumbnail_url: string }> {
+  async generateFullVideo(scenes: SceneDto[], audioTrack: AudioTrackDto): Promise<{ video_url: string; thumbnail_url: string }> {
     this.logger.log('Generating full video composition with Veo');
 
-    if (this.useMock || !this.googleAuth) {
-      return {
-        video_url: `https://storage.googleapis.com/demo/video_${Date.now()}.mp4`,
-        thumbnail_url: `https://storage.googleapis.com/demo/thumb_${Date.now()}.jpg`,
-      };
+    if (this.useMock || !this.ai) {
+      return this.getMockResult();
     }
 
     try {
-      const combinedPrompt = scenes.map(s => s.visual_prompt).join('. ');
-      const videoUrl = await this.callVeoPredictLongRunning(`Generate a short video advertisement: ${combinedPrompt}`);
+      const combinedPrompt = scenes.map(s => s.visual_prompt).filter(Boolean).join('. ');
+      const videoUrl = await this.callVeoGenerateVideos(`Generate a short video advertisement: ${combinedPrompt}`);
       
       if (videoUrl) {
         return {
@@ -276,36 +173,19 @@ export class VeoService {
         };
       }
       
-      return {
-        video_url: `http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4`,
-        thumbnail_url: `https://images.unsplash.com/photo-1616469829581-73993eb86b02?w=400`,
-      };
+      return this.getMockResult();
     } catch (error: any) {
       this.logger.error('Failed to generate full video', error.message || error);
-      return {
-        video_url: `http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4`,
-        thumbnail_url: `https://images.unsplash.com/photo-1616469829581-73993eb86b02?w=400`,
-      };
+      return this.getMockResult();
     }
   }
 
-  /**
-   * Build video generation prompt
-   */
   private buildVideoPrompt(scene: SceneDto): string {
     const parts: string[] = [];
     
-    if (scene.visual_prompt) {
-      parts.push(scene.visual_prompt);
-    }
-    
-    if (scene.overlay_text) {
-      parts.push(`With overlay text: "${scene.overlay_text}"`);
-    }
-    
-    if (scene.camera_motion) {
-      parts.push(`Camera motion: ${scene.camera_motion}`);
-    }
+    if (scene.visual_prompt) parts.push(scene.visual_prompt);
+    if (scene.overlay_text) parts.push(`With overlay text: "${scene.overlay_text}"`);
+    if (scene.camera_motion) parts.push(`Camera motion: ${scene.camera_motion}`);
     
     parts.push('Format: 9:16 vertical video, high quality, social media ready');
     
@@ -321,20 +201,23 @@ export class VeoService {
         text: word,
         start: currentTime,
         end: currentTime + wordDuration,
-        words: [{
-          word,
-          start: currentTime,
-          end: currentTime + wordDuration,
-        }],
+        words: [{ word, start: currentTime, end: currentTime + wordDuration }],
       };
       currentTime += wordDuration;
       return segment;
     });
   }
 
-  private getMockVideoUrl(scene: SceneDto): { video_url: string } {
+  private getMockVideoUrl(): { video_url: string } {
     return {
       video_url: `http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4`,
+    };
+  }
+
+  private getMockResult(): { video_url: string; thumbnail_url: string } {
+    return {
+      video_url: `http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4`,
+      thumbnail_url: `https://images.unsplash.com/photo-1616469829581-73993eb86b02?w=400`,
     };
   }
 
