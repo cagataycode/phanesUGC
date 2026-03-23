@@ -100,8 +100,8 @@ export class PipelineService {
 
       const scenes = await this.llmService.planScenes(script, brief);
       
-      // Generate visuals for each scene
-      for (const scene of scenes) {
+      // Generate visuals for each scene concurrently to save massive amounts of time
+      await Promise.all(scenes.map(async (scene) => {
         if (scene.visual_type === 'generated') {
           // Use Imagen 4 for image generation
           const result = await this.imagenService.generateImage(scene);
@@ -111,7 +111,7 @@ export class PipelineService {
           const result = await this.veoService.generateVideo(scene);
           scene.asset_url = result.video_url;
         }
-      }
+      }));
 
       await this.adsService.markStageComplete(adId, 'assets', {
         scenes,
