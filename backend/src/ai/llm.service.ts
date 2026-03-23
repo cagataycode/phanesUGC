@@ -96,7 +96,10 @@ export class LlmService {
   /**
    * Plan scenes from the script
    */
-  async planScenes(script: ScriptDto, brief: CreativeBriefDto): Promise<SceneDto[]> {
+  async planScenes(
+    script: ScriptDto,
+    brief: CreativeBriefDto,
+  ): Promise<SceneDto[]> {
     this.logger.log('Planning scenes');
 
     if (!this.model) {
@@ -259,7 +262,10 @@ Return ONLY valid JSON array, no explanation.
     };
   }
 
-  private getMockScenes(script: ScriptDto, brief: CreativeBriefDto): SceneDto[] {
+  private getMockScenes(
+    script: ScriptDto,
+    brief: CreativeBriefDto,
+  ): SceneDto[] {
     return script.voiceover_lines.map((line, index) => ({
       scene_id: line.scene,
       duration_sec: 6,

@@ -11,7 +11,9 @@ export class StorageService {
 
   constructor(private configService: ConfigService) {
     const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
-    this.bucketName = this.configService.get<string>('GCS_BUCKET_NAME') || `${projectId}-assets`;
+    this.bucketName =
+      this.configService.get<string>('GCS_BUCKET_NAME') ||
+      `${projectId}-assets`;
 
     // Initialize Google Cloud Storage using Firebase Admin to inherit Service Account credentials
     this.bucket = getFirebaseAdminStorage().bucket(this.bucketName);
@@ -41,7 +43,9 @@ export class StorageService {
       try {
         await file.makePublic();
       } catch (aclError: any) {
-        this.logger.debug(`Could not set public ACL on file (bucket may use uniform access): ${aclError.message}`);
+        this.logger.debug(
+          `Could not set public ACL on file (bucket may use uniform access): ${aclError.message}`,
+        );
       }
 
       const publicUrl = `https://storage.googleapis.com/${this.bucketName}/${destinationPath}`;
@@ -89,12 +93,15 @@ export class StorageService {
   /**
    * Get a signed URL for private file access
    */
-  async getSignedUrl(path: string, expiresInSeconds: number = 3600): Promise<string> {
+  async getSignedUrl(
+    path: string,
+    expiresInSeconds: number = 3600,
+  ): Promise<string> {
     this.logger.log(`Generating signed URL for ${path}`);
 
     try {
       const file = this.bucket.file(path);
-      
+
       const [signedUrl] = await file.getSignedUrl({
         version: 'v4',
         action: 'read',
@@ -134,7 +141,11 @@ export class StorageService {
   /**
    * Generate a path for ad assets
    */
-  generateAdAssetPath(adId: string, assetType: string, filename: string): string {
+  generateAdAssetPath(
+    adId: string,
+    assetType: string,
+    filename: string,
+  ): string {
     return `ads/${adId}/${assetType}/${filename}`;
   }
 

@@ -20,11 +20,15 @@ export class VeoService {
 
   constructor(
     private configService: ConfigService,
-    private storageService: StorageService
+    private storageService: StorageService,
   ) {
-    this.projectId = this.configService.get<string>('GOOGLE_CLOUD_PROJECT') || 'phanesugc';
-    this.location = this.configService.get<string>('GOOGLE_CLOUD_LOCATION') || 'us-central1';
-    this.modelName = this.configService.get<string>('GOOGLE_CLOUD_VEO_MODEL') || 'veo-3.0-fast-generate-001';
+    this.projectId =
+      this.configService.get<string>('GOOGLE_CLOUD_PROJECT') || 'phanesugc';
+    this.location =
+      this.configService.get<string>('GOOGLE_CLOUD_LOCATION') || 'us-central1';
+    this.modelName =
+      this.configService.get<string>('GOOGLE_CLOUD_VEO_MODEL') ||
+      'veo-3.0-fast-generate-001';
 
     try {
       this.ai = new GoogleGenAI({
@@ -32,9 +36,13 @@ export class VeoService {
         project: this.projectId,
         location: this.location,
       });
-      this.logger.log(`Veo service initialized (project: ${this.projectId}, location: ${this.location})`);
+      this.logger.log(
+        `Veo service initialized (project: ${this.projectId}, location: ${this.location})`,
+      );
     } catch (error: any) {
-      this.logger.warn(`Failed to initialize GoogleGenAI: ${error.message} - using mock mode`);
+      this.logger.warn(
+        `Failed to initialize GoogleGenAI: ${error.message} - using mock mode`,
+      );
       this.useMock = true;
     }
   }
@@ -55,19 +63,26 @@ export class VeoService {
 
     try {
       const prompt = this.buildVideoPrompt(scene);
-      this.logger.log(`Calling Veo generateVideos with prompt: ${prompt.substring(0, 200)}...`);
-      
-      const videoUrl = await this.callVeoGenerateVideos(prompt, scene.scene_id?.toString());
-      
+      this.logger.log(
+        `Calling Veo generateVideos with prompt: ${prompt.substring(0, 200)}...`,
+      );
+
+      const videoUrl = await this.callVeoGenerateVideos(
+        prompt,
+        scene.scene_id?.toString(),
+      );
+
       if (videoUrl) {
         this.logger.log(`Veo returned video URL: ${videoUrl}`);
         return { video_url: videoUrl };
       }
-      
+
       return this.getMockVideoUrl();
-      
     } catch (error: any) {
-      this.logger.error('Failed to generate video with Veo', error.message || error);
+      this.logger.error(
+        'Failed to generate video with Veo',
+        error.message || error,
+      );
       return this.getMockVideoUrl();
     }
   }
@@ -75,10 +90,13 @@ export class VeoService {
   /**
    * Call Veo using @google/genai SDK - handles UUID operation polling correctly
    */
-  private async callVeoGenerateVideos(prompt: string, sceneIdSuffix: string = 'ad'): Promise<string | null> {
+  private async callVeoGenerateVideos(
+    prompt: string,
+    sceneIdSuffix: string = 'ad',
+  ): Promise<string | null> {
     try {
       this.logger.log('Starting Veo video generation operation...');
-      
+
       let operation = await this.ai!.models.generateVideos({
         model: this.modelName,
         prompt,
@@ -89,15 +107,19 @@ export class VeoService {
         },
       });
 
-      this.logger.log(`Operation started: ${operation.name}, done=${operation.done}`);
+      this.logger.log(
+        `Operation started: ${operation.name}, done=${operation.done}`,
+      );
 
       // Poll until complete (max 10 minutes at 10s intervals)
       const maxAttempts = 60;
       let attempt = 0;
       while (!operation.done && attempt < maxAttempts) {
         attempt++;
-        this.logger.log(`Polling Veo operation (attempt ${attempt}/${maxAttempts})...`);
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        this.logger.log(
+          `Polling Veo operation (attempt ${attempt}/${maxAttempts})...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 10000));
         operation = await this.ai!.operations.getVideosOperation({ operation });
         this.logger.log(`Operation status: done=${operation.done}`);
       }
@@ -108,13 +130,26 @@ export class VeoService {
       }
 
       if (operation.error) {
-        this.logger.error(`Veo operation failed: ${JSON.stringify(operation.error)}`);
+        this.logger.error(
+          `Veo operation failed: ${JSON.stringify(operation.error)}`,
+        );
         return null;
       }
 
-      const anyResponse = operation.response as any;
+      interface VeoOperationResponse {
+        generatedVideos?: Array<{
+          video?: { uri?: string; videoBytes?: string };
+          videoBytes?: string;
+        }>;
+        videoUri?: string;
+        videos?: Array<{ uri?: string }>;
+        predictions?: Array<{ videoUri?: string }>;
+        videoBytes?: string;
+      }
+
+      const anyResponse = operation.response as unknown as VeoOperationResponse;
       const videos = anyResponse?.generatedVideos;
-      
+
       if (videos && videos.length > 0) {
         const uri = videos[0]?.video?.uri;
         if (uri) {
@@ -123,33 +158,54 @@ export class VeoService {
         }
 
         // Veo SDK native fallback string buffer return if GCP output bucket wasn't defined
-        const videoBytes = videos[0]?.video?.videoBytes || videos[0]?.videoBytes || anyResponse?.videoBytes;
+        const videoBytes =
+          videos[0]?.video?.videoBytes ||
+          videos[0]?.videoBytes ||
+          anyResponse?.videoBytes;
         if (videoBytes) {
-           this.logger.log(`Veo returned raw videoBytes (base64). Uploading buffer to Storage bucket natively...`);
-           const buffer = Buffer.from(videoBytes, 'base64');
-           const filename = `veo_video_${sceneIdSuffix}_${Date.now()}.mp4`;
-           const uploadPath = `generated_assets/videos/${filename}`;
-           
-           try {
-             await this.storageService.uploadFile(buffer, uploadPath, 'video/mp4');
-             const signedUrl = await this.storageService.getSignedUrl(uploadPath, 604800); // 7 day access
-             this.logger.log(`Successfully uploaded Veo Base64 video to storage: ${uploadPath}`);
-             return signedUrl;
-           } catch (uploadError: any) {
-             this.logger.error(`Failed to natively upload Veo video bytes to GCS: ${uploadError.message}`);
-             return null;
-           }
+          this.logger.log(
+            `Veo returned raw videoBytes (base64). Uploading buffer to Storage bucket natively...`,
+          );
+          const buffer = Buffer.from(videoBytes, 'base64');
+          const filename = `veo_video_${sceneIdSuffix}_${Date.now()}.mp4`;
+          const uploadPath = `generated_assets/videos/${filename}`;
+
+          try {
+            await this.storageService.uploadFile(
+              buffer,
+              uploadPath,
+              'video/mp4',
+            );
+            const signedUrl = await this.storageService.getSignedUrl(
+              uploadPath,
+              604800,
+            ); // 7 day access
+            this.logger.log(
+              `Successfully uploaded Veo Base64 video to storage: ${uploadPath}`,
+            );
+            return signedUrl;
+          } catch (uploadError) {
+            const err = uploadError as Error;
+            this.logger.error(
+              `Failed to natively upload Veo video bytes to GCS: ${err.message}`,
+            );
+            return null;
+          }
         }
       }
 
       if (anyResponse?.videoUri) return anyResponse.videoUri;
       if (anyResponse?.videos?.[0]?.uri) return anyResponse.videos[0].uri;
-      if (anyResponse?.predictions?.[0]?.videoUri) return anyResponse.predictions[0].videoUri;
+      if (anyResponse?.predictions?.[0]?.videoUri)
+        return anyResponse.predictions[0].videoUri;
 
-      this.logger.warn(`Veo operation completed but couldn't locate video bytes or URI in response: ${JSON.stringify(operation).substring(0, 500)}`);
+      this.logger.warn(
+        `Veo operation completed but couldn't locate video bytes or URI in response: ${JSON.stringify(operation).substring(0, 500)}`,
+      );
       return null;
-    } catch (error: any) {
-      this.logger.error(`Veo generateVideos call failed: ${error.message}`);
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(`Veo generateVideos call failed: ${err.message}`);
       return null;
     }
   }
@@ -157,7 +213,10 @@ export class VeoService {
   /**
    * Generate voiceover audio - placeholder for MVP
    */
-  async generateVoiceover(text: string, voiceId?: string): Promise<AudioTrackDto> {
+  async generateVoiceover(
+    text: string,
+    voiceId?: string,
+  ): Promise<AudioTrackDto> {
     this.logger.log('Generating voiceover (placeholder for MVP)');
     return this.getMockAudioTrack(text);
   }
@@ -165,7 +224,9 @@ export class VeoService {
   /**
    * Generate subtitles from audio track
    */
-  async generateSubtitles(audioTrack: AudioTrackDto): Promise<{ subtitles: { start: number; end: number; text: string }[] }> {
+  async generateSubtitles(
+    audioTrack: AudioTrackDto,
+  ): Promise<{ subtitles: { start: number; end: number; text: string }[] }> {
     this.logger.log('Generating subtitles');
 
     if (!audioTrack.segments || audioTrack.segments.length === 0) {
@@ -184,7 +245,10 @@ export class VeoService {
   /**
    * Generate full video - calls Veo for the complete ad
    */
-  async generateFullVideo(scenes: SceneDto[], audioTrack: AudioTrackDto): Promise<{ video_url: string; thumbnail_url: string }> {
+  async generateFullVideo(
+    scenes: SceneDto[],
+    audioTrack: AudioTrackDto,
+  ): Promise<{ video_url: string; thumbnail_url: string }> {
     this.logger.log('Generating full video composition with Veo');
 
     if (this.useMock || !this.ai) {
@@ -192,32 +256,42 @@ export class VeoService {
     }
 
     try {
-      const combinedPrompt = scenes.map(s => s.visual_prompt).filter(Boolean).join('. ');
-      const videoUrl = await this.callVeoGenerateVideos(`Generate a short video advertisement: ${combinedPrompt}`);
-      
+      const combinedPrompt = scenes
+        .map((s) => s.visual_prompt)
+        .filter(Boolean)
+        .join('. ');
+      const videoUrl = await this.callVeoGenerateVideos(
+        `Generate a short video advertisement: ${combinedPrompt}`,
+      );
+
       if (videoUrl) {
         return {
           video_url: videoUrl,
           thumbnail_url: videoUrl.replace('.mp4', '_thumb.jpg'),
         };
       }
-      
+
       return this.getMockResult();
     } catch (error: any) {
-      this.logger.error('Failed to generate full video', error.message || error);
+      this.logger.error(
+        'Failed to generate full video',
+        error.message || error,
+      );
       return this.getMockResult();
     }
   }
 
   private buildVideoPrompt(scene: SceneDto): string {
     const parts: string[] = [];
-    
+
     if (scene.visual_prompt) parts.push(scene.visual_prompt);
-    if (scene.overlay_text) parts.push(`With overlay text: "${scene.overlay_text}"`);
-    if (scene.camera_motion) parts.push(`Camera motion: ${scene.camera_motion}`);
-    
+    if (scene.overlay_text)
+      parts.push(`With overlay text: "${scene.overlay_text}"`);
+    if (scene.camera_motion)
+      parts.push(`Camera motion: ${scene.camera_motion}`);
+
     parts.push('Format: 9:16 vertical video, high quality, social media ready');
-    
+
     return parts.join('. ');
   }
 
@@ -258,7 +332,9 @@ export class VeoService {
     };
   }
 
-  private getMockSubtitles(): { subtitles: { start: number; end: number; text: string }[] } {
+  private getMockSubtitles(): {
+    subtitles: { start: number; end: number; text: string }[];
+  } {
     return {
       subtitles: [
         { start: 0, end: 2, text: 'Welcome to your new ad' },

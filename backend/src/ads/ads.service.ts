@@ -4,7 +4,10 @@ import {
   Firestore as AdminFirestore,
   CollectionReference,
 } from 'firebase-admin/firestore';
-import { getFirebaseAdminDb, isFirebaseInitialized } from '../config/firebase.config';
+import {
+  getFirebaseAdminDb,
+  isFirebaseInitialized,
+} from '../config/firebase.config';
 import {
   CreateAdDto,
   Platform,
@@ -73,7 +76,7 @@ export class AdsService {
 
   constructor(private configService: ConfigService) {
     this.useMock = !isFirebaseInitialized();
-    
+
     if (this.useMock) {
       this.logger.warn('Running in mock mode - using in-memory storage');
       this.adsCollection = null;
@@ -193,20 +196,27 @@ export class AdsService {
       // In mock mode, return mock result even if not completed
       if (data) {
         return {
-          video_url: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-          thumbnail_url: 'https://images.unsplash.com/photo-1616469829581-73993eb86b02?w=400',
+          video_url:
+            'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+          thumbnail_url:
+            'https://images.unsplash.com/photo-1616469829581-73993eb86b02?w=400',
           script: {
             title: 'Test Ad',
             hook: 'Check out this amazing product!',
             voiceover_lines: [{ scene: 1, text: 'Hello world' }],
-            cta: 'Learn more'
+            cta: 'Learn more',
           },
           subtitles: [
             { start: 0, end: 2, text: 'Check out this' },
-            { start: 2, end: 4, text: 'amazing product!' }
+            { start: 2, end: 4, text: 'amazing product!' },
           ],
           transcript: [
-            { text: 'Hello', start: 0, end: 1, words: [{ word: 'Hello', start: 0, end: 1 }] }
+            {
+              text: 'Hello',
+              start: 0,
+              end: 1,
+              words: [{ word: 'Hello', start: 0, end: 1 }],
+            },
           ],
           metadata: {
             platform: data.platform,
@@ -233,7 +243,12 @@ export class AdsService {
     return {
       video_url: data.video_url || '',
       thumbnail_url: data.thumbnail_url || '',
-      script: data.script || { title: '', hook: '', voiceover_lines: [], cta: '' },
+      script: data.script || {
+        title: '',
+        hook: '',
+        voiceover_lines: [],
+        cta: '',
+      },
       subtitles: data.subtitles || [],
       transcript: data.audio_track?.segments || [],
       metadata: {
@@ -384,10 +399,7 @@ export class AdsService {
   /**
    * Verify user owns the ad
    */
-  async verifyAdOwnership(
-    adId: string,
-    userId: string,
-  ): Promise<boolean> {
+  async verifyAdOwnership(adId: string, userId: string): Promise<boolean> {
     let data: AdDocument | undefined;
 
     if (this.useMock) {

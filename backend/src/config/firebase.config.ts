@@ -1,5 +1,12 @@
-import { cert, initializeApp as initAdminApp, App as AdminApp } from 'firebase-admin/app';
-import { getFirestore as getFirestoreAdmin, Firestore as AdminFirestore } from 'firebase-admin/firestore';
+import {
+  cert,
+  initializeApp as initAdminApp,
+  App as AdminApp,
+} from 'firebase-admin/app';
+import {
+  getFirestore as getFirestoreAdmin,
+  Firestore as AdminFirestore,
+} from 'firebase-admin/firestore';
 
 export interface FirebaseConfig {
   projectId: string;
@@ -14,7 +21,9 @@ let isInitialized = false;
 
 export function initializeFirebase(config: FirebaseConfig): void {
   if (!config.projectId || !config.privateKey || !config.clientEmail) {
-    console.warn('Firebase credentials not fully configured - running in mock mode');
+    console.warn(
+      'Firebase credentials not fully configured - running in mock mode',
+    );
     isInitialized = false;
     return;
   }
@@ -42,6 +51,8 @@ export function isFirebaseInitialized(): boolean {
   return isInitialized;
 }
 
+import { getStorage, Storage } from 'firebase-admin/storage';
+
 export function getFirebaseAdminDb(): AdminFirestore {
   if (!adminDb) {
     throw new Error('Firebase not initialized. Call initializeFirebase first.');
@@ -49,11 +60,9 @@ export function getFirebaseAdminDb(): AdminFirestore {
   return adminDb;
 }
 
-export function getFirebaseAdminStorage() {
+export function getFirebaseAdminStorage(): Storage {
   if (!adminApp) {
     throw new Error('Firebase not initialized. Call initializeFirebase first.');
   }
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { getStorage } = require('firebase-admin/storage');
   return getStorage(adminApp);
 }

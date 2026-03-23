@@ -8,13 +8,8 @@ import { StorageService } from '../storage/storage.service';
 import {
   AdStatus,
   StageStatus,
-  CreativeBriefDto,
-  ScriptDto,
-  SceneDto,
-  AudioTrackDto,
-  SubtitleSegment,
 } from '../ads/dto/ad-response.dto';
-import { CreateAdDto } from '../ads/dto/create-ad.dto';
+import { CreateAdDto, Platform, AspectRatio, Language, Tone } from '../ads/dto/create-ad.dto';
 
 /**
  * Pipeline Worker Service
@@ -63,12 +58,9 @@ export class PipelineService {
 
       // Stage 1: Creative Brief Generation
       this.logger.log('Stage 1: Generating creative brief');
-      await this.adsService.updateAdProgress(
-        adId,
-        AdStatus.PROCESSING,
-        20,
-        { brief: StageStatus.RUNNING },
-      );
+      await this.adsService.updateAdProgress(adId, AdStatus.PROCESSING, 20, {
+        brief: StageStatus.RUNNING,
+      });
 
       const brief = await this.llmService.generateCreativeBrief(dto);
       await this.adsService.markStageComplete(adId, 'brief', {
@@ -77,12 +69,9 @@ export class PipelineService {
 
       // Stage 2: Script Generation
       this.logger.log('Stage 2: Generating script');
-      await this.adsService.updateAdProgress(
-        adId,
-        AdStatus.PROCESSING,
-        40,
-        { script: StageStatus.RUNNING },
-      );
+      await this.adsService.updateAdProgress(adId, AdStatus.PROCESSING, 40, {
+        script: StageStatus.RUNNING,
+      });
 
       const script = await this.llmService.generateScript(brief);
       await this.adsService.markStageComplete(adId, 'script', {
@@ -91,27 +80,26 @@ export class PipelineService {
 
       // Stage 3: Scene Planning
       this.logger.log('Stage 3: Planning scenes');
-      await this.adsService.updateAdProgress(
-        adId,
-        AdStatus.PROCESSING,
-        50,
-        { assets: StageStatus.RUNNING },
-      );
+      await this.adsService.updateAdProgress(adId, AdStatus.PROCESSING, 50, {
+        assets: StageStatus.RUNNING,
+      });
 
       const scenes = await this.llmService.planScenes(script, brief);
-      
+
       // Generate visuals for each scene concurrently to save massive amounts of time
-      await Promise.all(scenes.map(async (scene) => {
-        if (scene.visual_type === 'generated') {
-          // Use Imagen 4 for image generation
-          const result = await this.imagenService.generateImage(scene);
-          scene.asset_url = result.image_url;
-        } else if (scene.visual_type === 'stock_video') {
-          // Use Veo 3 for video generation
-          const result = await this.veoService.generateVideo(scene);
-          scene.asset_url = result.video_url;
-        }
-      }));
+      await Promise.all(
+        scenes.map(async (scene) => {
+          if (scene.visual_type === 'generated') {
+            // Use Imagen 4 for image generation
+            const result = await this.imagenService.generateImage(scene);
+            scene.asset_url = result.image_url;
+          } else if (scene.visual_type === 'stock_video') {
+            // Use Veo 3 for video generation
+            const result = await this.veoService.generateVideo(scene);
+            scene.asset_url = result.video_url;
+          }
+        }),
+      );
 
       await this.adsService.markStageComplete(adId, 'assets', {
         scenes,
@@ -119,12 +107,9 @@ export class PipelineService {
 
       // Stage 4: Voiceover Generation
       this.logger.log('Stage 4: Generating voiceover');
-      await this.adsService.updateAdProgress(
-        adId,
-        AdStatus.PROCESSING,
-        70,
-        { voice: StageStatus.RUNNING },
-      );
+      await this.adsService.updateAdProgress(adId, AdStatus.PROCESSING, 70, {
+        voice: StageStatus.RUNNING,
+      });
 
       // Combine all voiceover lines
       const fullScript = script.voiceover_lines.map((l) => l.text).join(' ');
@@ -139,26 +124,21 @@ export class PipelineService {
 
       // Stage 5: Subtitle Generation
       this.logger.log('Stage 5: Generating subtitles');
-      await this.adsService.updateAdProgress(
-        adId,
-        AdStatus.PROCESSING,
-        80,
-        { subtitles: StageStatus.RUNNING },
-      );
+      await this.adsService.updateAdProgress(adId, AdStatus.PROCESSING, 80, {
+        subtitles: StageStatus.RUNNING,
+      });
 
-      const subtitleResult = await this.veoService.generateSubtitles(audioTrack);
+      const subtitleResult =
+        await this.veoService.generateSubtitles(audioTrack);
       await this.adsService.markStageComplete(adId, 'subtitles', {
         subtitles: subtitleResult.subtitles,
       });
 
       // Stage 6: Video Rendering
       this.logger.log('Stage 6: Rendering final video');
-      await this.adsService.updateAdProgress(
-        adId,
-        AdStatus.RENDERING,
-        90,
-        { render: StageStatus.RUNNING },
-      );
+      await this.adsService.updateAdProgress(adId, AdStatus.RENDERING, 90, {
+        render: StageStatus.RUNNING,
+      });
 
       // Generate final video with all assets
       const renderResult = await this.veoService.generateFullVideo(
@@ -172,12 +152,9 @@ export class PipelineService {
       });
 
       // Mark entire job as completed
-      await this.adsService.updateAdProgress(
-        adId,
-        AdStatus.COMPLETED,
-        100,
-        { render: StageStatus.DONE },
-      );
+      await this.adsService.updateAdProgress(adId, AdStatus.COMPLETED, 100, {
+        render: StageStatus.DONE,
+      });
 
       this.logger.log(`Pipeline completed for ad: ${adId}`);
     } catch (error) {
@@ -211,9 +188,6 @@ export class PipelineService {
     } catch (error) {
       this.logger.error(`Scene regeneration failed for ad: ${adId}`, error);
       throw error;
-    }
-  }
-
   /**
    * Mock DTO for development
    * In production, this would be fetched from Firestore
@@ -221,11 +195,11 @@ export class PipelineService {
   private getMockDto(): CreateAdDto {
     return {
       prompt: 'Create a 30 second TikTok ad',
-      platform: 'tiktok' as any,
-      aspect_ratio: '9:16' as any,
+      platform: Platform.TIKTOK,
+      aspect_ratio: AspectRatio.RATIO_9_16,
       duration_sec: 30,
-      language: 'en' as any,
-      tone: 'direct' as any,
+      language: Language.EN,
+      tone: Tone.DIRECT,
       cta: 'Learn more',
     };
   }

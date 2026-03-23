@@ -6,12 +6,7 @@ import { AiModule } from '../ai/ai.module';
 import { StorageModule } from '../storage/storage.module';
 
 @Module({
-  imports: [
-    ConfigModule, 
-    forwardRef(() => AdsModule), 
-    AiModule, 
-    StorageModule
-  ],
+  imports: [ConfigModule, forwardRef(() => AdsModule), AiModule, StorageModule],
   providers: [PipelineService],
   exports: [PipelineService],
 })

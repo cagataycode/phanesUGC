@@ -38,7 +38,7 @@ export class AdsController {
   ): Promise<CreateAdResponseDto> {
     // Extract user ID from Firebase Auth token
     let userId = 'anonymous';
-    
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       if (token && token !== 'demo') {
@@ -50,10 +50,10 @@ export class AdsController {
 
     try {
       const result = await this.adsService.createAd(createAdDto);
-      
+
       // Trigger pipeline processing in background
       // For MVP, we run it asynchronously
-      this.pipelineService.processAdJob(result.id).catch(err => {
+      this.pipelineService.processAdJob(result.id).catch((err) => {
         this.logger.error(`Pipeline failed for ad ${result.id}`, err);
       });
 
@@ -109,7 +109,10 @@ export class AdsController {
     @Param('id') id: string,
     @Param('sceneId') sceneId: string,
   ): Promise<{ success: boolean }> {
-    const result = await this.adsService.regenerateScene(id, parseInt(sceneId, 10));
+    const result = await this.adsService.regenerateScene(
+      id,
+      parseInt(sceneId, 10),
+    );
 
     if (!result.success) {
       throw new HttpException('Ad not found', HttpStatus.NOT_FOUND);

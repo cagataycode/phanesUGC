@@ -6,6 +6,16 @@ import {
 } from '@nestjs/common';
 import { getAuth } from 'firebase-admin/auth';
 
+import { Request } from 'express';
+
+interface RequestWithUser extends Request {
+  user?: {
+    uid: string;
+    email?: string;
+    email_verified?: boolean;
+  };
+}
+
 /**
  * Firebase Auth Guard
  * Protects routes by validating Firebase JWT tokens
@@ -13,7 +23,7 @@ import { getAuth } from 'firebase-admin/auth';
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
     const authHeader = request.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -25,7 +35,7 @@ export class FirebaseAuthGuard implements CanActivate {
     try {
       // Verify the Firebase token
       const decodedToken = await getAuth().verifyIdToken(token);
-      
+
       // Attach user info to request
       request.user = {
         uid: decodedToken.uid,
@@ -34,7 +44,7 @@ export class FirebaseAuthGuard implements CanActivate {
       };
 
       return true;
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('Invalid token');
     }
   }

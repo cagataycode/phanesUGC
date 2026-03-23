@@ -21,7 +21,8 @@ import { AppService } from './app.service';
     PipelineModule,
   ],
   controllers: [AppController],
-  providers: [AppService,
+  providers: [
+    AppService,
     {
       provide: APP_INTERCEPTOR,
       useValue: [],
@@ -43,16 +44,20 @@ export class AppModule {
       const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
       const config = {
         projectId: projectId || '',
-        privateKey: this.configService.get<string>('FIREBASE_PRIVATE_KEY') || '',
-        clientEmail: this.configService.get<string>('FIREBASE_CLIENT_EMAIL') || '',
+        privateKey:
+          this.configService.get<string>('FIREBASE_PRIVATE_KEY') || '',
+        clientEmail:
+          this.configService.get<string>('FIREBASE_CLIENT_EMAIL') || '',
         storageBucket: this.configService.get<string>('GCS_BUCKET_NAME') || '',
-};
+      };
 
       if (config.projectId && config.privateKey && config.clientEmail) {
         initializeFirebase(config);
         console.log('Firebase initialized successfully');
       } else {
-        console.warn('Firebase credentials not configured - running in mock mode');
+        console.warn(
+          'Firebase credentials not configured - running in mock mode',
+        );
       }
     } catch (error) {
       console.error('Failed to initialize Firebase:', error);

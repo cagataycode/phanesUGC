@@ -22,7 +22,9 @@ export class ImagenService {
     } else {
       this.genAI = new GoogleGenerativeAI(apiKey);
       // Imagen 4 is accessed via the gemini-2.0-flash-exp model with image generation
-      this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+      this.model = this.genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash-exp',
+      });
     }
   }
 
@@ -70,16 +72,22 @@ export class ImagenService {
     this.logger.log(`Generating ${count} image variations`);
 
     if (!this.model) {
-      const urls = Array(count).fill(null).map((_, i) => 
-        `https://storage.googleapis.com/demo/image_${Date.now()}_${i}.jpg`
-      );
+      const urls = Array(count)
+        .fill(null)
+        .map(
+          (_, i) =>
+            `https://storage.googleapis.com/demo/image_${Date.now()}_${i}.jpg`,
+        );
       return { image_urls: urls };
     }
 
     // TODO: Implement actual variations API
-    const urls = Array(count).fill(null).map((_, i) => 
-      `https://storage.googleapis.com/demo/image_${Date.now()}_${i}.jpg`
-    );
+    const urls = Array(count)
+      .fill(null)
+      .map(
+        (_, i) =>
+          `https://storage.googleapis.com/demo/image_${Date.now()}_${i}.jpg`,
+      );
     return { image_urls: urls };
   }
 
