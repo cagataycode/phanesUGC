@@ -148,10 +148,8 @@ export class VeoService {
       this.logger.log(`Polling Veo operation: ${operationName} (attempt ${i + 1}/${maxAttempts})`);
       
       try {
-        // Extract operation ID from the full operation name and construct correct endpoint
-        // Operation name format: projects/{project}/locations/{location}/publishers/google/models/{model}/operations/{operation-id}
-        const operationId = operationName.split('/').pop();
-        const operationEndpoint = `https://${this.location}-aiplatform.googleapis.com/v1/projects/${this.projectId}/locations/${this.location}/operations/${operationId}`;
+        // The operationName is already a full path like projects/.../locations/.../operations/...
+        const operationEndpoint = `https://${this.location}-aiplatform.googleapis.com/v1/${operationName}`;
         
         const response = await fetch(operationEndpoint, {
           method: 'GET',

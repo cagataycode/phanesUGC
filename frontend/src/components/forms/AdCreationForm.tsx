@@ -107,18 +107,23 @@ export function AdCreationForm() {
       
       const job = await createAdJob(payload)
       
-      // Simulate polling interval for MVP Mock Experience
-      let cumulativeProgress = 0;
       const pollInterval = window.setInterval(async () => {
-        const status = await getAdJobStatus(job.id)
-        cumulativeProgress += status.progress
-        setGenerationProgress(Math.min(cumulativeProgress, 99))
-        
-        if (cumulativeProgress >= 100) {
-          window.clearInterval(pollInterval)
-          const result = await getAdJobResult(job.id)
-          setVideoResult(result.video_url)
-          setIsGenerating(false)
+        try {
+          const status = await getAdJobStatus(job.id)
+          setGenerationProgress(status.progress || 0)
+          
+          if (status.status === 'completed' || status.progress >= 100) {
+            window.clearInterval(pollInterval)
+            const result = await getAdJobResult(job.id)
+            setVideoResult(result.video_url)
+            setIsGenerating(false)
+          } else if (status.status === 'failed') {
+            window.clearInterval(pollInterval)
+            setIsGenerating(false)
+            alert("Backend generation failed: " + status.error_message)
+          }
+        } catch (err) {
+          console.error("Polling error", err)
         }
       }, 1500)
       

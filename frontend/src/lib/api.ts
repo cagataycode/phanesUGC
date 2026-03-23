@@ -26,9 +26,10 @@ export interface AdJobResponse {
 
 export interface AdJobStatusResponse {
   id: string;
-  status: "queued" | "rendering" | "done" | "failed";
+  status: "queued" | "processing" | "completed" | "failed";
   progress: number;
   stages: Record<string, string>;
+  error_message?: string;
 }
 
 export interface AdJobResultResponse {
@@ -80,7 +81,7 @@ export async function getAdJobStatus(id: string): Promise<AdJobStatusResponse> {
         const chunk = Math.floor(Math.random() * 30) + 10;
         resolve({
           id,
-          status: "rendering",
+          status: "processing",
           progress: chunk,
           stages: {
             scrape: "done",
