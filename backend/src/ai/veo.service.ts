@@ -30,11 +30,39 @@ export class VeoService {
       this.configService.get<string>('GOOGLE_CLOUD_VEO_MODEL') ||
       'veo-3.0-fast-generate-001';
 
+    this.initializeClient();
+  }
+
+  /**
+   * Initialize or reinitialize the GoogleGenAI client
+   * Useful when auth tokens expire and need refresh
+   */
+  private initializeClient(): void {
     try {
+      const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
+      const clientEmail =
+        this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
+
+      const authOptions: any = {};
+      if (privateKey && clientEmail) {
+        authOptions.googleAuthOptions = {
+          credentials: {
+            client_email: clientEmail,
+            private_key: privateKey.replace(/\\n/g, '\n'),
+          },
+        };
+        this.logger.log('Veo service using Service Account for authentication');
+      } else {
+        this.logger.warn(
+          'Veo service using Application Default Credentials (may require gcloud auth application-default login)',
+        );
+      }
+
       this.ai = new GoogleGenAI({
         vertexai: true,
         project: this.projectId,
         location: this.location,
+        ...authOptions,
       });
       this.logger.log(
         `Veo service initialized (project: ${this.projectId}, location: ${this.location})`,
@@ -45,6 +73,31 @@ export class VeoService {
       );
       this.useMock = true;
     }
+  }
+
+  /**
+   * Check if the error is an authentication error that might be recoverable
+   */
+  private isAuthError(error: any): boolean {
+    const errorStr = JSON.stringify(error).toLowerCase();
+    return (
+      errorStr.includes('invalid_grant') ||
+      errorStr.includes('invalid_rapt') ||
+      errorStr.includes('reauth') ||
+      (errorStr.includes('token') && errorStr.includes('expired'))
+    );
+  }
+
+  /**
+   * Check if error is a permission/IAM error
+   */
+  private isPermissionError(error: any): boolean {
+    const errorStr = JSON.stringify(error).toLowerCase();
+    return (
+      errorStr.includes('permission_denied') ||
+      errorStr.includes('iam_permission_denied') ||
+      errorStr.includes('access_denied')
+    );
   }
 
   /**
@@ -79,10 +132,22 @@ export class VeoService {
 
       return this.getMockVideoUrl();
     } catch (error: any) {
+      const errorMessage = error.message || String(error);
       this.logger.error(
-        'Failed to generate video with Veo',
-        error.message || error,
+        `Failed to generate video with Veo: ${errorMessage}`,
       );
+
+      // Check if this is an auth error that might be recoverable
+      if (this.isAuthError(error)) {
+        this.logger.error(
+          'Authentication error detected (invalid_rapt). This usually means the Google OAuth token has expired. ' +
+          'Please refresh the service account credentials or run: gcloud auth application-default login'
+        );
+        // Try to reinitialize the client for next request
+        this.ai = null;
+        this.useMock = true;
+      }
+
       return this.getMockVideoUrl();
     }
   }
@@ -97,7 +162,7 @@ export class VeoService {
     try {
       this.logger.log('Starting Veo video generation operation...');
 
-      let operation = await this.ai!.models.generateVideos({
+      let operation: any = await this.ai!.models.generateVideos({
         model: this.modelName,
         prompt,
         config: {
@@ -111,28 +176,52 @@ export class VeoService {
         `Operation started: ${operation.name}, done=${operation.done}`,
       );
 
-      // Poll until complete (max 10 minutes at 10s intervals)
-      const maxAttempts = 60;
-      let attempt = 0;
-      while (!operation.done && attempt < maxAttempts) {
-        attempt++;
-        this.logger.log(
-          `Polling Veo operation (attempt ${attempt}/${maxAttempts})...`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, 10000));
-        operation = await this.ai!.operations.getVideosOperation({ operation });
-        this.logger.log(`Operation status: done=${operation.done}`);
-      }
+      // Check if operation already completed (SDK may return directly for some models)
+      const hasResult = operation.response?.generatedVideos || operation.result?.generatedVideos;
+      if (operation.done === true || hasResult) {
+        this.logger.log('Operation completed synchronously or has results');
+        // Fall through to result extraction
+      } else {
+        // Poll until complete (max 10 minutes at 10s intervals)
+        const maxAttempts = 60;
+        let attempt = 0;
+        while ((operation.done !== true) && attempt < maxAttempts) {
+          attempt++;
+          this.logger.log(
+            `Polling Veo operation (attempt ${attempt}/${maxAttempts})...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 10000));
+          operation = await this.ai!.operations.getVideosOperation({ operation });
+          this.logger.log(`Operation status: done=${operation.done}`);
 
-      if (!operation.done) {
-        this.logger.error('Veo operation timed out after 10 minutes');
-        return null;
+          // Also check if we got results even if done is not explicitly true
+          const pollResult = operation.response?.generatedVideos || operation.result?.generatedVideos;
+          if (pollResult && pollResult.length > 0) {
+            this.logger.log('Got video results, breaking poll loop');
+            break;
+          }
+        }
+
+        if (operation.done !== true && !operation.response?.generatedVideos && !operation.result?.generatedVideos) {
+          this.logger.error('Veo operation timed out after 10 minutes');
+          return null;
+        }
       }
 
       if (operation.error) {
         this.logger.error(
           `Veo operation failed: ${JSON.stringify(operation.error)}`,
         );
+
+        // Check for permission errors in the operation error
+        if (this.isPermissionError(operation.error)) {
+          this.logger.error(
+            'IAM Permission error detected in operation. The service account needs ' +
+            '"Vertex AI User" or "AI Platform Admin" role in Google Cloud IAM.'
+          );
+          this.useMock = true;
+        }
+
         return null;
       }
 
@@ -205,7 +294,28 @@ export class VeoService {
       return null;
     } catch (error) {
       const err = error as Error;
-      this.logger.error(`Veo generateVideos call failed: ${err.message}`);
+      const errorMessage = err.message || String(err);
+      this.logger.error(`Veo generateVideos call failed: ${errorMessage}`);
+
+      // Check if this is an auth error (invalid_rapt)
+      if (this.isAuthError(err)) {
+        this.logger.error(
+          'Google OAuth authentication error detected (invalid_rapt). ' +
+          'The service account token needs to be refreshed. ' +
+          'This may require: 1) Regenerating service account keys in Google Cloud Console, ' +
+          'or 2) Running gcloud auth application-default login for local development.'
+        );
+      }
+
+      // Check if this is a permission error
+      if (this.isPermissionError(err)) {
+        this.logger.error(
+          'IAM Permission error detected. The service account needs ' +
+          '"Vertex AI User" or "AI Platform Admin" role in Google Cloud IAM to use Veo.'
+        );
+        this.useMock = true;
+      }
+
       return null;
     }
   }
@@ -219,6 +329,24 @@ export class VeoService {
   ): Promise<AudioTrackDto> {
     this.logger.log('Generating voiceover (placeholder for MVP)');
     return this.getMockAudioTrack(text);
+  }
+
+  /**
+   * Manually reinitialize the GoogleGenAI client
+   * Call this when the auth token has been refreshed
+   */
+  async refreshCredentials(): Promise<{ success: boolean; message: string }> {
+    this.logger.log('Manually refreshing Veo service credentials...');
+    this.useMock = false;
+    this.ai = null;
+    this.initializeClient();
+
+    if (this.ai) {
+      return { success: true, message: 'Veo service credentials refreshed successfully' };
+    } else {
+      this.useMock = true;
+      return { success: false, message: 'Failed to refresh Veo service credentials - check FIREBASE_PRIVATE_KEY and FIREBASE_CLIENT_EMAIL environment variables' };
+    }
   }
 
   /**
@@ -273,10 +401,29 @@ export class VeoService {
 
       return this.getMockResult();
     } catch (error: any) {
+      const errorMessage = error.message || String(error);
       this.logger.error(
-        'Failed to generate full video',
-        error.message || error,
+        `Failed to generate full video: ${errorMessage}`,
       );
+
+      // Check if this is an auth error
+      if (this.isAuthError(error)) {
+        this.logger.error(
+          'Authentication error detected in generateFullVideo. The Google OAuth token needs to be refreshed.'
+        );
+        this.ai = null;
+        this.useMock = true;
+      }
+
+      // Check if this is a permission error
+      if (this.isPermissionError(error)) {
+        this.logger.error(
+          'IAM Permission error detected in generateFullVideo. The service account needs ' +
+          '"Vertex AI User" or "AI Platform Admin" role in Google Cloud IAM to use Veo.'
+        );
+        this.useMock = true;
+      }
+
       return this.getMockResult();
     }
   }
