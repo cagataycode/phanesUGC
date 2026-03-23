@@ -5,7 +5,8 @@ import { useTheme } from "next-themes"
 
 import { Button } from "@/components/ui/button"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Sun01Icon, Moon01Icon } from "@hugeicons/core-free-icons"
+import Sun01Icon from "@hugeicons/core-free-icons/Sun01Icon"
+import Moon01Icon from "@hugeicons/core-free-icons/Moon01Icon"
 
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme()

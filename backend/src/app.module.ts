@@ -6,6 +6,8 @@ import { AiModule } from './ai/ai.module';
 import { StorageModule } from './storage/storage.module';
 import { PipelineModule } from './pipeline/pipeline.module';
 import { initializeFirebase } from './config/firebase.config';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 
 @Module({
   imports: [
@@ -18,7 +20,8 @@ import { initializeFirebase } from './config/firebase.config';
     StorageModule,
     PipelineModule,
   ],
-  providers: [
+  controllers: [AppController],
+  providers: [AppService,
     {
       provide: APP_INTERCEPTOR,
       useValue: [],
