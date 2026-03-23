@@ -48,3 +48,12 @@ export function getFirebaseAdminDb(): AdminFirestore {
   }
   return adminDb;
 }
+
+export function getFirebaseAdminStorage() {
+  if (!adminApp) {
+    throw new Error('Firebase not initialized. Call initializeFirebase first.');
+  }
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { getStorage } = require('firebase-admin/storage');
+  return getStorage(adminApp);
+}

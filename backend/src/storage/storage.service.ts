@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Storage, Bucket } from '@google-cloud/storage';
+import { getFirebaseAdminStorage } from '../config/firebase.config';
+import { Bucket } from '@google-cloud/storage';
 
 @Injectable()
 export class StorageService {
   private readonly logger = new Logger(StorageService.name);
-  private readonly storage: Storage;
   private readonly bucket: Bucket;
   private readonly bucketName: string;
 
@@ -13,13 +13,8 @@ export class StorageService {
     const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
     this.bucketName = this.configService.get<string>('GCS_BUCKET_NAME') || `${projectId}-assets`;
 
-    // Initialize Google Cloud Storage
-    // In production, this would use service account credentials
-    this.storage = new Storage({
-      projectId,
-    });
-
-    this.bucket = this.storage.bucket(this.bucketName);
+    // Initialize Google Cloud Storage using Firebase Admin to inherit Service Account credentials
+    this.bucket = getFirebaseAdminStorage().bucket(this.bucketName);
   }
 
   /**
@@ -42,8 +37,12 @@ export class StorageService {
         },
       });
 
-      // Make the file publicly accessible
-      await file.makePublic();
+      // Make the file publicly accessible (may fail if bucket has uniform bucket-level access)
+      try {
+        await file.makePublic();
+      } catch (aclError: any) {
+        this.logger.debug(`Could not set public ACL on file (bucket may use uniform access): ${aclError.message}`);
+      }
 
       const publicUrl = `https://storage.googleapis.com/${this.bucketName}/${destinationPath}`;
       this.logger.log(`File uploaded successfully: ${publicUrl}`);
