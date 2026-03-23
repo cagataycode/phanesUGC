@@ -107,7 +107,7 @@ export class AdsService {
       tone: dto.tone,
       target_audience: dto.target_audience,
       cta: dto.cta,
-      product_info: dto.product_info,
+      product_info: dto.product_info ? { ...dto.product_info } : undefined,
       urls: dto.urls,
       brand_assets: dto.brand_assets,
       subtitle_style: dto.subtitle_style || SubtitleStyle.STANDARD,
