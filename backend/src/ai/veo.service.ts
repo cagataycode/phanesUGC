@@ -277,14 +277,14 @@ export class VeoService {
       }
       
       return {
-        video_url: `https://storage.googleapis.com/demo/video_${Date.now()}.mp4`,
-        thumbnail_url: `https://storage.googleapis.com/demo/thumb_${Date.now()}.jpg`,
+        video_url: `http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4`,
+        thumbnail_url: `https://images.unsplash.com/photo-1616469829581-73993eb86b02?w=400`,
       };
     } catch (error: any) {
       this.logger.error('Failed to generate full video', error.message || error);
       return {
-        video_url: `https://storage.googleapis.com/demo/video_${Date.now()}.mp4`,
-        thumbnail_url: `https://storage.googleapis.com/demo/thumb_${Date.now()}.jpg`,
+        video_url: `http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4`,
+        thumbnail_url: `https://images.unsplash.com/photo-1616469829581-73993eb86b02?w=400`,
       };
     }
   }
@@ -334,7 +334,7 @@ export class VeoService {
 
   private getMockVideoUrl(scene: SceneDto): { video_url: string } {
     return {
-      video_url: `https://storage.googleapis.com/demo/scene_${scene.scene_id}.mp4`,
+      video_url: `http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4`,
     };
   }
 
