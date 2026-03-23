@@ -127,19 +127,10 @@ export class AdsService {
       updated_at: now,
     };
 
-    // Firestore throws an error if we try to save undefined values
-    // We need to clean the object before saving
-    const cleanData = Object.entries(adData).reduce((acc, [key, value]) => {
-      if (value !== undefined) {
-        acc[key as keyof AdDocument] = value as any;
-      }
-      return acc;
-    }, {} as Partial<AdDocument>) as AdDocument;
-
     if (this.useMock) {
-      mockAdsStore.set(adId, cleanData);
+      mockAdsStore.set(adId, adData);
     } else if (this.adsCollection) {
-      await this.adsCollection.doc(adId).set(cleanData);
+      await this.adsCollection.doc(adId).set(adData);
     }
 
     this.logger.log(`Created ad job: ${adId}`);

@@ -29,6 +29,7 @@ export function initializeFirebase(config: FirebaseConfig): void {
       }),
     });
     adminDb = getFirestoreAdmin(adminApp);
+    adminDb.settings({ ignoreUndefinedProperties: true });
     isInitialized = true;
     console.log('Firebase initialized successfully');
   } catch (error) {
