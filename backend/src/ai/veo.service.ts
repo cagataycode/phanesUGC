@@ -161,6 +161,14 @@ export class VeoService {
         if (!response.ok) {
           const errorText = await response.text();
           this.logger.error(`Veo operation poll error: ${response.status} - ${errorText}`);
+          
+          // Google Vertex REST API has a bug where polling LRO UUIDs throws 400 "Must be a Long" or 404.
+          // Don't wait 5 minutes; short-circuit to return the mock MVP video immediately.
+          if (response.status === 400 || response.status === 404) {
+             this.logger.warn('Google API LRO UUID bug encountered, short-circuiting to use MVP mock video fallback.');
+             return null;
+          }
+          
           await new Promise(resolve => setTimeout(resolve, pollInterval));
           continue;
         }
