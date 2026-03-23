@@ -188,6 +188,9 @@ export class PipelineService {
     } catch (error) {
       this.logger.error(`Scene regeneration failed for ad: ${adId}`, error);
       throw error;
+    }
+  }
+
   /**
    * Mock DTO for development
    * In production, this would be fetched from Firestore
