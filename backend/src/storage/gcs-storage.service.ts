@@ -35,4 +35,23 @@ export class GcsStorageService {
 
     return signedUrl;
   }
+
+  async uploadFromUrl(sourceUrl: string, objectPath: string): Promise<string> {
+    const response = await fetch(sourceUrl);
+
+    if (!response.ok) {
+      throw new Error(`Failed to download generated video from source URL: ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+
+    const file = this.storage.bucket(this.bucketName).file(objectPath);
+
+    await file.save(Buffer.from(arrayBuffer), {
+      resumable: false,
+      contentType: response.headers.get('content-type') ?? 'video/mp4',
+    });
+
+    return objectPath;
+  }
 }

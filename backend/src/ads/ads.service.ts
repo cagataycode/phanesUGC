@@ -49,9 +49,15 @@ export class AdsService {
 
     try {
       const generatedAsset = await this.vertexAiService.generateVideoFromPrompt(job.prompt);
-      const videoUrl = await this.gcsStorageService.createSignedVideoUrl(
+      if (!generatedAsset.downloadUrl) {
+        throw new Error('Vertex AI did not return a downloadable video URL');
+      }
+
+      const objectPath = await this.gcsStorageService.uploadFromUrl(
+        generatedAsset.downloadUrl,
         `ads/${id}/${generatedAsset.providerJobId}.mp4`,
       );
+      const videoUrl = await this.gcsStorageService.createSignedVideoUrl(objectPath);
 
       this.jobStoreService.update(id, {
         status: 'completed',
