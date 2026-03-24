@@ -15,7 +15,7 @@ export class AdsService {
   createJob(createAdDto: CreateAdDto): Pick<AdJob, 'id' | 'status'> {
     const job = this.jobStoreService.create(createAdDto.prompt);
 
-    void this.processJob(job.id);
+    void this.processJob(job.id, createAdDto);
 
     return {
       id: job.id,
@@ -39,7 +39,10 @@ export class AdsService {
     };
   }
 
-  private async processJob(id: string): Promise<void> {
+  private async processJob(
+    id: string,
+    createAdDto: CreateAdDto,
+  ): Promise<void> {
     const job = this.jobStoreService.getById(id);
 
     this.jobStoreService.update(id, {
@@ -50,6 +53,13 @@ export class AdsService {
     try {
       const generatedAsset = await this.vertexAiService.generateVideoFromPrompt(
         job.prompt,
+        {
+          aspectRatio: createAdDto.aspect_ratio,
+          durationSeconds: createAdDto.duration_sec,
+          negativePrompt: createAdDto.negative_prompt,
+          personGeneration: createAdDto.person_generation,
+          enhancePrompt: createAdDto.enhance_prompt,
+        },
       );
       if (!generatedAsset.downloadUrl) {
         throw new Error('Vertex AI did not return a downloadable video URL');
