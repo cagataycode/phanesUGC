@@ -5,21 +5,22 @@ import { CreativeBrief } from '../types/creative-brief';
 @Injectable()
 export class BriefGenerationService {
   generate(createAdDto: CreateAdDto): CreativeBrief {
-    const benefits = createAdDto.product_info?.benefits?.filter(Boolean);
+    const { prompt_inputs, veo_config } = createAdDto;
+    const benefits = prompt_inputs.product_info?.benefits?.filter(Boolean);
 
     return {
-      product_name: createAdDto.product_info?.name || undefined,
-      offer: createAdDto.product_info?.description || undefined,
-      audience: createAdDto.target_audience || undefined,
+      product_name: prompt_inputs.product_info?.name || undefined,
+      offer: prompt_inputs.product_info?.description || undefined,
+      audience: prompt_inputs.target_audience || undefined,
       pain_points: undefined,
       benefits: benefits?.length ? benefits : undefined,
-      tone: createAdDto.tone || undefined,
-      language: createAdDto.language || undefined,
-      duration_sec: createAdDto.duration_sec || undefined,
-      platform: createAdDto.platform || undefined,
-      cta: createAdDto.cta || undefined,
-      visual_style: createAdDto.subtitle_style || undefined,
-      aspect_ratio: createAdDto.aspect_ratio || undefined,
+      tone: prompt_inputs.tone || undefined,
+      language: prompt_inputs.language || undefined,
+      duration_sec: veo_config.duration_sec || undefined,
+      platform: prompt_inputs.platform || undefined,
+      cta: prompt_inputs.cta || undefined,
+      visual_style: prompt_inputs.subtitle_style || undefined,
+      aspect_ratio: veo_config.aspect_ratio || undefined,
     };
   }
 }

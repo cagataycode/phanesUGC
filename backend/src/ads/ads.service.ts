@@ -17,7 +17,7 @@ export class AdsService {
   ) {}
 
   createJob(createAdDto: CreateAdDto): Pick<AdJob, 'id' | 'status'> {
-    const job = this.jobStoreService.create(createAdDto.prompt);
+    const job = this.jobStoreService.create(createAdDto.prompt_inputs.prompt);
 
     void this.processJob(job.id, createAdDto);
 
@@ -57,6 +57,7 @@ export class AdsService {
       full_text: string;
     },
   ): string {
+    const { prompt_inputs, veo_config } = createAdDto;
     const sections: string[] = [script.full_text];
 
     if (script.title) {
@@ -65,20 +66,20 @@ export class AdsService {
 
     const generationContext: string[] = [];
 
-    if (createAdDto.platform) {
-      generationContext.push(`Platform: ${createAdDto.platform}`);
+    if (prompt_inputs.platform) {
+      generationContext.push(`Platform: ${prompt_inputs.platform}`);
     }
 
-    if (createAdDto.language) {
-      generationContext.push(`Language: ${createAdDto.language}`);
+    if (prompt_inputs.language) {
+      generationContext.push(`Language: ${prompt_inputs.language}`);
     }
 
-    if (createAdDto.aspect_ratio) {
-      generationContext.push(`Aspect ratio: ${createAdDto.aspect_ratio}`);
+    if (veo_config.aspect_ratio) {
+      generationContext.push(`Aspect ratio: ${veo_config.aspect_ratio}`);
     }
 
-    if (createAdDto.duration_sec) {
-      generationContext.push(`Duration: ${createAdDto.duration_sec} seconds`);
+    if (veo_config.duration_sec) {
+      generationContext.push(`Duration: ${veo_config.duration_sec} seconds`);
     }
 
     if (generationContext.length > 0) {
@@ -107,11 +108,11 @@ export class AdsService {
       const generatedAsset = await this.vertexAiService.generateVideoFromPrompt(
         composedPrompt,
         {
-          aspectRatio: createAdDto.aspect_ratio,
-          durationSeconds: createAdDto.duration_sec,
-          negativePrompt: createAdDto.negative_prompt,
-          personGeneration: createAdDto.person_generation,
-          enhancePrompt: createAdDto.enhance_prompt,
+          aspectRatio: createAdDto.veo_config.aspect_ratio,
+          durationSeconds: createAdDto.veo_config.duration_sec,
+          negativePrompt: createAdDto.veo_config.negative_prompt,
+          personGeneration: createAdDto.veo_config.person_generation,
+          enhancePrompt: createAdDto.veo_config.enhance_prompt,
         },
       );
       if (!generatedAsset.downloadUrl) {
