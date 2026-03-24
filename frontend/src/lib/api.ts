@@ -1,22 +1,9 @@
-export const USE_MOCK = true;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000/api';
+export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
 
 // Models based on PRD Section 11.1
 export interface AdJobRequest {
   prompt: string;
-  platform?: string; // Opting to keep it optional since we removed it from UI
-  aspect_ratio: string;
-  duration_sec: number;
-  language: string;
-  tone?: string;
-  cta?: string;
-  product_info?: {
-    name?: string;
-    description?: string;
-    benefits?: string[];
-  };
-  urls?: string[];
-  subtitle_style?: string;
-  voice_id?: string;
 }
 
 export interface AdJobResponse {
@@ -26,18 +13,9 @@ export interface AdJobResponse {
 
 export interface AdJobStatusResponse {
   id: string;
-  status: "queued" | "rendering" | "done" | "failed";
-  progress: number;
-  stages: Record<string, string>;
-}
-
-export interface AdJobResultResponse {
-  video_url: string;
-  thumbnail_url: string;
-  script: Record<string, unknown>;
-  subtitles: Record<string, unknown>[];
-  transcript: Record<string, unknown>[];
-  metadata: Record<string, unknown>;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  video_url?: string;
+  error?: string;
 }
 
 /**
@@ -55,7 +33,7 @@ export async function createAdJob(payload: AdJobRequest): Promise<AdJobResponse>
     });
   }
 
-  const res = await fetch("/api/v1/ads", {
+  const res = await fetch(`${API_BASE_URL}/ads`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -72,49 +50,15 @@ export async function getAdJobStatus(id: string): Promise<AdJobStatusResponse> {
   if (USE_MOCK) {
     return new Promise((resolve) => {
       setTimeout(() => {
-        // Randomly simulate a progress chunk
-        const chunk = Math.floor(Math.random() * 30) + 10;
         resolve({
           id,
-          status: "rendering",
-          progress: chunk,
-          stages: {
-            scrape: "done",
-            brief: "done",
-            script: "running",
-            render: "pending"
-          }
+          status: 'processing',
         });
       }, 500);
     });
   }
 
-  const res = await fetch(`/api/v1/ads/${id}`);
+  const res = await fetch(`${API_BASE_URL}/ads/${id}`);
   if (!res.ok) throw new Error("Failed to fetch ad job status");
-  return res.json();
-}
-
-/**
- * Retrieves the final video outputs
- */
-export async function getAdJobResult(id: string): Promise<AdJobResultResponse> {
-  if (USE_MOCK) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          // Mock video (Big Buck Bunny via open storage)
-          video_url: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-          thumbnail_url: "https://images.unsplash.com/photo-1616469829581-73993eb86b02",
-          script: {},
-          subtitles: [],
-          transcript: [],
-          metadata: {}
-        });
-      }, 600);
-    });
-  }
-
-  const res = await fetch(`/api/v1/ads/${id}/result`);
-  if (!res.ok) throw new Error("Failed to fetch ad job result");
   return res.json();
 }

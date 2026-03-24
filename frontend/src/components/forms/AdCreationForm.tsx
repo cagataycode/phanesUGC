@@ -16,7 +16,7 @@ import {
   Loading01Icon,
 } from "@hugeicons/core-free-icons";
 import { useState } from "react";
-import { createAdJob, getAdJobStatus, getAdJobResult } from "@/lib/api";
+import { createAdJob, getAdJobStatus } from "@/lib/api";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -75,6 +75,7 @@ export function AdCreationForm() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [videoResult, setVideoResult] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -99,46 +100,47 @@ export function AdCreationForm() {
     try {
       setIsGenerating(true);
       setGenerationProgress(0);
+      setStatusMessage(t("status.generating"));
 
-      // Format payload to exactly match PRD Sec 11.1
       const payload = {
         prompt: values.prompt,
-        aspect_ratio: values.aspect_ratio,
-        duration_sec: parseInt(values.duration_sec, 10),
-        language: values.language,
-        tone: values.tone,
-        cta: values.cta,
-        product_info: {
-          name: values.product_name,
-          description: values.product_description,
-          benefits: values.product_benefits
-            ? values.product_benefits.split(",").map((b) => b.trim())
-            : [],
-        },
-        urls: values.product_urls ? [values.product_urls] : [],
-        subtitle_style: values.subtitle_style,
-        voice_id: values.voice_id,
       };
 
       const job = await createAdJob(payload);
 
-      // Simulate polling interval for MVP Mock Experience
-      let cumulativeProgress = 0;
       const pollInterval = window.setInterval(async () => {
-        const status = await getAdJobStatus(job.id);
-        cumulativeProgress += status.progress;
-        setGenerationProgress(Math.min(cumulativeProgress, 99));
+        try {
+          const status = await getAdJobStatus(job.id);
 
-        if (cumulativeProgress >= 100) {
+          setGenerationProgress((current) => Math.min(current + 15, 95));
+
+          if (status.status === "completed" && status.video_url) {
+            window.clearInterval(pollInterval);
+            setGenerationProgress(100);
+            setVideoResult(status.video_url);
+            setStatusMessage(null);
+            setIsGenerating(false);
+            return;
+          }
+
+          if (status.status === "failed") {
+            window.clearInterval(pollInterval);
+            setIsGenerating(false);
+            setStatusMessage(null);
+            alert(status.error ?? t("errors.generationFailed"));
+          }
+        } catch (pollError) {
           window.clearInterval(pollInterval);
-          const result = await getAdJobResult(job.id);
-          setVideoResult(result.video_url);
           setIsGenerating(false);
+          setStatusMessage(null);
+          console.error(pollError);
+          alert(t("errors.generationFailed"));
         }
-      }, 1500);
+      }, 3000);
     } catch (error) {
       console.error(error);
       setIsGenerating(false);
+      setStatusMessage(null);
       alert(t("errors.generationFailed"));
     }
   }
@@ -153,7 +155,10 @@ export function AdCreationForm() {
           className="w-full max-w-[400px] h-[720px] object-cover bg-black rounded-[32px] shadow-2xl border border-white/10"
         />
         <Button
-          onClick={() => setVideoResult(null)}
+          onClick={() => {
+            setVideoResult(null);
+            setGenerationProgress(0);
+          }}
           variant="outline"
           className="mt-8 rounded-full px-8 h-12 text-sm uppercase tracking-wider font-semibold"
         >
@@ -231,11 +236,16 @@ export function AdCreationForm() {
                 </FormControl>
                 {isGenerating && (
                   <div className="absolute -bottom-6 left-0 right-0 flex items-center justify-center animate-in fade-in">
-                    <div className="w-full max-w-[200px] h-1.5 bg-foreground/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out"
-                        style={{ width: `${generationProgress}%` }}
-                      />
+                    <div className="flex w-full max-w-[260px] flex-col items-center gap-2">
+                      <div className="w-full h-1.5 bg-foreground/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${generationProgress}%` }}
+                        />
+                      </div>
+                      {statusMessage ? (
+                        <p className="text-xs text-foreground/60">{statusMessage}</p>
+                      ) : null}
                     </div>
                   </div>
                 )}
