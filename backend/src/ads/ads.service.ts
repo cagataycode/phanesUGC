@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { AdJob, JobStoreService } from './services/job-store.service';
+import { BriefGenerationService } from './services/brief-generation.service';
 import { VertexAiService } from '../ai/vertex-ai.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
 
 @Injectable()
 export class AdsService {
   constructor(
+    private readonly briefGenerationService: BriefGenerationService,
     private readonly jobStoreService: JobStoreService,
     private readonly vertexAiService: VertexAiService,
     private readonly gcsStorageService: GcsStorageService,
@@ -107,8 +109,11 @@ export class AdsService {
     id: string,
     createAdDto: CreateAdDto,
   ): Promise<void> {
+    const brief = this.briefGenerationService.generate(createAdDto);
+
     this.jobStoreService.update(id, {
       status: 'processing',
+      brief,
       error: null,
     });
 
