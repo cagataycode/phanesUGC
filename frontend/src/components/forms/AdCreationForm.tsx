@@ -55,8 +55,9 @@ import { Separator } from "@/components/ui/separator";
 
 const formSchema = z.object({
   prompt: z.string().min(5, "Prompt must be at least 5 characters."),
+  platform: z.enum(["tiktok", "instagram", "youtube"]),
   aspect_ratio: z.enum(["9:16", "1:1", "16:9"]),
-  duration_sec: z.enum(["15", "30", "45", "60"]),
+  duration_sec: z.enum(["8", "15", "30", "60"]),
   language: z.enum(["en", "de"]),
   tone: z.string().optional(),
   target_audience: z.string().optional(),
@@ -81,8 +82,9 @@ export function AdCreationForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       prompt: "",
+      platform: "tiktok",
       aspect_ratio: "9:16",
-      duration_sec: "30",
+      duration_sec: "8",
       language: "en",
       tone: "direct",
       target_audience: "",
@@ -111,6 +113,7 @@ export function AdCreationForm() {
       // Format payload to exactly match PRD Sec 11.1
       const payload = {
         prompt: values.prompt,
+        platform: values.platform,
         aspect_ratio: values.aspect_ratio,
         duration_sec: parseInt(values.duration_sec, 10),
         language: values.language,
@@ -130,14 +133,11 @@ export function AdCreationForm() {
 
       const job = await createAdJob(payload);
 
-      // Simulate polling interval for MVP Mock Experience
-      let cumulativeProgress = 0;
       const pollInterval = window.setInterval(async () => {
         const status = await getAdJobStatus(job.id);
-        cumulativeProgress += status.progress;
-        setGenerationProgress(Math.min(cumulativeProgress, 99));
+        setGenerationProgress(status.progress);
 
-        if (cumulativeProgress >= 100) {
+        if (status.progress >= 100 || status.status === "done") {
           window.clearInterval(pollInterval);
           const result = await getAdJobResult(job.id);
           setVideoResult(result.video_url);
@@ -147,7 +147,15 @@ export function AdCreationForm() {
     } catch (error) {
       console.error(error);
       setIsGenerating(false);
-      alert(t("errors.generationFailed"));
+      window.dispatchEvent(
+        new CustomEvent("phanes-toast", {
+          detail: {
+            title: t("errors.generationFailedTitle"),
+            description: t("errors.generationFailed"),
+            variant: "error",
+          },
+        }),
+      );
     }
   }
 
@@ -287,6 +295,41 @@ export function AdCreationForm() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
+                  name="platform"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("fields.platform.label")}</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={t("fields.platform.placeholder")}
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="tiktok">
+                            {t("fields.platform.options.tiktok")}
+                          </SelectItem>
+                          <SelectItem value="instagram">
+                            {t("fields.platform.options.instagram")}
+                          </SelectItem>
+                          <SelectItem value="youtube">
+                            {t("fields.platform.options.youtube")}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="language"
                   render={({ field }) => (
                     <FormItem>
@@ -375,7 +418,13 @@ export function AdCreationForm() {
                         >
                           <FormItem className="flex items-center space-x-2 space-y-0">
                             <FormControl>
-                              <RadioGroupItem value="15" />
+                              <RadioGroupItem value="8" />
+                            </FormControl>
+                            <FormLabel className="font-normal">8</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="`15`" />
                             </FormControl>
                             <FormLabel className="font-normal">15</FormLabel>
                           </FormItem>

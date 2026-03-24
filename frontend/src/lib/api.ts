@@ -3,7 +3,7 @@ export const USE_MOCK = true;
 // Models based on PRD Section 11.1
 export interface AdJobRequest {
   prompt: string;
-  platform?: string; // Opting to keep it optional since we removed it from UI
+  platform?: string;
   aspect_ratio: string;
   duration_sec: number;
   language: string;
@@ -43,13 +43,15 @@ export interface AdJobResultResponse {
 /**
  * Creates a new Ad Video generation job
  */
-export async function createAdJob(payload: AdJobRequest): Promise<AdJobResponse> {
+export async function createAdJob(
+  payload: AdJobRequest,
+): Promise<AdJobResponse> {
   if (USE_MOCK) {
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({
           id: `ad_${Math.random().toString(36).substring(7)}`,
-          status: "queued"
+          status: "queued",
         });
       }, 800);
     });
@@ -60,7 +62,7 @@ export async function createAdJob(payload: AdJobRequest): Promise<AdJobResponse>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  
+
   if (!res.ok) throw new Error("Failed to create ad job");
   return res.json();
 }
@@ -72,18 +74,34 @@ export async function getAdJobStatus(id: string): Promise<AdJobStatusResponse> {
   if (USE_MOCK) {
     return new Promise((resolve) => {
       setTimeout(() => {
-        // Randomly simulate a progress chunk
-        const chunk = Math.floor(Math.random() * 30) + 10;
+        const numericSeed = Number.parseInt(
+          id.replace(/\D/g, "").slice(-2) || "0",
+          10,
+        );
+        const timestampBucket = Math.floor(Date.now() / 1500);
+        const progress = Math.min(
+          ((timestampBucket + numericSeed) % 8) * 15,
+          100,
+        );
+
         resolve({
           id,
-          status: "rendering",
-          progress: chunk,
+          status: progress >= 100 ? "done" : "rendering",
+          progress,
           stages: {
             scrape: "done",
-            brief: "done",
-            script: "running",
-            render: "pending"
-          }
+            brief: progress >= 30 ? "done" : "running",
+            script:
+              progress >= 45 ? "done" : progress >= 30 ? "running" : "pending",
+            assets:
+              progress >= 60 ? "done" : progress >= 45 ? "running" : "pending",
+            voice:
+              progress >= 75 ? "done" : progress >= 60 ? "running" : "pending",
+            subtitles:
+              progress >= 90 ? "done" : progress >= 75 ? "running" : "pending",
+            render:
+              progress >= 100 ? "done" : progress >= 90 ? "running" : "pending",
+          },
         });
       }, 500);
     });
@@ -103,12 +121,14 @@ export async function getAdJobResult(id: string): Promise<AdJobResultResponse> {
       setTimeout(() => {
         resolve({
           // Mock video (Big Buck Bunny via open storage)
-          video_url: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-          thumbnail_url: "https://images.unsplash.com/photo-1616469829581-73993eb86b02",
+          video_url:
+            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+          thumbnail_url:
+            "https://images.unsplash.com/photo-1616469829581-73993eb86b02",
           script: {},
           subtitles: [],
           transcript: [],
-          metadata: {}
+          metadata: {},
         });
       }, 600);
     });

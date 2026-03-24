@@ -34,6 +34,15 @@
         "de": "Deutsch"
       }
     },
+    "platform": {
+      "label": "Plattform",
+      "placeholder": "Plattform auswählen",
+      "options": {
+        "tiktok": "TikTok",
+        "instagram": "Instagram Reels",
+        "youtube": "YouTube Shorts"
+      }
+    },
     "aspectRatio": {
       "label": "Seitenverhältnis",
       "options": {
@@ -127,6 +136,7 @@
     "createAnother": "Weiteres Video erstellen"
   },
   "errors": {
+    "generationFailedTitle": "Generierung fehlgeschlagen",
     "generationFailed": "Anzeige konnte nicht generiert werden. Siehe Konsole für Details."
   }
 }
