@@ -77,6 +77,20 @@ export function AdCreationForm() {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [videoResult, setVideoResult] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [inlineError, setInlineError] = useState<string | null>(null);
+
+  function showGenerationError(message: string) {
+    setInlineError(message);
+    window.dispatchEvent(
+      new CustomEvent("phanes-toast", {
+        detail: {
+          title: t("errors.generationFailedTitle"),
+          description: message,
+          variant: "error",
+        },
+      }),
+    );
+  }
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -109,6 +123,7 @@ export function AdCreationForm() {
       setIsGenerating(true);
       setGenerationProgress(0);
       setStatusMessage(t("status.generating"));
+      setInlineError(null);
 
       const payload = {
         prompt_inputs: {
@@ -155,28 +170,21 @@ export function AdCreationForm() {
             window.clearInterval(pollInterval);
             setIsGenerating(false);
             setStatusMessage(null);
-            alert(status.error ?? t("errors.generationFailed"));
+            showGenerationError(status.error ?? t("errors.generationFailed"));
           }
         } catch (pollError) {
           window.clearInterval(pollInterval);
           setIsGenerating(false);
           setStatusMessage(null);
           console.error(pollError);
-          alert(t("errors.generationFailed"));
+          showGenerationError(t("errors.generationFailed"));
         }
       }, 3000);
     } catch (error) {
       console.error(error);
       setIsGenerating(false);
-      window.dispatchEvent(
-        new CustomEvent("phanes-toast", {
-          detail: {
-            title: t("errors.generationFailedTitle"),
-            description: t("errors.generationFailed"),
-            variant: "error",
-          },
-        }),
-      );
+      setStatusMessage(null);
+      showGenerationError(t("errors.generationFailed"));
     }
   }
 
@@ -210,6 +218,13 @@ export function AdCreationForm() {
         className="relative z-20 space-y-4 w-full"
       >
         <div className="space-y-4">
+          {inlineError ? (
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-900 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-50">
+              <p className="font-semibold">{t("errors.generationFailedTitle")}</p>
+              <p className="mt-1 opacity-90">{inlineError}</p>
+            </div>
+          ) : null}
+
           <FormField
             control={form.control}
             name="prompt"
