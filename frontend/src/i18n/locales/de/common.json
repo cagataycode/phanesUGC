@@ -1,0 +1,27 @@
+{
+  "app": {
+    "name": "Phanes UGC",
+    "tagline": "Erstellen Sie exportfertige Videoanzeigen durch Chatten mit KI",
+    "badge": {
+      "new": "Neu",
+      "text": "Generieren Sie Social-Media-Videoanzeigen mit KI"
+    }
+  },
+  "actions": {
+    "getStarted": "Loslegen",
+    "login": "Anmelden",
+    "next": "Weiter",
+    "back": "Zurück",
+    "submit": "Absenden",
+    "cancel": "Abbrechen",
+    "createAnother": "Weiteres Video erstellen"
+  },
+  "status": {
+    "loading": "Laden...",
+    "generating": "Ihre Anzeige wird erstellt…",
+    "generatingSubtitle": "Dies kann einen Moment dauern"
+  },
+  "theme": {
+    "toggle": "Design wechseln"
+  }
+}

@@ -130,19 +130,40 @@
 }
 
 @layer utilities {
-  .bg-mesh-blur {
-    background-image: 
-      radial-gradient(at 0% 0%, oklch(0.6 0.25 300 / 0.4) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, oklch(0.6 0.2 240 / 0.4) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, oklch(0.65 0.25 10 / 0.5) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, oklch(0.6 0.3 350 / 0.6) 0px, transparent 50%);
-    background-size: 150% 150%;
-    animation: gradient-shift 15s ease infinite alternate;
+  /* Dark mode: deeper purple & charcoal gradient mesh */
+  .dark .bg-mesh-blur {
+    background-image:
+      radial-gradient(
+        at 0% 0%,
+        oklch(0.35 0.15 290 / 0.5) 0px,
+        transparent 50%
+      ),
+      radial-gradient(
+        at 100% 0%,
+        oklch(0.3 0.1 270 / 0.4) 0px,
+        transparent 50%
+      ),
+      radial-gradient(
+        at 100% 100%,
+        oklch(0.4 0.12 300 / 0.35) 0px,
+        transparent 50%
+      ),
+      radial-gradient(
+        at 0% 100%,
+        oklch(0.25 0.08 280 / 0.45) 0px,
+        transparent 50%
+      );
   }
-  
+
   @keyframes gradient-shift {
-    0% { background-position: 0% 0%; }
-    50% { background-position: 100% 100%; }
-    100% { background-position: 0% 50%; }
+    0% {
+      background-position: 0% 0%;
+    }
+    50% {
+      background-position: 100% 100%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
   }
 }

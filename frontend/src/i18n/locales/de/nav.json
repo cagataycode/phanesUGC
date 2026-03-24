@@ -1,0 +1,11 @@
+{
+  "brand": "Phanes UGC",
+  "links": {
+    "pricing": "Preise",
+    "security": "Sicherheit"
+  },
+  "actions": {
+    "login": "Anmelden",
+    "getStarted": "Loslegen"
+  }
+}

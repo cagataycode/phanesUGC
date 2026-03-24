@@ -1,0 +1,29 @@
+{
+  "app": {
+    "name": "Phanes UGC",
+    "tagline": "Create ready-to-export video ads by chatting with AI",
+    "badge": {
+      "new": "New",
+      "text": "Generate social video ads with AI"
+    }
+  },
+  "actions": {
+    "getStarted": "Get started",
+    "login": "Log in",
+    "next": "Next",
+    "back": "Back",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "createAnother": "Create Another Video",
+    "skipAndGenerate": "Skip & Generate",
+    "generateAd": "Generate Ad"
+  },
+  "status": {
+    "loading": "Loading...",
+    "generating": "Generating your ad…",
+    "generatingSubtitle": "This may take a moment"
+  },
+  "theme": {
+    "toggle": "Toggle theme"
+  }
+}
