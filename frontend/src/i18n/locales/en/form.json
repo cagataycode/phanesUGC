@@ -34,6 +34,15 @@
         "de": "German"
       }
     },
+    "platform": {
+      "label": "Platform",
+      "placeholder": "Select platform",
+      "options": {
+        "tiktok": "TikTok",
+        "instagram": "Instagram Reels",
+        "youtube": "YouTube Shorts"
+      }
+    },
     "aspectRatio": {
       "label": "Aspect Ratio",
       "options": {
@@ -127,6 +136,7 @@
     "createAnother": "Create Another Video"
   },
   "errors": {
+    "generationFailedTitle": "Generation failed",
     "generationFailed": "Failed to generate ad. Check console for details."
   }
 }
