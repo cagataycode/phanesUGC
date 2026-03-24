@@ -53,6 +53,14 @@ A user can:
 
 **Prompt -> brief -> script -> assets -> video+audio generation -> audio extraction -> transcription/alignment -> subtitles -> render -> export**
 
+### 2.4 Current Implementation Slice
+
+The first delivery slice of the MVP shall implement a narrower end-to-end flow focused on prompt-to-video generation only:
+
+**Prompt -> async job creation -> Vertex AI video generation -> GCS storage -> signed URL delivery -> frontend playback**
+
+This slice is intentionally narrower than the full MVP scope and defers subtitle generation, audio extraction, transcription, forced alignment, and final social render composition to later steps.
+
 ---
 
 ## 3. Goals and Non-Goals
@@ -89,6 +97,19 @@ The MVP will **not** include:
 - long-form horizontal video workflows
 - enterprise approval flows
 - full white-label API platform
+
+### 3.3 Current Delivery Slice Constraints
+
+For the current implementation milestone, the system will **not yet** implement:
+
+- subtitle generation
+- audio extraction
+- speech transcription
+- forced alignment
+- final caption burn-in
+- script/scene regeneration
+- persistent job queue infrastructure
+- database-backed job persistence
 
 ---
 
@@ -140,6 +161,16 @@ The MVP will **not** include:
 - custom animation builder
 - collaborative review comments
 - billing engine beyond basic usage counters
+
+### 4.3 In Scope for Current Delivery Slice
+
+- prompt submission from frontend
+- backend async job creation
+- backend polling status endpoint
+- Vertex AI Veo video generation from prompt
+- backend upload of generated video to GCS
+- signed URL generation for frontend playback
+- frontend display of final video URL in a video player
 
 ---
 
@@ -464,6 +495,12 @@ The system shall compose the final ad into an MP4 suitable for social posting.
 - completed
 - failed
 
+### Current Delivery Slice States
+- queued
+- processing
+- completed
+- failed
+
 ---
 
 ## 7.10 Regeneration
@@ -502,6 +539,18 @@ Client App
   -> Database
 ```
 
+### Current Delivery Slice Architecture
+
+```text
+Frontend
+  -> Backend API
+  -> In-memory Job Store
+  -> Vertex AI Video Generation Service
+  -> GCS Storage Service
+  -> Signed URL Response
+  -> Frontend Video Playback
+```
+
 ## 8.2 Recommended Components
 
 ### Backend API
@@ -515,6 +564,8 @@ Client App
 
 ### Storage
 - EU object storage for source and rendered files
+- backend-managed GCS bucket access using Firebase/GCP service-account credentials
+- short-lived signed URL delivery to frontend clients
 
 ### Rendering
 - Remotion for composition layer
@@ -527,6 +578,12 @@ Client App
 - forced alignment component for word-level timing refinement
 - optional video/image generation provider
 - optional stock media provider
+
+### Current Delivery Slice Service Use
+- Vertex AI Veo generation is required
+- GCS storage is required
+- backend service-account-based upload/signing is required
+- transcription, alignment, and rendering services are deferred for this slice
 
 ---
 
