@@ -1,5 +1,5 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000/api';
 export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
+const API_BASE_URL = '/api';
 
 // Models based on PRD Section 11.1
 export interface AdJobRequest {
