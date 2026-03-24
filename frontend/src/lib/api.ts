@@ -1,4 +1,5 @@
-export const USE_MOCK = true;
+export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
+const API_BASE_URL = "/api";
 
 // Models based on PRD Section 11.1
 export interface AdJobRequest {
@@ -26,17 +27,17 @@ export interface AdJobResponse {
 
 export interface AdJobStatusResponse {
   id: string;
-  status: "queued" | "rendering" | "done" | "failed";
-  progress: number;
-  stages: Record<string, string>;
+  status: "queued" | "processing" | "completed" | "failed";
+  video_url?: string;
+  error?: string;
 }
 
 export interface AdJobResultResponse {
   video_url: string;
-  thumbnail_url: string;
+  thumbnail_url?: string;
   script: Record<string, unknown>;
-  subtitles: Record<string, unknown>[];
-  transcript: Record<string, unknown>[];
+  subtitles: unknown[];
+  transcript: unknown[];
   metadata: Record<string, unknown>;
 }
 
@@ -57,7 +58,7 @@ export async function createAdJob(
     });
   }
 
-  const res = await fetch("/api/v1/ads", {
+  const res = await fetch(`${API_BASE_URL}/ads`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -86,28 +87,19 @@ export async function getAdJobStatus(id: string): Promise<AdJobStatusResponse> {
 
         resolve({
           id,
-          status: progress >= 100 ? "done" : "rendering",
-          progress,
-          stages: {
-            scrape: "done",
-            brief: progress >= 30 ? "done" : "running",
-            script:
-              progress >= 45 ? "done" : progress >= 30 ? "running" : "pending",
-            assets:
-              progress >= 60 ? "done" : progress >= 45 ? "running" : "pending",
-            voice:
-              progress >= 75 ? "done" : progress >= 60 ? "running" : "pending",
-            subtitles:
-              progress >= 90 ? "done" : progress >= 75 ? "running" : "pending",
-            render:
-              progress >= 100 ? "done" : progress >= 90 ? "running" : "pending",
-          },
+          status: progress >= 100 ? "completed" : "processing",
+          ...(progress >= 100
+            ? {
+                video_url:
+                  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+              }
+            : {}),
         });
       }, 500);
     });
   }
 
-  const res = await fetch(`/api/v1/ads/${id}`);
+  const res = await fetch(`${API_BASE_URL}/ads/${id}`);
   if (!res.ok) throw new Error("Failed to fetch ad job status");
   return res.json();
 }
@@ -134,7 +126,7 @@ export async function getAdJobResult(id: string): Promise<AdJobResultResponse> {
     });
   }
 
-  const res = await fetch(`/api/v1/ads/${id}/result`);
+  const res = await fetch(`${API_BASE_URL}/ads/${id}/result`);
   if (!res.ok) throw new Error("Failed to fetch ad job result");
   return res.json();
 }

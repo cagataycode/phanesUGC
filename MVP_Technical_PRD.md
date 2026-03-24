@@ -15,7 +15,7 @@ The MVP goal is to let a user enter a prompt, configure a small set of parameter
 
 - AI-generated script
 - AI-generated or selected visuals
-- voiceover
+- generated video with embedded speech/audio
 - auto-synced subtitles
 - exported video ready to post on social media
 
@@ -27,13 +27,13 @@ This PRD is limited to the **development-phase MVP scope**. It excludes advanced
 
 ### 2.1 Problem Statement
 
-Teams want ready-to-publish short-form ads without needing separate tools for copywriting, voiceover, subtitle timing, asset sourcing, and video editing.
+Teams want ready-to-publish short-form ads without needing separate tools for copywriting, subtitle timing, asset sourcing, and video editing.
 
 Current workflows are fragmented:
 
 1. write copy manually
 2. source visuals manually
-3. generate voiceover separately
+3. generate video and speech separately from the edit workflow
 4. create subtitles separately
 5. assemble video in an editor
 6. export in platform-specific formats
@@ -51,7 +51,15 @@ A user can:
 
 ### 2.3 Primary MVP Use Case
 
-**Prompt -> brief -> script -> assets -> voice -> subtitles -> render -> export**
+**Prompt -> brief -> script -> assets -> video+audio generation -> audio extraction -> transcription/alignment -> subtitles -> render -> export**
+
+### 2.4 Current Implementation Slice
+
+The first delivery slice of the MVP shall implement a narrower end-to-end flow focused on prompt-to-video generation only:
+
+**Prompt -> async job creation -> Vertex AI video generation -> GCS storage -> signed URL delivery -> frontend playback**
+
+This slice is intentionally narrower than the full MVP scope and defers subtitle generation, audio extraction, transcription, forced alignment, and final social render composition to later steps.
 
 ---
 
@@ -66,8 +74,9 @@ The MVP must:
 - optionally scrape product URLs for enrichment
 - generate a script suitable for short-form ads
 - generate or select visuals for each scene
-- generate voiceover audio
+- generate video with embedded speech/audio
 - generate synchronized subtitles
+- support word-level subtitle highlighting
 - compose and render a vertical social video
 - export an MP4 ready for social posting
 - support regeneration of the full ad or individual scenes
@@ -88,6 +97,19 @@ The MVP will **not** include:
 - long-form horizontal video workflows
 - enterprise approval flows
 - full white-label API platform
+
+### 3.3 Current Delivery Slice Constraints
+
+For the current implementation milestone, the system will **not yet** implement:
+
+- subtitle generation
+- audio extraction
+- speech transcription
+- forced alignment
+- final caption burn-in
+- script/scene regeneration
+- persistent job queue infrastructure
+- database-backed job persistence
 
 ---
 
@@ -123,7 +145,9 @@ The MVP will **not** include:
 - script generation
 - scene planning
 - asset selection or generation
-- TTS voice generation
+- generated video with embedded speech/audio
+- audio extraction and normalization
+- speech transcription and forced alignment
 - subtitle timing generation
 - subtitle burn-in
 - social-safe rendering
@@ -137,6 +161,16 @@ The MVP will **not** include:
 - custom animation builder
 - collaborative review comments
 - billing engine beyond basic usage counters
+
+### 4.3 In Scope for Current Delivery Slice
+
+- prompt submission from frontend
+- backend async job creation
+- backend polling status endpoint
+- Vertex AI Veo video generation from prompt
+- backend upload of generated video to GCS
+- signed URL generation for frontend playback
+- frontend display of final video URL in a video player
 
 ---
 
@@ -196,7 +230,6 @@ The system shall provide an ad creation form with the following fields:
 - `product_urls[]`
 - `brand_assets[]`
 - `subtitle_style`
-- `voice_id`
 
 ### Supported MVP Aspect Ratios
 - `9:16` primary
@@ -282,7 +315,7 @@ The system shall generate a short-form ad script optimized for social media vide
 {
   "title": "",
   "hook": "",
-  "voiceover_lines": [
+  "narration_lines": [
     {"scene": 1, "text": ""},
     {"scene": 2, "text": ""}
   ],
@@ -348,30 +381,30 @@ The system shall support the following asset sources for MVP:
 
 ---
 
-## 7.7 Voice Generation
+## 7.7 Video Audio Extraction and Speech Preparation
 
-The system shall generate voiceover audio from the final narration script.
+The system shall treat generated video output as the source of truth for speech audio.
 
-### Voice Requirements
-- support at least 1 English voice in MVP
-- support stable pacing and intelligibility
-- return timing metadata if available
-- allow future extension to multiple languages and voices
+### Requirements
+- generated video scenes may include embedded speech/audio
+- the system shall extract audio from generated video before transcription
+- audio extraction shall use FFmpeg
+- extracted audio should be normalized to a transcription-friendly format such as mono 16k PCM WAV
+- extracted speech audio must be accessible to downstream transcription/alignment workers
 
-### Voice Output Schema
+### Example Extraction Command
+```bash
+ffmpeg -i input.mp4 -vn -ac 1 -ar 16000 -c:a pcm_s16le output.wav
+```
+
+### Output Schema
 ```json
 {
-  "audio_url": "",
-  "segments": [
-    {
-      "text": "Creating ad videos should not take days.",
-      "start": 0.42,
-      "end": 3.01,
-      "words": [
-        {"word": "Creating", "start": 0.42, "end": 0.88}
-      ]
-    }
-  ]
+  "source_video_url": "",
+  "extracted_audio_url": "",
+  "audio_format": "wav",
+  "sample_rate_hz": 16000,
+  "channels": 1
 }
 ```
 
@@ -382,11 +415,15 @@ The system shall generate voiceover audio from the final narration script.
 The system shall generate subtitles synchronized to speech.
 
 ### Subtitle Requirements
-- subtitles must align to generated speech
+- subtitles must align to speech extracted from the generated video
+- transcription shall use faster-whisper
+- the system shall apply forced alignment to refine timestamps for word-level accuracy
+- the system must produce per-word timing data suitable for karaoke-style highlighting
 - subtitles must be chunked for readability, not raw word dumps
 - maximum 2 lines on screen at once
 - support style presets
 - support safe vertical placement for social UIs
+- support active-word highlighting during playback
 - burn subtitles into final export in MVP
 
 ### Subtitle Chunking Rules
@@ -402,12 +439,23 @@ The system shall generate subtitles synchronized to speech.
   {
     "start": 0.42,
     "end": 1.95,
-    "text": "Creating ad videos"
+    "text": "Creating ad videos",
+    "words": [
+      {"word": "Creating", "start": 0.42, "end": 0.88},
+      {"word": "ad", "start": 0.89, "end": 1.12},
+      {"word": "videos", "start": 1.13, "end": 1.95}
+    ]
   },
   {
     "start": 1.96,
     "end": 3.01,
-    "text": "should not take days."
+    "text": "should not take days.",
+    "words": [
+      {"word": "should", "start": 1.96, "end": 2.21},
+      {"word": "not", "start": 2.22, "end": 2.39},
+      {"word": "take", "start": 2.40, "end": 2.65},
+      {"word": "days.", "start": 2.66, "end": 3.01}
+    ]
   }
 ]
 ```
@@ -415,6 +463,7 @@ The system shall generate subtitles synchronized to speech.
 ### MVP Subtitle Styles
 - standard bold caption
 - kinetic highlight caption
+- karaoke-style word highlight caption
 
 ---
 
@@ -424,8 +473,9 @@ The system shall compose the final ad into an MP4 suitable for social posting.
 
 ### Composition Requirements
 - vertical 9:16 timeline support
-- voiceover placement
+- preserve and mix generated speech/audio track
 - subtitle burn-in
+- animated Remotion captions with active-word highlighting
 - background music at lower volume than speech
 - transitions between scenes
 - CTA overlay on final scene
@@ -442,6 +492,12 @@ The system shall compose the final ad into an MP4 suitable for social posting.
 - queued
 - processing
 - rendering
+- completed
+- failed
+
+### Current Delivery Slice States
+- queued
+- processing
 - completed
 - failed
 
@@ -473,11 +529,26 @@ Client App
       -> Scraping service
       -> LLM service
       -> Asset service
-      -> TTS service
+      -> Video generation service
+      -> Audio extraction service
+      -> Transcription service
+      -> Forced alignment service
       -> Subtitle engine
       -> Render service
   -> Object Storage
   -> Database
+```
+
+### Current Delivery Slice Architecture
+
+```text
+Frontend
+  -> Backend API
+  -> In-memory Job Store
+  -> Vertex AI Video Generation Service
+  -> GCS Storage Service
+  -> Signed URL Response
+  -> Frontend Video Playback
 ```
 
 ## 8.2 Recommended Components
@@ -493,6 +564,8 @@ Client App
 
 ### Storage
 - EU object storage for source and rendered files
+- backend-managed GCS bucket access using Firebase/GCP service-account credentials
+- short-lived signed URL delivery to frontend clients
 
 ### Rendering
 - Remotion for composition layer
@@ -500,10 +573,17 @@ Client App
 
 ### AI Services
 - LLM provider for brief/script generation
-- TTS provider with timing metadata
-- transcription/alignment fallback provider
+- Veo 3.1 for generated video with embedded speech/audio
+- faster-whisper for transcription
+- forced alignment component for word-level timing refinement
 - optional video/image generation provider
 - optional stock media provider
+
+### Current Delivery Slice Service Use
+- Vertex AI Veo generation is required
+- GCS storage is required
+- backend service-account-based upload/signing is required
+- transcription, alignment, and rendering services are deferred for this slice
 
 ---
 
@@ -517,7 +597,8 @@ The implementation should keep vendors abstracted behind internal interfaces.
 - `StockMediaAdapter`
 - `ImageGenerationAdapter`
 - `VideoGenerationAdapter`
-- `TTSAdapter`
+- `SpeechTranscriptionAdapter`
+- `SpeechAlignmentAdapter`
 - `SpeechAlignmentAdapter`
 - `RendererAdapter`
 
@@ -1063,4 +1144,3 @@ These are internal launch metrics, not user-facing promises.
 - scene regeneration rate
 - failure rate by stage
 - percent of outputs requiring manual intervention
-
