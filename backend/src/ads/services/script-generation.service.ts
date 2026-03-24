@@ -17,12 +17,18 @@ export class ScriptGenerationService {
 
     const bodyParts = [
       brief.audience ? `Made for ${brief.audience}.` : undefined,
-      brief.benefits?.length ? `Key benefits: ${brief.benefits.join(', ')}.` : undefined,
+      brief.benefits?.length
+        ? `Key benefits: ${brief.benefits.join(', ')}.`
+        : undefined,
       brief.tone ? `Keep the tone ${brief.tone}.` : undefined,
-      brief.visual_style ? `Visual direction: ${brief.visual_style}.` : undefined,
+      brief.visual_style
+        ? `Visual direction: ${brief.visual_style}.`
+        : undefined,
     ].filter(Boolean);
 
-    const body = bodyParts.length ? bodyParts.join(' ') : 'Create a short, clear product-focused ad.';
+    const body = bodyParts.length
+      ? bodyParts.join(' ')
+      : 'Create a short, clear product-focused ad.';
     const cta = brief.cta ?? 'Try it now.';
     const full_text = [hook, body, cta].filter(Boolean).join(' ');
 
