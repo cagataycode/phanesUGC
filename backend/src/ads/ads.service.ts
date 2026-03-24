@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { AdJob, JobStoreService } from './services/job-store.service';
 import { BriefGenerationService } from './services/brief-generation.service';
+import { ScriptGenerationService } from './services/script-generation.service';
 import { VertexAiService } from '../ai/vertex-ai.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
 
@@ -9,6 +10,7 @@ import { GcsStorageService } from '../storage/gcs-storage.service';
 export class AdsService {
   constructor(
     private readonly briefGenerationService: BriefGenerationService,
+    private readonly scriptGenerationService: ScriptGenerationService,
     private readonly jobStoreService: JobStoreService,
     private readonly vertexAiService: VertexAiService,
     private readonly gcsStorageService: GcsStorageService,
@@ -28,6 +30,8 @@ export class AdsService {
   getJob(id: string): {
     id: string;
     status: AdJob['status'];
+    brief?: AdJob['brief'];
+    script?: AdJob['script'];
     video_url?: string;
     error?: string;
   } {
@@ -36,6 +40,8 @@ export class AdsService {
     return {
       id: job.id,
       status: job.status,
+      ...(job.brief ? { brief: job.brief } : {}),
+      ...(job.script ? { script: job.script } : {}),
       ...(job.videoUrl ? { video_url: job.videoUrl } : {}),
       ...(job.error ? { error: job.error } : {}),
     };
@@ -105,20 +111,57 @@ export class AdsService {
     return sections.join('\n\n');
   }
 
+  private buildPromptFromScript(
+    createAdDto: CreateAdDto,
+    script: { title?: string; hook?: string; body?: string; cta?: string; full_text: string },
+  ): string {
+    const sections: string[] = [script.full_text];
+
+    if (script.title) {
+      sections.unshift(`Ad title: ${script.title}`);
+    }
+
+    const generationContext: string[] = [];
+
+    if (createAdDto.platform) {
+      generationContext.push(`Platform: ${createAdDto.platform}`);
+    }
+
+    if (createAdDto.language) {
+      generationContext.push(`Language: ${createAdDto.language}`);
+    }
+
+    if (createAdDto.aspect_ratio) {
+      generationContext.push(`Aspect ratio: ${createAdDto.aspect_ratio}`);
+    }
+
+    if (createAdDto.duration_sec) {
+      generationContext.push(`Duration: ${createAdDto.duration_sec} seconds`);
+    }
+
+    if (generationContext.length > 0) {
+      sections.push(`Generation context:\n- ${generationContext.join('\n- ')}`);
+    }
+
+    return sections.join('\n\n');
+  }
+
   private async processJob(
     id: string,
     createAdDto: CreateAdDto,
   ): Promise<void> {
     const brief = this.briefGenerationService.generate(createAdDto);
+    const script = this.scriptGenerationService.generate(brief);
 
     this.jobStoreService.update(id, {
       status: 'processing',
       brief,
+      script,
       error: null,
     });
 
     try {
-      const composedPrompt = this.buildComposedPrompt(createAdDto);
+      const composedPrompt = this.buildPromptFromScript(createAdDto, script);
       const generatedAsset = await this.vertexAiService.generateVideoFromPrompt(
         composedPrompt,
         {
