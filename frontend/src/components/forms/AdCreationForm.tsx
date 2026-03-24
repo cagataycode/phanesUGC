@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { KeyboardEvent } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -96,6 +97,13 @@ export function AdCreationForm() {
     },
   });
 
+  function handlePromptKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void form.handleSubmit(onSubmit)();
+    }
+  }
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setIsGenerating(true);
@@ -170,7 +178,10 @@ export function AdCreationForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 w-full">
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="relative z-20 space-y-4 w-full"
+      >
         <div className="space-y-4">
           <FormField
             control={form.control}
@@ -178,10 +189,11 @@ export function AdCreationForm() {
             render={({ field }) => (
               <FormItem className="relative">
                 <FormControl>
-                  <div className="relative group rounded-[24px] overflow-hidden bg-foreground/5 border border-foreground/10 shadow-lg dark:bg-[#1E1F21] dark:border-white/5 dark:shadow-2xl transition-all focus-within:ring-2 focus-within:ring-foreground/10 dark:focus-within:ring-white/10 hover:border-foreground/20 text-left">
+                  <div className="relative z-20 group rounded-[24px] overflow-hidden border border-foreground/10 bg-background/95 shadow-lg supports-[backdrop-filter]:bg-background/80 backdrop-blur-xl dark:border-white/5 dark:bg-[#1E1F21]/95 dark:supports-[backdrop-filter]:bg-[#1E1F21]/85 dark:shadow-2xl transition-all focus-within:ring-2 focus-within:ring-foreground/10 dark:focus-within:ring-white/10 hover:border-foreground/20 text-left">
                     <Textarea
                       placeholder={t("fields.prompt.placeholder")}
                       className="min-h-[140px] resize-none pb-14 pt-5 px-6 bg-transparent border-0 focus-visible:ring-0 text-foreground text-lg shadow-none placeholder:text-foreground/40 font-medium"
+                      onKeyDown={handlePromptKeyDown}
                       {...field}
                     />
 
