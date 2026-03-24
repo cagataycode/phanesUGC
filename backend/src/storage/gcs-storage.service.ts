@@ -11,6 +11,7 @@ export class GcsStorageService {
   constructor(private readonly configService: ConfigService<Env>) {
     this.bucketName = this.configService.get('GCS_BUCKET_NAME', { infer: true })!;
     const projectId = this.configService.get('FIREBASE_PROJECT_ID', { infer: true })!;
+    const clientEmail = this.configService.get('FIREBASE_CLIENT_EMAIL', { infer: true })!;
     const privateKey = this.configService.get('FIREBASE_PRIVATE_KEY', { infer: true })!.replace(
       /\\n/g,
       '\n',
@@ -19,7 +20,7 @@ export class GcsStorageService {
     this.storage = new Storage({
       projectId,
       credentials: {
-        client_email: 'firebase-adminsdk@placeholder.iam.gserviceaccount.com',
+        client_email: clientEmail,
         private_key: privateKey,
       },
     });
