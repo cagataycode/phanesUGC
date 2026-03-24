@@ -65,7 +65,7 @@ export class AdsService {
         throw new Error('Vertex AI did not return a downloadable video URL');
       }
 
-      const objectPath = await this.gcsStorageService.uploadFromUrl(
+      const objectPath = await this.gcsStorageService.importGeneratedVideo(
         generatedAsset.downloadUrl,
         `ads/${id}/${generatedAsset.providerJobId}.mp4`,
       );

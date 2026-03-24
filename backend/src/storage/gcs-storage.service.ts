@@ -8,6 +8,24 @@ export class GcsStorageService {
   private readonly storage: Storage;
   private readonly bucketName: string;
 
+  private parseGcsUri(uri: string): { bucketName: string; objectPath: string } {
+    if (!uri.startsWith('gs://')) {
+      throw new Error(`Unsupported GCS URI: ${uri}`);
+    }
+
+    const withoutScheme = uri.slice('gs://'.length);
+    const firstSlash = withoutScheme.indexOf('/');
+
+    if (firstSlash === -1) {
+      throw new Error(`Invalid GCS URI missing object path: ${uri}`);
+    }
+
+    return {
+      bucketName: withoutScheme.slice(0, firstSlash),
+      objectPath: withoutScheme.slice(firstSlash + 1),
+    };
+  }
+
   constructor(private readonly configService: ConfigService<Env>) {
     this.bucketName = this.configService.get('GCS_BUCKET_NAME', {
       infer: true,
@@ -44,7 +62,26 @@ export class GcsStorageService {
     return signedUrl;
   }
 
-  async uploadFromUrl(sourceUrl: string, objectPath: string): Promise<string> {
+  async importGeneratedVideo(
+    sourceUrl: string,
+    objectPath: string,
+  ): Promise<string> {
+    if (sourceUrl.startsWith('gs://')) {
+      const { bucketName, objectPath: sourceObjectPath } =
+        this.parseGcsUri(sourceUrl);
+
+      if (bucketName === this.bucketName && sourceObjectPath === objectPath) {
+        return objectPath;
+      }
+
+      await this.storage
+        .bucket(bucketName)
+        .file(sourceObjectPath)
+        .copy(this.storage.bucket(this.bucketName).file(objectPath));
+
+      return objectPath;
+    }
+
     const response = await fetch(sourceUrl);
 
     if (!response.ok) {
