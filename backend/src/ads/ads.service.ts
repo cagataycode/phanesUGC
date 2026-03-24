@@ -48,7 +48,9 @@ export class AdsService {
     });
 
     try {
-      const generatedAsset = await this.vertexAiService.generateVideoFromPrompt(job.prompt);
+      const generatedAsset = await this.vertexAiService.generateVideoFromPrompt(
+        job.prompt,
+      );
       if (!generatedAsset.downloadUrl) {
         throw new Error('Vertex AI did not return a downloadable video URL');
       }
@@ -57,14 +59,16 @@ export class AdsService {
         generatedAsset.downloadUrl,
         `ads/${id}/${generatedAsset.providerJobId}.mp4`,
       );
-      const videoUrl = await this.gcsStorageService.createSignedVideoUrl(objectPath);
+      const videoUrl =
+        await this.gcsStorageService.createSignedVideoUrl(objectPath);
 
       this.jobStoreService.update(id, {
         status: 'completed',
         videoUrl,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Video generation failed';
+      const message =
+        error instanceof Error ? error.message : 'Video generation failed';
 
       this.jobStoreService.update(id, {
         status: 'failed',

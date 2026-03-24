@@ -10,7 +10,9 @@ export const envSchema = z.object({
   VERTEX_AI_LOCATION: z.string().min(1),
   VERTEX_AI_API_KEY: z.string().min(1),
   PORT: z.coerce.number().int().positive().default(3000),
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  NODE_ENV: z
+    .enum(['development', 'test', 'production'])
+    .default('development'),
   API_PREFIX: z.string().min(1).default('api'),
 });
 

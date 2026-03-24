@@ -9,13 +9,18 @@ export class GcsStorageService {
   private readonly bucketName: string;
 
   constructor(private readonly configService: ConfigService<Env>) {
-    this.bucketName = this.configService.get('GCS_BUCKET_NAME', { infer: true })!;
-    const projectId = this.configService.get('FIREBASE_PROJECT_ID', { infer: true })!;
-    const clientEmail = this.configService.get('FIREBASE_CLIENT_EMAIL', { infer: true })!;
-    const privateKey = this.configService.get('FIREBASE_PRIVATE_KEY', { infer: true })!.replace(
-      /\\n/g,
-      '\n',
-    );
+    this.bucketName = this.configService.get('GCS_BUCKET_NAME', {
+      infer: true,
+    })!;
+    const projectId = this.configService.get('FIREBASE_PROJECT_ID', {
+      infer: true,
+    })!;
+    const clientEmail = this.configService.get('FIREBASE_CLIENT_EMAIL', {
+      infer: true,
+    })!;
+    const privateKey = this.configService
+      .get('FIREBASE_PRIVATE_KEY', { infer: true })!
+      .replace(/\\n/g, '\n');
 
     this.storage = new Storage({
       projectId,
@@ -27,11 +32,14 @@ export class GcsStorageService {
   }
 
   async createSignedVideoUrl(objectPath: string): Promise<string> {
-    const [signedUrl] = await this.storage.bucket(this.bucketName).file(objectPath).getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 1000 * 60 * 15,
-      version: 'v4',
-    });
+    const [signedUrl] = await this.storage
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 1000 * 60 * 15,
+        version: 'v4',
+      });
 
     return signedUrl;
   }
@@ -40,7 +48,9 @@ export class GcsStorageService {
     const response = await fetch(sourceUrl);
 
     if (!response.ok) {
-      throw new Error(`Failed to download generated video from source URL: ${response.status}`);
+      throw new Error(
+        `Failed to download generated video from source URL: ${response.status}`,
+      );
     }
 
     const arrayBuffer = await response.arrayBuffer();
