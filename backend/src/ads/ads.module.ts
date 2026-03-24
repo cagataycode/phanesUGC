@@ -3,10 +3,11 @@ import { AdsController } from './ads.controller';
 import { AdsService } from './ads.service';
 import { JobStoreService } from './services/job-store.service';
 import { VertexAiService } from '../ai/vertex-ai.service';
+import { GcsStorageService } from '../storage/gcs-storage.service';
 
 @Module({
   controllers: [AdsController],
-  providers: [AdsService, JobStoreService, VertexAiService],
+  providers: [AdsService, JobStoreService, VertexAiService, GcsStorageService],
   exports: [AdsService, JobStoreService],
 })
 export class AdsModule {}

@@ -2,12 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { AdJob, JobStoreService } from './services/job-store.service';
 import { VertexAiService } from '../ai/vertex-ai.service';
+import { GcsStorageService } from '../storage/gcs-storage.service';
 
 @Injectable()
 export class AdsService {
   constructor(
     private readonly jobStoreService: JobStoreService,
     private readonly vertexAiService: VertexAiService,
+    private readonly gcsStorageService: GcsStorageService,
   ) {}
 
   createJob(createAdDto: CreateAdDto): Pick<AdJob, 'id' | 'status'> {
@@ -46,10 +48,14 @@ export class AdsService {
     });
 
     try {
-      await this.vertexAiService.generateVideoFromPrompt(job.prompt);
+      const generatedAsset = await this.vertexAiService.generateVideoFromPrompt(job.prompt);
+      const videoUrl = await this.gcsStorageService.createSignedVideoUrl(
+        `ads/${id}/${generatedAsset.providerJobId}.mp4`,
+      );
 
       this.jobStoreService.update(id, {
         status: 'completed',
+        videoUrl,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Video generation failed';

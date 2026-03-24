@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const envSchema = z.object({
   FIREBASE_PROJECT_ID: z.string().min(1),
+  FIREBASE_CLIENT_EMAIL: z.string().email(),
   FIREBASE_PRIVATE_KEY: z.string().min(1),
   GCS_BUCKET_NAME: z.string().min(1),
   GCS_LOCATION: z.string().min(1),
