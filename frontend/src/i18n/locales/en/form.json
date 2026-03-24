@@ -1,0 +1,132 @@
+{
+  "steps": {
+    "prompt": {
+      "title": "Prompt",
+      "description": "Describe the ad you want to create"
+    },
+    "format": {
+      "title": "Format",
+      "description": "Choose format, duration & language"
+    },
+    "style": {
+      "title": "Style",
+      "description": "Set tone, voice & branding"
+    },
+    "product": {
+      "title": "Product",
+      "description": "Optional product details"
+    }
+  },
+  "stepIndicator": "Step {current} of {total}",
+  "parameters": "Parameters & Settings",
+  "styleBranding": "Style & Branding",
+  "fields": {
+    "prompt": {
+      "label": "Prompt",
+      "placeholder": "Ask Phanes to create an ad about...",
+      "error": "Prompt must be at least 5 characters."
+    },
+    "language": {
+      "label": "Language",
+      "placeholder": "Select language",
+      "options": {
+        "en": "English",
+        "de": "German"
+      }
+    },
+    "aspectRatio": {
+      "label": "Aspect Ratio",
+      "options": {
+        "9:16": "9:16 (Vertical)",
+        "1:1": "1:1 (Square)",
+        "16:9": "16:9 (Horizontal)"
+      }
+    },
+    "duration": {
+      "label": "Duration (seconds)",
+      "note": "Only 8 seconds is supported currently. More durations coming soon."
+    },
+    "tone": {
+      "label": "Tone",
+      "placeholder": "Select tone",
+      "options": {
+        "direct": "Direct & Professional",
+        "casual": "Casual & Conversational",
+        "energetic": "Energetic & Hype",
+        "funny": "Humorous"
+      }
+    },
+    "targetAudience": {
+      "label": "Target Audience",
+      "placeholder": "e.g. Small business owners"
+    },
+    "voice": {
+      "label": "Voice",
+      "placeholder": "Select voice",
+      "note": "Voice selection coming soon.",
+      "options": {
+        "female1": "Female 1 (English)",
+        "male1": "Male 1 (English)"
+      }
+    },
+    "subtitleStyle": {
+      "label": "Subtitle Style",
+      "placeholder": "Select style",
+      "options": {
+        "standard": "Standard Bold",
+        "kinetic": "Kinetic Highlight"
+      }
+    },
+    "cta": {
+      "label": "Call to Action (CTA)",
+      "placeholder": "e.g. Click the link to start your free trial"
+    },
+    "productName": {
+      "label": "Product Name",
+      "placeholder": "e.g. AdPilot"
+    },
+    "productDescription": {
+      "label": "Description",
+      "placeholder": "Quick overview of the product..."
+    },
+    "productBenefits": {
+      "label": "Benefits",
+      "placeholder": "Comma separated benefits (e.g. saves time, auto subtitles)"
+    },
+    "productUrls": {
+      "label": "Product URLs",
+      "empty": "No URLs added yet. Add product pages to scrape for enrichment.",
+      "maxReached": "Maximum {max} URLs allowed.",
+      "addButton": "Add URL"
+    },
+    "brandAssets": {
+      "label": "Brand Assets",
+      "note": "Upload optional brand images or videos."
+    }
+  },
+  "productDetails": {
+    "title": "Product Details",
+    "provideDetails": "Provide Product Details",
+    "description": "Enter manual product details so the AI has more context. This step is optional."
+  },
+  "externalSources": {
+    "title": "External Sources",
+    "description": "Optionally paste product page URLs to scrape for enrichment, or upload brand assets."
+  },
+  "navigation": {
+    "back": "Back",
+    "next": "Next",
+    "skipAndGenerate": "Skip & Generate",
+    "generateAd": "Generate Ad"
+  },
+  "status": {
+    "generating": "Generating your ad…",
+    "generatingSubtitle": "This may take a moment"
+  },
+  "result": {
+    "createAnother": "Create Another Video"
+  },
+  "errors": {
+    "generationFailed": "Failed to generate ad. Check console for details."
+  }
+}

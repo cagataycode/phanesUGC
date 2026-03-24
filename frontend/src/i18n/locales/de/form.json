@@ -1,0 +1,132 @@
+{
+  "steps": {
+    "prompt": {
+      "title": "Prompt",
+      "description": "Beschreiben Sie die Anzeige, die Sie erstellen möchten"
+    },
+    "format": {
+      "title": "Format",
+      "description": "Wählen Sie Format, Dauer & Sprache"
+    },
+    "style": {
+      "title": "Stil",
+      "description": "Legen Sie Tonfall, Stimme & Branding fest"
+    },
+    "product": {
+      "title": "Produkt",
+      "description": "Optionale Produktdetails"
+    }
+  },
+  "stepIndicator": "Schritt {current} von {total}",
+  "parameters": "Parameter & Einstellungen",
+  "styleBranding": "Stil & Branding",
+  "fields": {
+    "prompt": {
+      "label": "Prompt",
+      "placeholder": "Bitten Sie Phanes, eine Anzeige zu erstellen über...",
+      "error": "Der Prompt muss mindestens 5 Zeichen lang sein."
+    },
+    "language": {
+      "label": "Sprache",
+      "placeholder": "Sprache auswählen",
+      "options": {
+        "en": "Englisch",
+        "de": "Deutsch"
+      }
+    },
+    "aspectRatio": {
+      "label": "Seitenverhältnis",
+      "options": {
+        "9:16": "9:16 (Vertikal)",
+        "1:1": "1:1 (Quadratisch)",
+        "16:9": "16:9 (Horizontal)"
+      }
+    },
+    "duration": {
+      "label": "Dauer (Sekunden)",
+      "note": "Derzeit wird nur 8 Sekunden unterstützt. Weitere Dauerformen folgen bald."
+    },
+    "tone": {
+      "label": "Tonfall",
+      "placeholder": "Tonfall auswählen",
+      "options": {
+        "direct": "Direkt & Professionell",
+        "casual": "Locker & Gesprächig",
+        "energetic": "Energetisch & Hype",
+        "funny": "Humorvoll"
+      }
+    },
+    "targetAudience": {
+      "label": "Zielgruppe",
+      "placeholder": "z.B. Kleinunternehmer"
+    },
+    "voice": {
+      "label": "Stimme",
+      "placeholder": "Stimme auswählen",
+      "note": "Stimmenauswahl folgt bald.",
+      "options": {
+        "female1": "Weiblich 1 (Deutsch)",
+        "male1": "Männlich 1 (Deutsch)"
+      }
+    },
+    "subtitleStyle": {
+      "label": "Untertitel-Stil",
+      "placeholder": "Stil auswählen",
+      "options": {
+        "standard": "Standard Fett",
+        "kinetic": "Kinetische Hervorhebung"
+      }
+    },
+    "cta": {
+      "label": "Handlungsaufforderung (CTA)",
+      "placeholder": "z.B. Klicken Sie auf den Link, um Ihre kostenlose Testversion zu starten"
+    },
+    "productName": {
+      "label": "Produktname",
+      "placeholder": "z.B. AdPilot"
+    },
+    "productDescription": {
+      "label": "Beschreibung",
+      "placeholder": "Kurze Übersicht des Produkts..."
+    },
+    "productBenefits": {
+      "label": "Vorteile",
+      "placeholder": "Kommagetrennte Vorteile (z.B. spart Zeit, automatische Untertitel)"
+    },
+    "productUrls": {
+      "label": "Produkt-URLs",
+      "empty": "Noch keine URLs hinzugefügt. Fügen Sie Produktseiten für die Anreicherung hinzu.",
+      "maxReached": "Maximal {max} URLs erlaubt.",
+      "addButton": "URL hinzufügen"
+    },
+    "brandAssets": {
+      "label": "Marken-Assets",
+      "note": "Laden Sie optionale Marken-Bilder oder -Videos hoch."
+    }
+  },
+  "productDetails": {
+    "title": "Produktdetails",
+    "provideDetails": "Produktdetails angeben",
+    "description": "Geben Sie manuelle Produktdetails ein, damit die KI mehr Kontext hat. Dieser Schritt ist optional."
+  },
+  "externalSources": {
+    "title": "Externe Quellen",
+    "description": "Fügen Sie optional Produktseiten-URLs für die Anreicherung ein oder laden Sie Marken-Assets hoch."
+  },
+  "navigation": {
+    "back": "Zurück",
+    "next": "Weiter",
+    "skipAndGenerate": "Überspringen & Generieren",
+    "generateAd": "Anzeige generieren"
+  },
+  "status": {
+    "generating": "Ihre Anzeige wird generiert…",
+    "generatingSubtitle": "Dies kann einen Moment dauern"
+  },
+  "result": {
+    "createAnother": "Weiteres Video erstellen"
+  },
+  "errors": {
+    "generationFailed": "Anzeige konnte nicht generiert werden. Siehe Konsole für Details."
+  }
+}
