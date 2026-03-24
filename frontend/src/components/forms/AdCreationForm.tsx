@@ -111,22 +111,27 @@ export function AdCreationForm() {
       setStatusMessage(t("status.generating"));
 
       const payload = {
-        prompt: values.prompt,
-        platform: values.platform,
-        aspect_ratio: values.aspect_ratio,
-        duration_sec: parseInt(values.duration_sec, 10),
-        language: values.language,
-        tone: values.tone,
-        cta: values.cta,
-        product_info: {
-          name: values.product_name,
-          description: values.product_description,
-          benefits: values.product_benefits
-            ? values.product_benefits.split(",").map((b) => b.trim())
-            : [],
+        prompt_inputs: {
+          prompt: values.prompt,
+          platform: values.platform,
+          language: values.language,
+          tone: values.tone,
+          target_audience: values.target_audience,
+          cta: values.cta,
+          product_info: {
+            name: values.product_name,
+            description: values.product_description,
+            benefits: values.product_benefits
+              ? values.product_benefits.split(",").map((b) => b.trim())
+              : [],
+          },
+          urls: values.product_urls ? [values.product_urls] : [],
+          subtitle_style: values.subtitle_style,
         },
-        urls: values.product_urls ? [values.product_urls] : [],
-        subtitle_style: values.subtitle_style,
+        veo_config: {
+          aspect_ratio: values.aspect_ratio,
+          duration_sec: parseInt(values.duration_sec, 10) as 8 | 15 | 30 | 60,
+        },
       };
 
       const job = await createAdJob(payload);

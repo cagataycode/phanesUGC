@@ -2,13 +2,12 @@ export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 const API_BASE_URL = "/api";
 
 // Models based on PRD Section 11.1
-export interface AdJobRequest {
+export interface AdPromptInputs {
   prompt: string;
-  platform?: string;
-  aspect_ratio: string;
-  duration_sec: number;
-  language: string;
+  platform?: "tiktok" | "instagram" | "youtube";
+  language?: "en" | "de";
   tone?: string;
+  target_audience?: string;
   cta?: string;
   product_info?: {
     name?: string;
@@ -17,6 +16,19 @@ export interface AdJobRequest {
   };
   urls?: string[];
   subtitle_style?: string;
+}
+
+export interface AdVeoConfigInputs {
+  aspect_ratio: "9:16" | "1:1" | "16:9";
+  duration_sec: 8 | 15 | 30 | 60;
+  negative_prompt?: string;
+  person_generation?: "allow_all" | "allow_adult";
+  enhance_prompt?: boolean;
+}
+
+export interface AdJobRequest {
+  prompt_inputs: AdPromptInputs;
+  veo_config: AdVeoConfigInputs;
 }
 
 export interface AdJobResponse {
