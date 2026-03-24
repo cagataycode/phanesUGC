@@ -19,6 +19,10 @@
   },
   "stepIndicator": "Schritt {current} von {total}",
   "parameters": "Parameter & Einstellungen",
+  "promptInputs": "Kreative Prompt-Eingaben",
+  "promptInputsDescription": "Diese Felder werden in einen kreativen Brief und einen zusammengesetzten Prompt umgewandelt.",
+  "veoSettings": "Veo-Generierungseinstellungen",
+  "veoSettingsDescription": "Diese Felder werden direkt als Modellparameter gesendet und nicht als Prompt-Text formuliert.",
   "styleBranding": "Stil & Branding",
   "fields": {
     "prompt": {
@@ -53,7 +57,7 @@
     },
     "duration": {
       "label": "Dauer (Sekunden)",
-      "note": "Derzeit wird nur 8 Sekunden unterstützt. Weitere Dauerformen folgen bald."
+      "note": "Dies ist eine direkte Veo-Generierungseinstellung."
     },
     "tone": {
       "label": "Tonfall",
@@ -72,6 +76,7 @@
     "subtitleStyle": {
       "label": "Untertitel-Stil",
       "placeholder": "Stil auswählen",
+      "note": "Wird als kreative Prompt-Hilfe verwendet, nicht als direkte Veo-Render-Einstellung.",
       "options": {
         "standard": "Standard Fett",
         "kinetic": "Kinetische Hervorhebung"

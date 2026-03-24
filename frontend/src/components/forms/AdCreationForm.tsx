@@ -321,6 +321,15 @@ export function AdCreationForm() {
             </div>
 
             <CollapsibleContent className="mt-8 space-y-8 text-left bg-card/50 backdrop-blur-md border border-border/50 p-6 md:p-8 rounded-[24px] shadow-sm animate-in fade-in zoom-in-95 duration-200">
+              <div className="space-y-2 rounded-2xl border border-border/60 bg-background/70 p-4">
+                <h3 className="text-base font-semibold tracking-tight">
+                  {t("veoSettings")}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {t("veoSettingsDescription")}
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -471,6 +480,9 @@ export function AdCreationForm() {
                           </FormItem>
                         </RadioGroup>
                       </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        {t("fields.duration.note")}
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -481,6 +493,14 @@ export function AdCreationForm() {
 
               {/* Optional Branding & Style section */}
               <div className="space-y-4">
+                <div className="space-y-2 rounded-2xl border border-border/60 bg-background/70 p-4">
+                  <h3 className="text-base font-semibold tracking-tight">
+                    {t("promptInputs")}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {t("promptInputsDescription")}
+                  </p>
+                </div>
                 <h3 className="text-lg font-semibold tracking-tight">
                   {t("styleBranding")}
                 </h3>
@@ -518,6 +538,9 @@ export function AdCreationForm() {
                             </SelectItem>
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">
+                          {t("fields.subtitleStyle.note")}
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
