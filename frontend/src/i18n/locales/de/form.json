@@ -10,7 +10,7 @@
     },
     "style": {
       "title": "Stil",
-      "description": "Legen Sie Tonfall, Stimme & Branding fest"
+      "description": "Legen Sie Tonfall & Branding fest"
     },
     "product": {
       "title": "Produkt",
@@ -68,15 +68,6 @@
     "targetAudience": {
       "label": "Zielgruppe",
       "placeholder": "z.B. Kleinunternehmer"
-    },
-    "voice": {
-      "label": "Stimme",
-      "placeholder": "Stimme auswählen",
-      "note": "Stimmenauswahl folgt bald.",
-      "options": {
-        "female1": "Weiblich 1 (Deutsch)",
-        "male1": "Männlich 1 (Deutsch)"
-      }
     },
     "subtitleStyle": {
       "label": "Untertitel-Stil",

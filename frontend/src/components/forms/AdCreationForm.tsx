@@ -67,7 +67,6 @@ const formSchema = z.object({
   product_benefits: z.string().optional(),
   product_urls: z.string().optional(),
   subtitle_style: z.string().optional(),
-  voice_id: z.string().optional(),
 });
 
 export function AdCreationForm() {
@@ -95,7 +94,6 @@ export function AdCreationForm() {
       product_benefits: "",
       product_urls: "",
       subtitle_style: "standard",
-      voice_id: "female_en_01",
     },
   });
 
@@ -129,7 +127,6 @@ export function AdCreationForm() {
         },
         urls: values.product_urls ? [values.product_urls] : [],
         subtitle_style: values.subtitle_style,
-        voice_id: values.voice_id,
       };
 
       const job = await createAdJob(payload);
@@ -535,38 +532,6 @@ export function AdCreationForm() {
                             {...field}
                           />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="voice_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("fields.voice.label")}</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue
-                                placeholder={t("fields.voice.placeholder")}
-                              />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="female_en_01">
-                              {t("fields.voice.options.female1")}
-                            </SelectItem>
-                            <SelectItem value="male_en_01">
-                              {t("fields.voice.options.male1")}
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}

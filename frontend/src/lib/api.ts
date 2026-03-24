@@ -17,7 +17,6 @@ export interface AdJobRequest {
   };
   urls?: string[];
   subtitle_style?: string;
-  voice_id?: string;
 }
 
 export interface AdJobResponse {

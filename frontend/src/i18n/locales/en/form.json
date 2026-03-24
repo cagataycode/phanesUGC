@@ -10,7 +10,7 @@
     },
     "style": {
       "title": "Style",
-      "description": "Set tone, voice & branding"
+      "description": "Set tone & branding"
     },
     "product": {
       "title": "Product",
@@ -68,15 +68,6 @@
     "targetAudience": {
       "label": "Target Audience",
       "placeholder": "e.g. Small business owners"
-    },
-    "voice": {
-      "label": "Voice",
-      "placeholder": "Select voice",
-      "note": "Voice selection coming soon.",
-      "options": {
-        "female1": "Female 1 (English)",
-        "male1": "Male 1 (English)"
-      }
     },
     "subtitleStyle": {
       "label": "Subtitle Style",
