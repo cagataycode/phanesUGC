@@ -1,5 +1,14 @@
-import { useEffect, useState } from "react";
-import { doc, onSnapshot, collection, query, where, orderBy, DocumentData, Timestamp } from "firebase/firestore";
+import { useEffect, useMemo, useState } from "react";
+import {
+  doc,
+  onSnapshot,
+  collection,
+  query,
+  where,
+  orderBy,
+  DocumentData,
+  Timestamp,
+} from "firebase/firestore";
 import { db } from "./index";
 
 export interface ProjectData extends DocumentData {
@@ -31,22 +40,35 @@ export interface ProjectData extends DocumentData {
   updatedAt: Timestamp;
 }
 
-export function useProject(businessId: string | undefined, projectId: string | undefined) {
+export function useProject(
+  businessId: string | undefined,
+  projectId: string | undefined,
+) {
+  const firebaseUnavailableError = useMemo(
+    () => (!db ? new Error("Firebase is not configured.") : null),
+    [],
+  );
+  const canSubscribe = Boolean(db && businessId && projectId);
   const [project, setProject] = useState<ProjectData | null>(null);
-  const [loading, setLoading] = useState(!!(businessId && projectId));
-  const [error, setError] = useState<Error | null>(null);
+  const [loading, setLoading] = useState(canSubscribe);
+  const [error, setError] = useState<Error | null>(firebaseUnavailableError);
 
   useEffect(() => {
-    if (!businessId || !projectId) {
+    if (!canSubscribe || !db) {
       setTimeout(() => {
         setProject(null);
         setLoading(false);
+        setError(firebaseUnavailableError);
       }, 0);
       return;
     }
 
+    if (!businessId || !projectId) {
+      return;
+    }
+
     const projectRef = doc(db, "businesses", businessId, "projects", projectId);
-    
+
     const unsubscribe = onSnapshot(
       projectRef,
       (docSnap) => {
@@ -61,26 +83,36 @@ export function useProject(businessId: string | undefined, projectId: string | u
         console.error("Error fetching project:", err);
         setError(err);
         setLoading(false);
-      }
+      },
     );
 
     return () => unsubscribe();
-  }, [businessId, projectId]);
+  }, [canSubscribe, businessId, firebaseUnavailableError, projectId]);
 
   return { project, loading, error };
 }
 
 export function useProjects(businessId: string | undefined) {
+  const firebaseUnavailableError = useMemo(
+    () => (!db ? new Error("Firebase is not configured.") : null),
+    [],
+  );
+  const canSubscribe = Boolean(db && businessId);
   const [projects, setProjects] = useState<ProjectData[]>([]);
-  const [loading, setLoading] = useState(!!businessId);
-  const [error, setError] = useState<Error | null>(null);
+  const [loading, setLoading] = useState(canSubscribe);
+  const [error, setError] = useState<Error | null>(firebaseUnavailableError);
 
   useEffect(() => {
-    if (!businessId) {
+    if (!canSubscribe || !db) {
       setTimeout(() => {
         setProjects([]);
         setLoading(false);
+        setError(firebaseUnavailableError);
       }, 0);
+      return;
+    }
+
+    if (!businessId) {
       return;
     }
 
@@ -88,14 +120,14 @@ export function useProjects(businessId: string | undefined) {
     const q = query(
       projectsRef,
       where("isDeleted", "==", false),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
     );
 
     const unsubscribe = onSnapshot(
       q,
       (querySnap) => {
         const docs = querySnap.docs.map(
-          (doc) => ({ id: doc.id, ...doc.data() } as ProjectData)
+          (doc) => ({ id: doc.id, ...doc.data() }) as ProjectData,
         );
         setProjects(docs);
         setLoading(false);
@@ -104,11 +136,11 @@ export function useProjects(businessId: string | undefined) {
         console.error("Error fetching projects:", err);
         setError(err);
         setLoading(false);
-      }
+      },
     );
 
     return () => unsubscribe();
-  }, [businessId]);
+  }, [businessId, canSubscribe, firebaseUnavailableError]);
 
   return { projects, loading, error };
 }
