@@ -16,14 +16,89 @@ export class AdsService {
     private readonly gcsStorageService: GcsStorageService,
   ) {}
 
+  private parseAndFlattenPrompt(createAdDto: CreateAdDto): void {
+    let promptData: string | Record<string, unknown> =
+      createAdDto.prompt_inputs.prompt;
+
+    if (typeof promptData === 'string') {
+      try {
+        const parsed: unknown = JSON.parse(promptData);
+        if (typeof parsed === 'object' && parsed !== null) {
+          promptData = parsed as Record<string, unknown>;
+        }
+      } catch {
+        // Not a JSON string, leave it as is
+        return;
+      }
+    }
+
+    if (typeof promptData === 'object' && promptData !== null) {
+      const parts: string[] = [];
+      const keysToExtract = [
+        'subject',
+        'pose',
+        'environment',
+        'camera',
+        'lighting',
+        'mood_and_expression',
+        'style_and_realism',
+        'colors_and_tone',
+        'quality_and_technical_details',
+      ];
+
+      for (const key of keysToExtract) {
+        const val = promptData[key];
+        if (typeof val === 'string') {
+          const formattedKey = key.replace(/_/g, ' ').toUpperCase();
+          parts.push(`${formattedKey}:\n${val}`);
+        }
+      }
+
+      // Handle negative prompt
+      const negPromptObj = promptData['negative_prompt'] as
+        | Record<string, unknown>
+        | undefined;
+      if (
+        negPromptObj?.forbidden_elements &&
+        Array.isArray(negPromptObj.forbidden_elements)
+      ) {
+        const negs = (negPromptObj.forbidden_elements as string[]).join(', ');
+        if (createAdDto.veo_config.negative_prompt) {
+          createAdDto.veo_config.negative_prompt += ', ' + negs;
+        } else {
+          createAdDto.veo_config.negative_prompt = negs;
+        }
+      }
+
+      // Handle aspect ratio override if present
+      const aspectRatioOverride = promptData['aspect_ratio_and_output'];
+      if (typeof aspectRatioOverride === 'string') {
+        const validRatios = ['16:9', '9:16', '1:1'];
+        if (validRatios.includes(aspectRatioOverride)) {
+          createAdDto.veo_config.aspect_ratio = aspectRatioOverride as
+            | '16:9'
+            | '9:16'
+            | '1:1';
+        }
+      }
+
+      // Replace the original prompt object/JSON string with the newly flattened string
+      createAdDto.prompt_inputs.prompt =
+        parts.join('\n\n') || JSON.stringify(promptData);
+    }
+  }
+
   async createJob(
     createAdDto: CreateAdDto,
   ): Promise<{ id: string; status: string }> {
+    // Process JSON prompts into flat strings before saving them to the database
+    this.parseAndFlattenPrompt(createAdDto);
+
     const jobId = await this.jobStoreService.create(createAdDto.businessId, {
       businessId: createAdDto.businessId,
       productId: createAdDto.productId,
       createdBy: createAdDto.createdBy,
-      prompt: createAdDto.prompt_inputs.prompt,
+      prompt: createAdDto.prompt_inputs.prompt as string,
       platform: createAdDto.prompt_inputs.platform,
       aspectRatio: createAdDto.veo_config.aspect_ratio,
       durationSec: createAdDto.veo_config.duration_sec,
@@ -43,16 +118,22 @@ export class AdsService {
 
   async getJobResult(businessId: string, projectId: string) {
     const job = await this.jobStoreService.getById(businessId, projectId);
-    
+
     let video_url: string | undefined;
     if (job.output?.videoStorageKey) {
-      video_url = await this.gcsStorageService.createSignedVideoUrl(job.output.videoStorageKey);
+      video_url = await this.gcsStorageService.createSignedVideoUrl(
+        job.output.videoStorageKey,
+      );
     }
 
     return {
       video_url,
-      thumbnail_url: job.output?.thumbnailStorageKey ? await this.gcsStorageService.createSignedVideoUrl(job.output.thumbnailStorageKey) : undefined,
-      script: job.script,
+      thumbnail_url: job.output?.thumbnailStorageKey
+        ? await this.gcsStorageService.createSignedVideoUrl(
+            job.output.thumbnailStorageKey,
+          )
+        : undefined,
+      script: job.script as Record<string, unknown>,
       subtitles: [],
       transcript: [],
       metadata: {},

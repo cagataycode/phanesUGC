@@ -3,7 +3,8 @@ export class CreateAdDto {
   productId!: string;
   createdBy!: string;
   prompt_inputs!: {
-    prompt: string;
+    // Can be a plain string OR a structured JSON object representing advanced prompt elements
+    prompt: string | Record<string, any>;
     platform: 'tiktok' | 'instagram' | 'youtube';
     language: string;
     tone?: string;
