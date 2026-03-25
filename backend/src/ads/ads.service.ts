@@ -41,6 +41,24 @@ export class AdsService {
     return this.jobStoreService.getById(businessId, projectId);
   }
 
+  async getJobResult(businessId: string, projectId: string) {
+    const job = await this.jobStoreService.getById(businessId, projectId);
+    
+    let video_url: string | undefined;
+    if (job.output?.videoStorageKey) {
+      video_url = await this.gcsStorageService.createSignedVideoUrl(job.output.videoStorageKey);
+    }
+
+    return {
+      video_url,
+      thumbnail_url: job.output?.thumbnailStorageKey ? await this.gcsStorageService.createSignedVideoUrl(job.output.thumbnailStorageKey) : undefined,
+      script: job.script,
+      subtitles: [],
+      transcript: [],
+      metadata: {},
+    };
+  }
+
   private buildPromptFromScript(
     createAdDto: CreateAdDto,
     script: {

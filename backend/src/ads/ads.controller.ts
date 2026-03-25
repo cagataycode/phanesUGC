@@ -18,4 +18,12 @@ export class AdsController {
   ) {
     return this.adsService.getJob(businessId, id);
   }
+
+  @Get(':id/result')
+  async getJobResult(
+    @Param('id') id: string,
+    @Query('businessId') businessId: string,
+  ) {
+    return this.adsService.getJobResult(businessId, id);
+  }
 }
