@@ -23,5 +23,38 @@
   },
   "theme": {
     "toggle": "Design wechseln"
+  },
+  "auth": {
+    "tabs": {
+      "login": "Anmelden",
+      "signup": "Registrieren"
+    },
+    "description": "Mock-Auth-Formular für Frontend- und Backend-Integrationstests.",
+    "fields": {
+      "name": "Vollständiger Name",
+      "email": "E-Mail",
+      "password": "Passwort"
+    },
+    "submit": {
+      "login": "Mit Mock-Konto anmelden",
+      "signup": "Mock-Konto erstellen"
+    },
+    "session": {
+      "active": "Aktive Mock-Sitzung für {email} ({uid}).",
+      "inactive": "Derzeit ist kein Mock-Benutzer angemeldet.",
+      "signOut": "Abmelden"
+    },
+    "toast": {
+      "successTitle": "Mock-Auth bereit",
+      "successDescription": "Angemeldet als {email}.",
+      "apiTitle": "Backend-API-Platzhalter aufgerufen",
+      "apiDescription": "Anfrage für {endpoint} vorbereitet."
+    },
+    "api": {
+      "title": "Backend-Integrationsplatzhalter",
+      "description": "Diese Frontend-Auth-Buttons rufen bereits Platzhalter-API-Helper auf. Ersetzen Sie Base-URL, Endpunkte und Request/Response-Vertrag, sobald das Backend-Auth bereit ist."
+    },
+    "footnote": "Dieses Formular ist nur lokal und simuliert Login/Signup UX, bis echte Firebase Authentication verbunden ist.",
+    "close": "Authentifizierungsdialog schließen"
   }
 }
