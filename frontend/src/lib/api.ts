@@ -27,6 +27,9 @@ export interface AdVeoConfigInputs {
 }
 
 export interface AdJobRequest {
+  businessId: string;
+  productId: string;
+  createdBy: string;
   prompt_inputs: AdPromptInputs;
   veo_config: AdVeoConfigInputs;
 }
@@ -82,7 +85,10 @@ export async function createAdJob(
 /**
  * Polls the job status
  */
-export async function getAdJobStatus(id: string): Promise<AdJobStatusResponse> {
+export async function getAdJobStatus(
+  id: string,
+  businessId: string = "test-business-id"
+): Promise<AdJobStatusResponse> {
   if (USE_MOCK) {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -110,7 +116,7 @@ export async function getAdJobStatus(id: string): Promise<AdJobStatusResponse> {
     });
   }
 
-  const res = await fetch(`${API_BASE_URL}/ads/${id}`);
+  const res = await fetch(`${API_BASE_URL}/ads/${id}?businessId=${businessId}`);
   if (!res.ok) throw new Error("Failed to fetch ad job status");
   return res.json();
 }
@@ -118,7 +124,10 @@ export async function getAdJobStatus(id: string): Promise<AdJobStatusResponse> {
 /**
  * Retrieves the final video outputs
  */
-export async function getAdJobResult(id: string): Promise<AdJobResultResponse> {
+export async function getAdJobResult(
+  id: string,
+  businessId: string = "test-business-id"
+): Promise<AdJobResultResponse> {
   if (USE_MOCK) {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -137,7 +146,7 @@ export async function getAdJobResult(id: string): Promise<AdJobResultResponse> {
     });
   }
 
-  const res = await fetch(`${API_BASE_URL}/ads/${id}/result`);
+  const res = await fetch(`${API_BASE_URL}/ads/${id}/result?businessId=${businessId}`);
   if (!res.ok) throw new Error("Failed to fetch ad job result");
   return res.json();
 }

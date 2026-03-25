@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AdsModule } from './ads/ads.module';
+import { FirebaseModule } from './firebase/firebase.module';
 import { validateEnv } from './config/env';
 
 @Module({
@@ -12,6 +13,7 @@ import { validateEnv } from './config/env';
       envFilePath: ['.env.local', '.env'],
       validate: validateEnv,
     }),
+    FirebaseModule,
     AdsModule,
   ],
   controllers: [AppController],

@@ -4,12 +4,15 @@ const BACKEND_API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001/api';
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
+  const url = new URL(request.url);
+  const searchParams = url.searchParams.toString();
+  const query = searchParams ? `?${searchParams}` : '';
 
-  const response = await fetch(`${BACKEND_API_BASE_URL}/ads/${id}`, {
+  const response = await fetch(`${BACKEND_API_BASE_URL}/ads/${id}${query}`, {
     method: 'GET',
     cache: 'no-store',
   });

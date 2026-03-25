@@ -16,8 +16,9 @@ import {
   ArrowUp01Icon,
   Loading01Icon,
 } from "@hugeicons/core-free-icons";
-import { useState } from "react";
-import { createAdJob, getAdJobStatus } from "@/lib/api";
+import { useState, useEffect, useCallback } from "react";
+import { createAdJob, getAdJobResult } from "@/lib/api";
+import { useProject } from "@/lib/firebase/hooks";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -78,8 +79,12 @@ export function AdCreationForm() {
   const [videoResult, setVideoResult] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
+  const [activeProjectId, setActiveProjectId] = useState<string | undefined>(undefined);
 
-  function showGenerationError(message: string) {
+  const businessId = process.env.NEXT_PUBLIC_DEFAULT_BUSINESS_ID || "test-business-id";
+  const { project, error: projectError } = useProject(businessId, activeProjectId);
+
+  const showGenerationError = useCallback((message: string) => {
     setInlineError(message);
     window.dispatchEvent(
       new CustomEvent("phanes-toast", {
@@ -90,7 +95,59 @@ export function AdCreationForm() {
         },
       }),
     );
-  }
+  }, [t]);
+
+  useEffect(() => {
+    if (project) {
+      setTimeout(() => {
+        setGenerationProgress(project.progress || 0);
+      }, 0);
+      
+      if (project.status === "completed" && project.output?.videoStorageKey) {
+        // Fetch signed URL now that it's complete
+        getAdJobResult(project.id, businessId)
+          .then((result) => {
+            if (result.video_url) {
+              setVideoResult(result.video_url);
+              setStatusMessage(null);
+              setIsGenerating(false);
+            }
+          })
+          .catch(() => {
+            setIsGenerating(false);
+            setStatusMessage(null);
+            showGenerationError("Failed to load generated video");
+          });
+      } else if (project.status === "failed") {
+        setTimeout(() => {
+          setIsGenerating(false);
+          setStatusMessage(null);
+          showGenerationError(project.error ?? t("errors.generationFailed"));
+        }, 0);
+      } else if (project.status === "processing") {
+        // Find which stage is currently running
+        const runningStage = Object.entries(project.stages || {}).find(
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          ([_, status]) => status === "running"
+        );
+        if (runningStage) {
+          setTimeout(() => {
+            setStatusMessage(`Running: ${runningStage[0]}...`);
+          }, 0);
+        }
+      }
+    }
+  }, [project, businessId, t, showGenerationError]);
+
+  useEffect(() => {
+    if (projectError) {
+      setTimeout(() => {
+        setIsGenerating(false);
+        setStatusMessage(null);
+        showGenerationError("Lost connection to generation status");
+      }, 0);
+    }
+  }, [projectError, showGenerationError]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -126,6 +183,9 @@ export function AdCreationForm() {
       setInlineError(null);
 
       const payload = {
+        businessId: businessId,
+        productId: "test-product-id",
+        createdBy: "test-user-id",
         prompt_inputs: {
           prompt: values.prompt,
           platform: values.platform,
@@ -150,36 +210,8 @@ export function AdCreationForm() {
       };
 
       const job = await createAdJob(payload);
-
-      const pollInterval = window.setInterval(async () => {
-        try {
-          const status = await getAdJobStatus(job.id);
-
-          setGenerationProgress((current) => Math.min(current + 15, 95));
-
-          if (status.status === "completed" && status.video_url) {
-            window.clearInterval(pollInterval);
-            setGenerationProgress(100);
-            setVideoResult(status.video_url);
-            setStatusMessage(null);
-            setIsGenerating(false);
-            return;
-          }
-
-          if (status.status === "failed") {
-            window.clearInterval(pollInterval);
-            setIsGenerating(false);
-            setStatusMessage(null);
-            showGenerationError(status.error ?? t("errors.generationFailed"));
-          }
-        } catch (pollError) {
-          window.clearInterval(pollInterval);
-          setIsGenerating(false);
-          setStatusMessage(null);
-          console.error(pollError);
-          showGenerationError(t("errors.generationFailed"));
-        }
-      }, 3000);
+      setActiveProjectId(job.id);
+      
     } catch (error) {
       console.error(error);
       setIsGenerating(false);

@@ -190,4 +190,59 @@ export class VertexAiService {
       downloadUrl,
     };
   }
+
+  async generateContent(prompt: string): Promise<unknown> {
+    try {
+      this.logger.log('Generating content with Vertex AI');
+
+      // Use the client's generateContent method
+      const response = await this.client.models.generateContent({
+        model: this.modelId,
+        contents: {
+          role: 'user',
+          parts: [
+            {
+              text: prompt,
+            },
+          ],
+        },
+      });
+
+      // Extract the response text and parse it as JSON
+      if (
+        response &&
+        typeof response === 'object' &&
+        'candidates' in response
+      ) {
+        const candidates = response.candidates as Array<{
+          content?: { parts?: Array<{ text?: string }> };
+        }>;
+        if (candidates && candidates.length > 0) {
+          const firstCandidate = candidates[0];
+          if (
+            firstCandidate.content?.parts &&
+            firstCandidate.content.parts.length > 0
+          ) {
+            const text = firstCandidate.content.parts[0].text;
+            if (text) {
+              try {
+                return JSON.parse(text);
+              } catch {
+                this.logger.warn(
+                  'Failed to parse LLM response as JSON, returning raw text',
+                );
+                return { text };
+              }
+            }
+          }
+        }
+      }
+
+      throw new Error('Invalid response from Vertex AI');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Content generation failed: ${message}`);
+      throw error;
+    }
+  }
 }
