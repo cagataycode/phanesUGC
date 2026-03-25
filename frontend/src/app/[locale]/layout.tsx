@@ -3,6 +3,7 @@ import "../globals.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast-provider";
+import { MockAuthProvider } from "@/lib/firebase/mock-auth";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { locales, type Locale } from "@/i18n/config";
@@ -54,15 +55,17 @@ export default async function LocaleLayout({
     >
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider messages={messages}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-            <ToastProvider />
-          </ThemeProvider>
+          <MockAuthProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="dark"
+              enableSystem
+              disableTransitionOnChange
+            >
+              {children}
+              <ToastProvider />
+            </ThemeProvider>
+          </MockAuthProvider>
         </NextIntlClientProvider>
       </body>
     </html>
