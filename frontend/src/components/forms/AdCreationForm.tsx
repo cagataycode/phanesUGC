@@ -81,7 +81,7 @@ export function AdCreationForm() {
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [activeProjectId, setActiveProjectId] = useState<string | undefined>(undefined);
 
-  const businessId = "test-business-id";
+  const businessId = process.env.NEXT_PUBLIC_DEFAULT_BUSINESS_ID || "test-business-id";
   const { project, error: projectError } = useProject(businessId, activeProjectId);
 
   const showGenerationError = useCallback((message: string) => {

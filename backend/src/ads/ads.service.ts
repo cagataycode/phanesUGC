@@ -20,71 +20,99 @@ export class AdsService {
     let promptData: string | Record<string, unknown> =
       createAdDto.prompt_inputs.prompt;
 
+    // Parse JSON string if possible
+    promptData = this.parseJsonString(promptData);
+
+    // If we have an object, process it
+    if (typeof promptData === 'object' && promptData !== null) {
+      // Extract and format prompt parts
+      const formattedPrompt = this.extractPromptParts(promptData);
+
+      // Handle negative prompt
+      this.handleNegativePrompt(promptData, createAdDto);
+
+      // Handle aspect ratio override
+      this.handleAspectRatioOverride(promptData, createAdDto);
+
+      // Replace the original prompt with the formatted version
+      createAdDto.prompt_inputs.prompt = formattedPrompt;
+    }
+  }
+
+  private parseJsonString(
+    promptData: string | Record<string, unknown>,
+  ): string | Record<string, unknown> {
     if (typeof promptData === 'string') {
       try {
         const parsed: unknown = JSON.parse(promptData);
         if (typeof parsed === 'object' && parsed !== null) {
-          promptData = parsed as Record<string, unknown>;
+          return parsed as Record<string, unknown>;
         }
       } catch {
         // Not a JSON string, leave it as is
-        return;
+      }
+    }
+    return promptData;
+  }
+
+  private extractPromptParts(promptData: Record<string, unknown>): string {
+    const parts: string[] = [];
+    const keysToExtract = [
+      'subject',
+      'pose',
+      'environment',
+      'camera',
+      'lighting',
+      'mood_and_expression',
+      'style_and_realism',
+      'colors_and_tone',
+      'quality_and_technical_details',
+    ];
+
+    for (const key of keysToExtract) {
+      const val = promptData[key];
+      if (typeof val === 'string') {
+        const formattedKey = key.replace(/_/g, ' ').toUpperCase();
+        parts.push(`${formattedKey}:\n${val}`);
       }
     }
 
-    if (typeof promptData === 'object' && promptData !== null) {
-      const parts: string[] = [];
-      const keysToExtract = [
-        'subject',
-        'pose',
-        'environment',
-        'camera',
-        'lighting',
-        'mood_and_expression',
-        'style_and_realism',
-        'colors_and_tone',
-        'quality_and_technical_details',
-      ];
+    return parts.join('\n\n') || JSON.stringify(promptData);
+  }
 
-      for (const key of keysToExtract) {
-        const val = promptData[key];
-        if (typeof val === 'string') {
-          const formattedKey = key.replace(/_/g, ' ').toUpperCase();
-          parts.push(`${formattedKey}:\n${val}`);
-        }
+  private handleNegativePrompt(
+    promptData: Record<string, unknown>,
+    createAdDto: CreateAdDto,
+  ): void {
+    const negPromptObj = promptData['negative_prompt'] as
+      | Record<string, unknown>
+      | undefined;
+    if (
+      negPromptObj?.forbidden_elements &&
+      Array.isArray(negPromptObj.forbidden_elements)
+    ) {
+      const negs = (negPromptObj.forbidden_elements as string[]).join(', ');
+      if (createAdDto.veo_config.negative_prompt) {
+        createAdDto.veo_config.negative_prompt += ', ' + negs;
+      } else {
+        createAdDto.veo_config.negative_prompt = negs;
       }
+    }
+  }
 
-      // Handle negative prompt
-      const negPromptObj = promptData['negative_prompt'] as
-        | Record<string, unknown>
-        | undefined;
-      if (
-        negPromptObj?.forbidden_elements &&
-        Array.isArray(negPromptObj.forbidden_elements)
-      ) {
-        const negs = (negPromptObj.forbidden_elements as string[]).join(', ');
-        if (createAdDto.veo_config.negative_prompt) {
-          createAdDto.veo_config.negative_prompt += ', ' + negs;
-        } else {
-          createAdDto.veo_config.negative_prompt = negs;
-        }
+  private handleAspectRatioOverride(
+    promptData: Record<string, unknown>,
+    createAdDto: CreateAdDto,
+  ): void {
+    const aspectRatioOverride = promptData['aspect_ratio_and_output'];
+    if (typeof aspectRatioOverride === 'string') {
+      const validRatios = ['16:9', '9:16', '1:1'];
+      if (validRatios.includes(aspectRatioOverride)) {
+        createAdDto.veo_config.aspect_ratio = aspectRatioOverride as
+          | '16:9'
+          | '9:16'
+          | '1:1';
       }
-
-      // Handle aspect ratio override if present
-      const aspectRatioOverride = promptData['aspect_ratio_and_output'];
-      if (typeof aspectRatioOverride === 'string') {
-        const validRatios = ['16:9', '9:16', '1:1'];
-        if (validRatios.includes(aspectRatioOverride)) {
-          createAdDto.veo_config.aspect_ratio = aspectRatioOverride as
-            | '16:9'
-            | '9:16'
-            | '1:1';
-        }
-      }
-
-      // Replace the original prompt object/JSON string with the newly flattened string
-      createAdDto.prompt_inputs.prompt =
-        parts.join('\n\n') || JSON.stringify(promptData);
     }
   }
 
@@ -204,7 +232,7 @@ export class AdsService {
         },
       });
 
-      const brief = this.briefGenerationService.generate(createAdDto);
+      const brief = await this.briefGenerationService.generate(createAdDto);
 
       // 2. Script generation stage
       await this.jobStoreService.update(businessId, projectId, {
@@ -252,7 +280,7 @@ export class AdsService {
         },
       );
 
-      if (!generatedAsset.downloadUrl) {
+      if (!generatedAsset || !generatedAsset.downloadUrl) {
         throw new Error('Vertex AI did not return a downloadable video URL');
       }
 
@@ -295,12 +323,33 @@ export class AdsService {
         },
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Video generation failed';
+      let message = 'Video generation failed';
+      let failedStage = 'unknown';
+
+      if (error instanceof Error) {
+        message = error.message;
+        // Try to determine which stage failed based on the error message
+        if (message.includes('brief')) {
+          failedStage = 'brief';
+        } else if (message.includes('script')) {
+          failedStage = 'script';
+        } else if (
+          message.includes('asset') ||
+          message.includes('Veo') ||
+          message.includes('Imagen')
+        ) {
+          failedStage = 'assets';
+        } else if (message.includes('voice') || message.includes('TTS')) {
+          failedStage = 'audio';
+        } else if (message.includes('render')) {
+          failedStage = 'render';
+        }
+      }
 
       await this.jobStoreService.update(businessId, projectId, {
         status: 'failed',
         error: message,
+        failedStage,
       });
     }
   }
