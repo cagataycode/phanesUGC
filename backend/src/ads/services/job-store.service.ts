@@ -1,65 +1,99 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreativeBrief } from '../types/creative-brief';
-import { GeneratedScript } from '../types/generated-script';
+import { FirestoreService } from '../../firebase/firestore.service';
+import * as admin from 'firebase-admin';
 
-export type AdJobStatus = 'queued' | 'processing' | 'completed' | 'failed';
+export type AdJobStatus = 'created' | 'processing' | 'completed' | 'failed';
+
+export interface ProjectStage {
+  status: 'pending' | 'running' | 'done' | 'failed' | 'skipped';
+}
 
 export interface AdJob {
   id: string;
+  businessId: string;
+  productId: string;
+  createdBy: string;
   prompt: string;
+  platform: string;
+  aspectRatio: string;
+  durationSec: number;
   status: AdJobStatus;
-  brief: CreativeBrief | null;
-  script: GeneratedScript | null;
-  videoUrl: string | null;
-  error: string | null;
-  createdAt: string;
-  updatedAt: string;
+  progress: number;
+  stages: {
+    scrape: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
+    brief: AdJobStatus | 'pending' | 'running' | 'done';
+    script: AdJobStatus | 'pending' | 'running' | 'done';
+    scenes: AdJobStatus | 'pending' | 'running' | 'done';
+    assets: AdJobStatus | 'pending' | 'running' | 'done';
+    audio: AdJobStatus | 'pending' | 'running' | 'done';
+    subtitles: AdJobStatus | 'pending' | 'running' | 'done';
+    render: AdJobStatus | 'pending' | 'running' | 'done';
+  };
+  creativeBrief?: any;
+  script?: any;
+  output?: {
+    videoStorageKey: string;
+    thumbnailStorageKey?: string;
+  };
+  error?: string;
+  failedStage?: string;
+  createdAt: admin.firestore.Timestamp;
+  updatedAt: admin.firestore.Timestamp;
 }
 
 @Injectable()
 export class JobStoreService {
-  private readonly jobs = new Map<string, AdJob>();
+  constructor(private readonly firestore: FirestoreService) {}
 
-  create(prompt: string): AdJob {
-    const now = new Date().toISOString();
-    const job: AdJob = {
-      id: crypto.randomUUID(),
-      prompt,
-      status: 'queued',
-      brief: null,
-      script: null,
-      videoUrl: null,
-      error: null,
-      createdAt: now,
-      updatedAt: now,
-    };
+  async create(businessId: string, data: Partial<AdJob>): Promise<string> {
+    const projectsRef = this.firestore.collection(
+      `businesses/${businessId}/projects`,
+    );
+    const docRef = await projectsRef.add({
+      ...data,
+      status: 'created',
+      progress: 0,
+      stages: {
+        scrape: 'pending',
+        brief: 'pending',
+        script: 'pending',
+        scenes: 'pending',
+        assets: 'pending',
+        audio: 'pending',
+        subtitles: 'pending',
+        render: 'pending',
+      },
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
-    this.jobs.set(job.id, job);
-
-    return job;
+    return docRef.id;
   }
 
-  getById(id: string): AdJob {
-    const job = this.jobs.get(id);
+  async getById(businessId: string, projectId: string): Promise<AdJob> {
+    const doc = await this.firestore
+      .doc(`businesses/${businessId}/projects/${projectId}`)
+      .get();
 
-    if (!job) {
-      throw new NotFoundException(`Job ${id} not found`);
+    if (!doc.exists) {
+      throw new NotFoundException(
+        `Project ${projectId} not found in business ${businessId}`,
+      );
     }
 
-    return job;
+    return { id: doc.id, ...doc.data() } as AdJob;
   }
 
-  update(id: string, updates: Partial<Omit<AdJob, 'id' | 'createdAt'>>): AdJob {
-    const existing = this.getById(id);
-
-    const next: AdJob = {
-      ...existing,
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
-
-    this.jobs.set(id, next);
-
-    return next;
+  async update(
+    businessId: string,
+    projectId: string,
+    updates: Partial<AdJob>,
+  ): Promise<void> {
+    await this.firestore
+      .doc(`businesses/${businessId}/projects/${projectId}`)
+      .update({
+        ...updates,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
   }
 }

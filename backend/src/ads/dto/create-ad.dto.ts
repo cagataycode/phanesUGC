@@ -1,8 +1,11 @@
 export class CreateAdDto {
+  businessId!: string;
+  productId!: string;
+  createdBy!: string;
   prompt_inputs!: {
     prompt: string;
-    platform?: 'tiktok' | 'instagram' | 'youtube';
-    language?: 'en' | 'de';
+    platform: 'tiktok' | 'instagram' | 'youtube';
+    language: string;
     tone?: string;
     target_audience?: string;
     cta?: string;

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { CreateAdDto } from './dto/create-ad.dto';
-import { AdJob, JobStoreService } from './services/job-store.service';
+import { JobStoreService } from './services/job-store.service';
 import { BriefGenerationService } from './services/brief-generation.service';
 import { ScriptGenerationService } from './services/script-generation.service';
 import { VertexAiService } from '../ai/vertex-ai.service';
@@ -16,35 +16,29 @@ export class AdsService {
     private readonly gcsStorageService: GcsStorageService,
   ) {}
 
-  createJob(createAdDto: CreateAdDto): Pick<AdJob, 'id' | 'status'> {
-    const job = this.jobStoreService.create(createAdDto.prompt_inputs.prompt);
+  async createJob(
+    createAdDto: CreateAdDto,
+  ): Promise<{ id: string; status: string }> {
+    const jobId = await this.jobStoreService.create(createAdDto.businessId, {
+      businessId: createAdDto.businessId,
+      productId: createAdDto.productId,
+      createdBy: createAdDto.createdBy,
+      prompt: createAdDto.prompt_inputs.prompt,
+      platform: createAdDto.prompt_inputs.platform,
+      aspectRatio: createAdDto.veo_config.aspect_ratio,
+      durationSec: createAdDto.veo_config.duration_sec,
+    });
 
-    void this.processJob(job.id, createAdDto);
+    void this.processJob(createAdDto.businessId, jobId, createAdDto);
 
     return {
-      id: job.id,
-      status: job.status,
+      id: jobId,
+      status: 'created',
     };
   }
 
-  getJob(id: string): {
-    id: string;
-    status: AdJob['status'];
-    brief?: AdJob['brief'];
-    script?: AdJob['script'];
-    video_url?: string;
-    error?: string;
-  } {
-    const job = this.jobStoreService.getById(id);
-
-    return {
-      id: job.id,
-      status: job.status,
-      ...(job.brief ? { brief: job.brief } : {}),
-      ...(job.script ? { script: job.script } : {}),
-      ...(job.videoUrl ? { video_url: job.videoUrl } : {}),
-      ...(job.error ? { error: job.error } : {}),
-    };
+  async getJob(businessId: string, projectId: string) {
+    return this.jobStoreService.getById(businessId, projectId);
   }
 
   private buildPromptFromScript(
@@ -90,20 +84,63 @@ export class AdsService {
   }
 
   private async processJob(
-    id: string,
+    businessId: string,
+    projectId: string,
     createAdDto: CreateAdDto,
   ): Promise<void> {
-    const brief = this.briefGenerationService.generate(createAdDto);
-    const script = this.scriptGenerationService.generate(brief);
-
-    this.jobStoreService.update(id, {
-      status: 'processing',
-      brief,
-      script,
-      error: null,
-    });
-
     try {
+      // 1. Brief generation stage
+      await this.jobStoreService.update(businessId, projectId, {
+        status: 'processing',
+        progress: 10,
+        stages: {
+          scrape: 'done',
+          brief: 'running',
+          script: 'pending',
+          scenes: 'pending',
+          assets: 'pending',
+          audio: 'pending',
+          subtitles: 'pending',
+          render: 'pending',
+        },
+      });
+
+      const brief = this.briefGenerationService.generate(createAdDto);
+
+      // 2. Script generation stage
+      await this.jobStoreService.update(businessId, projectId, {
+        progress: 30,
+        creativeBrief: brief,
+        stages: {
+          scrape: 'done',
+          brief: 'done',
+          script: 'running',
+          scenes: 'pending',
+          assets: 'pending',
+          audio: 'pending',
+          subtitles: 'pending',
+          render: 'pending',
+        },
+      });
+
+      const script = this.scriptGenerationService.generate(brief);
+
+      // 3. Asset generation stage (Vertex AI)
+      await this.jobStoreService.update(businessId, projectId, {
+        progress: 50,
+        script: script,
+        stages: {
+          scrape: 'done',
+          brief: 'done',
+          script: 'done',
+          scenes: 'running',
+          assets: 'running',
+          audio: 'pending',
+          subtitles: 'pending',
+          render: 'pending',
+        },
+      });
+
       const composedPrompt = this.buildPromptFromScript(createAdDto, script);
       const generatedAsset = await this.vertexAiService.generateVideoFromPrompt(
         composedPrompt,
@@ -115,26 +152,54 @@ export class AdsService {
           enhancePrompt: createAdDto.veo_config.enhance_prompt,
         },
       );
+
       if (!generatedAsset.downloadUrl) {
         throw new Error('Vertex AI did not return a downloadable video URL');
       }
 
-      const objectPath = await this.gcsStorageService.importGeneratedVideo(
-        generatedAsset.downloadUrl,
-        `ads/${id}/${generatedAsset.providerJobId}.mp4`,
-      );
-      const videoUrl =
-        await this.gcsStorageService.createSignedVideoUrl(objectPath);
+      // 4. Storage & Finalization
+      await this.jobStoreService.update(businessId, projectId, {
+        progress: 80,
+        stages: {
+          scrape: 'done',
+          brief: 'done',
+          script: 'done',
+          scenes: 'done',
+          assets: 'done',
+          audio: 'done',
+          subtitles: 'done',
+          render: 'running',
+        },
+      });
 
-      this.jobStoreService.update(id, {
+      const storageKey = `businesses/${businessId}/projects/${projectId}/output/final.mp4`;
+      await this.gcsStorageService.importGeneratedVideo(
+        generatedAsset.downloadUrl,
+        storageKey,
+      );
+
+      await this.jobStoreService.update(businessId, projectId, {
         status: 'completed',
-        videoUrl,
+        progress: 100,
+        output: {
+          videoStorageKey: storageKey,
+        },
+        stages: {
+          scrape: 'done',
+          brief: 'done',
+          script: 'done',
+          scenes: 'done',
+          assets: 'done',
+          audio: 'done',
+          subtitles: 'done',
+          render: 'done',
+        },
       });
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Video generation failed';
 
-      this.jobStoreService.update(id, {
+      await this.jobStoreService.update(businessId, projectId, {
         status: 'failed',
         error: message,
       });
