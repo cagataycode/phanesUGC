@@ -126,6 +126,9 @@ export function AdCreationForm() {
       setInlineError(null);
 
       const payload = {
+        businessId: "test-business-id",
+        productId: "test-product-id",
+        createdBy: "test-user-id",
         prompt_inputs: {
           prompt: values.prompt,
           platform: values.platform,
