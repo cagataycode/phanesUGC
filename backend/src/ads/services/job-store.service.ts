@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { CreativeBrief } from '../types/creative-brief';
+import { GeneratedScript } from '../types/generated-script';
 
 export type AdJobStatus = 'queued' | 'processing' | 'completed' | 'failed';
 
@@ -6,6 +8,8 @@ export interface AdJob {
   id: string;
   prompt: string;
   status: AdJobStatus;
+  brief: CreativeBrief | null;
+  script: GeneratedScript | null;
   videoUrl: string | null;
   error: string | null;
   createdAt: string;
@@ -22,6 +26,8 @@ export class JobStoreService {
       id: crypto.randomUUID(),
       prompt,
       status: 'queued',
+      brief: null,
+      script: null,
       videoUrl: null,
       error: null,
       createdAt: now,

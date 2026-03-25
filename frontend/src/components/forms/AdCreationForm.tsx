@@ -67,7 +67,6 @@ const formSchema = z.object({
   product_benefits: z.string().optional(),
   product_urls: z.string().optional(),
   subtitle_style: z.string().optional(),
-  voice_id: z.string().optional(),
 });
 
 export function AdCreationForm() {
@@ -78,6 +77,20 @@ export function AdCreationForm() {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [videoResult, setVideoResult] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [inlineError, setInlineError] = useState<string | null>(null);
+
+  function showGenerationError(message: string) {
+    setInlineError(message);
+    window.dispatchEvent(
+      new CustomEvent("phanes-toast", {
+        detail: {
+          title: t("errors.generationFailedTitle"),
+          description: message,
+          variant: "error",
+        },
+      }),
+    );
+  }
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -95,7 +108,6 @@ export function AdCreationForm() {
       product_benefits: "",
       product_urls: "",
       subtitle_style: "standard",
-      voice_id: "female_en_01",
     },
   });
 
@@ -111,25 +123,30 @@ export function AdCreationForm() {
       setIsGenerating(true);
       setGenerationProgress(0);
       setStatusMessage(t("status.generating"));
+      setInlineError(null);
 
       const payload = {
-        prompt: values.prompt,
-        platform: values.platform,
-        aspect_ratio: values.aspect_ratio,
-        duration_sec: parseInt(values.duration_sec, 10),
-        language: values.language,
-        tone: values.tone,
-        cta: values.cta,
-        product_info: {
-          name: values.product_name,
-          description: values.product_description,
-          benefits: values.product_benefits
-            ? values.product_benefits.split(",").map((b) => b.trim())
-            : [],
+        prompt_inputs: {
+          prompt: values.prompt,
+          platform: values.platform,
+          language: values.language,
+          tone: values.tone,
+          target_audience: values.target_audience,
+          cta: values.cta,
+          product_info: {
+            name: values.product_name,
+            description: values.product_description,
+            benefits: values.product_benefits
+              ? values.product_benefits.split(",").map((b) => b.trim())
+              : [],
+          },
+          urls: values.product_urls ? [values.product_urls] : [],
+          subtitle_style: values.subtitle_style,
         },
-        urls: values.product_urls ? [values.product_urls] : [],
-        subtitle_style: values.subtitle_style,
-        voice_id: values.voice_id,
+        veo_config: {
+          aspect_ratio: values.aspect_ratio,
+          duration_sec: parseInt(values.duration_sec, 10) as 8 | 15 | 30 | 60,
+        },
       };
 
       const job = await createAdJob(payload);
@@ -153,28 +170,21 @@ export function AdCreationForm() {
             window.clearInterval(pollInterval);
             setIsGenerating(false);
             setStatusMessage(null);
-            alert(status.error ?? t("errors.generationFailed"));
+            showGenerationError(status.error ?? t("errors.generationFailed"));
           }
         } catch (pollError) {
           window.clearInterval(pollInterval);
           setIsGenerating(false);
           setStatusMessage(null);
           console.error(pollError);
-          alert(t("errors.generationFailed"));
+          showGenerationError(t("errors.generationFailed"));
         }
       }, 3000);
     } catch (error) {
       console.error(error);
       setIsGenerating(false);
-      window.dispatchEvent(
-        new CustomEvent("phanes-toast", {
-          detail: {
-            title: t("errors.generationFailedTitle"),
-            description: t("errors.generationFailed"),
-            variant: "error",
-          },
-        }),
-      );
+      setStatusMessage(null);
+      showGenerationError(t("errors.generationFailed"));
     }
   }
 
@@ -208,6 +218,13 @@ export function AdCreationForm() {
         className="relative z-20 space-y-4 w-full"
       >
         <div className="space-y-4">
+          {inlineError ? (
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-900 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-50">
+              <p className="font-semibold">{t("errors.generationFailedTitle")}</p>
+              <p className="mt-1 opacity-90">{inlineError}</p>
+            </div>
+          ) : null}
+
           <FormField
             control={form.control}
             name="prompt"
@@ -319,6 +336,15 @@ export function AdCreationForm() {
             </div>
 
             <CollapsibleContent className="mt-8 space-y-8 text-left bg-card/50 backdrop-blur-md border border-border/50 p-6 md:p-8 rounded-[24px] shadow-sm animate-in fade-in zoom-in-95 duration-200">
+              <div className="space-y-2 rounded-2xl border border-border/60 bg-background/70 p-4">
+                <h3 className="text-base font-semibold tracking-tight">
+                  {t("veoSettings")}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {t("veoSettingsDescription")}
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -469,6 +495,9 @@ export function AdCreationForm() {
                           </FormItem>
                         </RadioGroup>
                       </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        {t("fields.duration.note")}
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -479,6 +508,14 @@ export function AdCreationForm() {
 
               {/* Optional Branding & Style section */}
               <div className="space-y-4">
+                <div className="space-y-2 rounded-2xl border border-border/60 bg-background/70 p-4">
+                  <h3 className="text-base font-semibold tracking-tight">
+                    {t("promptInputs")}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {t("promptInputsDescription")}
+                  </p>
+                </div>
                 <h3 className="text-lg font-semibold tracking-tight">
                   {t("styleBranding")}
                 </h3>
@@ -516,6 +553,9 @@ export function AdCreationForm() {
                             </SelectItem>
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">
+                          {t("fields.subtitleStyle.note")}
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -535,38 +575,6 @@ export function AdCreationForm() {
                             {...field}
                           />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="voice_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("fields.voice.label")}</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue
-                                placeholder={t("fields.voice.placeholder")}
-                              />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="female_en_01">
-                              {t("fields.voice.options.female1")}
-                            </SelectItem>
-                            <SelectItem value="male_en_01">
-                              {t("fields.voice.options.male1")}
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}

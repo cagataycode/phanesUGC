@@ -11,7 +11,7 @@ export interface GeneratedVideoAsset {
 
 export interface GenerateVideoOptions {
   aspectRatio?: '16:9' | '9:16' | '1:1';
-  durationSeconds?: 5 | 6 | 7 | 8;
+  durationSeconds?: 8 | 15 | 30 | 60;
   negativePrompt?: string;
   personGeneration?: 'allow_all' | 'allow_adult';
   enhancePrompt?: boolean;

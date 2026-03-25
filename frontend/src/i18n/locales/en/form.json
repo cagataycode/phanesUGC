@@ -10,7 +10,7 @@
     },
     "style": {
       "title": "Style",
-      "description": "Set tone, voice & branding"
+      "description": "Set tone & branding"
     },
     "product": {
       "title": "Product",
@@ -19,6 +19,10 @@
   },
   "stepIndicator": "Step {current} of {total}",
   "parameters": "Parameters & Settings",
+  "promptInputs": "Creative Prompt Inputs",
+  "promptInputsDescription": "These fields are turned into the creative brief and composed prompt sent to generation.",
+  "veoSettings": "Veo Generation Settings",
+  "veoSettingsDescription": "These fields are sent directly as model generation parameters rather than becoming prompt text.",
   "styleBranding": "Style & Branding",
   "fields": {
     "prompt": {
@@ -53,7 +57,7 @@
     },
     "duration": {
       "label": "Duration (seconds)",
-      "note": "Only 8 seconds is supported currently. More durations coming soon."
+      "note": "This is a direct Veo generation setting."
     },
     "tone": {
       "label": "Tone",
@@ -69,18 +73,10 @@
       "label": "Target Audience",
       "placeholder": "e.g. Small business owners"
     },
-    "voice": {
-      "label": "Voice",
-      "placeholder": "Select voice",
-      "note": "Voice selection coming soon.",
-      "options": {
-        "female1": "Female 1 (English)",
-        "male1": "Male 1 (English)"
-      }
-    },
     "subtitleStyle": {
       "label": "Subtitle Style",
       "placeholder": "Select style",
+      "note": "Used as prompt guidance for creative direction, not as a direct Veo render setting.",
       "options": {
         "standard": "Standard Bold",
         "kinetic": "Kinetic Highlight"
