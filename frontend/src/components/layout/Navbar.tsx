@@ -18,14 +18,13 @@ import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/firebase/auth-provider";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "@/i18n/routing";
+import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 
 export function Navbar() {
   const t = useTranslations();
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
   const isAuthenticated = !!user;
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
@@ -46,6 +45,11 @@ export function Navbar() {
 
     if (value === "library") {
       router.push("/library");
+      return;
+    }
+
+    if (value === "results") {
+      router.push("/results/history");
     }
   };
 
@@ -121,6 +125,9 @@ export function Navbar() {
                     </SelectItem>
                     <SelectItem value="library">
                       {t("actions.library")}
+                    </SelectItem>
+                    <SelectItem value="results">
+                      {t("actions.results")}
                     </SelectItem>
                   </SelectContent>
                 </Select>
