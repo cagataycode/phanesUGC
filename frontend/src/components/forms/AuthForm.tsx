@@ -62,7 +62,6 @@ export function AuthForm({
   const isAuthenticated = !!user;
   const [mode, setMode] = useState<AuthMode>(defaultMode);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [apiMessage, setApiMessage] = useState<string | null>(null);
 
   const schema = useMemo(
     () => (mode === "login" ? loginSchema : signupSchema),
