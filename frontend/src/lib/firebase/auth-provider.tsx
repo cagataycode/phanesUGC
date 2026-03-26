@@ -9,7 +9,7 @@ import {
 } from "react";
 import { User, onIdTokenChanged, getIdToken } from "firebase/auth";
 import { auth } from "./index"; // Assuming the exported firebase initialized instance is here
-import { API_BASE_URL } from "../api-client";
+import { fetchWithAuth } from "../api-client";
 
 // This defines the structure returned by our backend `/v1/me`
 export interface PlatformContext {
@@ -40,22 +40,24 @@ export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [platformContext, setPlatformContext] = useState<PlatformContext | null>(null);
-  const [loading, setLoading] = useState(!auth ? false : true);
+  const [platformContext, setPlatformContext] =
+    useState<PlatformContext | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  // Helper function to hit the backend `/v1/me` endpoint
+  // Helper function to hit the backend `/me` endpoint
   const refreshPlatformContext = async (token?: string) => {
     try {
       // If token isn't provided, try to grab the latest one
-      const idToken = token || (auth?.currentUser ? await getIdToken(auth.currentUser) : null);
-      
+      const idToken =
+        token ||
+        (auth?.currentUser ? await getIdToken(auth.currentUser) : null);
+
       if (!idToken) {
         setPlatformContext(null);
         return;
       }
 
-      // Backend endpoint implemented in Phase 3
-      const response = await fetch(`${API_BASE_URL}/v1/me`, {
+      const response = await fetchWithAuth("/v1/me", {
         headers: {
           Authorization: `Bearer ${idToken}`,
         },
@@ -105,7 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         platformContext,
         loading,
         getIdToken: getToken,
-        refreshPlatformContext: (token?: string) => refreshPlatformContext(token),
+        refreshPlatformContext: (token?: string) =>
+          refreshPlatformContext(token),
       }}
     >
       {children}

@@ -29,7 +29,7 @@
       "login": "Anmelden",
       "signup": "Registrieren"
     },
-    "description": "Melden Sie sich an, um Videoanzeigen zu erstellen und zu verwalten.",
+    "description": "Melde dich an oder erstelle dein Konto mit Firebase-Authentifizierung.",
     "fields": {
       "name": "Vollständiger Name",
       "email": "E-Mail",
@@ -46,9 +46,39 @@
     },
     "toast": {
       "successTitle": "Authentifizierung erfolgreich",
-      "successDescription": "Angemeldet als {email}."
+      "successDescription": "Angemeldet als {email}.",
+      "apiTitle": "Backend-Synchronisierung",
+      "apiDescription": "Firebase-Sitzung mit {endpoint} synchronisiert."
     },
-    "footnote": "Sichere Authentifizierung durch Firebase.",
+    "api": {
+      "title": "Backend-Integration",
+      "description": "Die Authentifizierung läuft im Client über Firebase und wird anschließend über /me mit dem Backend-Arbeitsbereich synchronisiert."
+    },
+    "footnote": "Die Authentifizierung nutzt Firebase im Client und den im Auth-Guide beschriebenen Backend-Provisioning-Flow.",
     "close": "Authentifizierungsdialog schließen"
+  },
+  "profile": {
+    "title": "Profil",
+    "fallbackName": "Phanes-Benutzer",
+    "fallbackEmail": "Keine E-Mail verfügbar",
+    "remainingCredits": "Verbleibende Credits",
+    "role": "Rolle",
+    "member": "Mitglied",
+    "accountDetails": "Kontodetails",
+    "fullName": "Vollständiger Name",
+    "emailAddress": "E-Mail-Adresse",
+    "workspaceId": "Workspace-ID",
+    "noWorkspace": "Noch kein Workspace verknüpft",
+    "userId": "Benutzer-ID",
+    "unavailable": "Nicht verfügbar",
+    "subscriptionAccess": "Abo & Zugriff",
+    "subscriptionTier": "Abo-Stufe",
+    "free": "Kostenlos",
+    "entitlementSource": "Berechtigungsquelle",
+    "subscription": "Abonnement",
+    "sessionStatus": "Sitzungsstatus",
+    "checkingSession": "Sitzung wird geprüft…",
+    "authenticated": "Angemeldet",
+    "signedOut": "Abgemeldet"
   }
 }

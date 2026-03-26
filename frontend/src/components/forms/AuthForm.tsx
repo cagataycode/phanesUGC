@@ -106,12 +106,12 @@ export function AuthForm({
           ? await signInWithEmailAndPassword(
               auth,
               values.email,
-              values.password
+              values.password,
             )
           : await createUserWithEmailAndPassword(
               auth,
               values.email,
-              values.password
+              values.password,
             );
 
       const idToken = await userCredential.user.getIdToken();
@@ -128,13 +128,13 @@ export function AuthForm({
             }),
             variant: "success",
           },
-        })
+        }),
       );
-
       setIsSubmitting(false);
       onClose();
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to authenticate";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to authenticate";
       console.error("Auth error:", error);
       window.dispatchEvent(
         new CustomEvent("phanes-toast", {
@@ -143,7 +143,7 @@ export function AuthForm({
             description: errorMessage,
             variant: "error",
           },
-        })
+        }),
       );
       setIsSubmitting(false);
     }

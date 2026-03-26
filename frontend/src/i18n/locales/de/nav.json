@@ -4,9 +4,13 @@
     "pricing": "Preise",
     "security": "Sicherheit"
   },
+  "credits": {
+    "remaining": "Noch {count} Credits"
+  },
   "actions": {
     "login": "Anmelden",
     "logout": "Abmelden",
-    "getStarted": "Loslegen"
+    "getStarted": "Loslegen",
+    "profile": "Profil"
   }
 }
