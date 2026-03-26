@@ -126,7 +126,7 @@ export async function getAdJobStatus(
  */
 export async function getAdJobResult(
   id: string,
-  businessId: string = "test-business-id",
+  businessId?: string,
 ): Promise<AdJobResultResponse> {
   if (USE_MOCK) {
     return new Promise((resolve) => {
@@ -146,9 +146,10 @@ export async function getAdJobResult(
     });
   }
 
-  const res = await fetch(
-    `${API_BASE_URL}/ads/${id}/result?businessId=${businessId}`,
-  );
+  const query = businessId
+    ? `?businessId=${encodeURIComponent(businessId)}`
+    : "";
+  const res = await fetch(`${API_BASE_URL}/ads/${id}/result${query}`);
   if (!res.ok) throw new Error("Failed to fetch ad job result");
   return res.json();
 }
