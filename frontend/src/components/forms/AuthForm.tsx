@@ -117,12 +117,14 @@ export function AuthForm({
       const idToken = await userCredential.user.getIdToken();
       await refreshPlatformContext(idToken);
 
+      const userEmail = userCredential.user.email ?? values.email;
+
       window.dispatchEvent(
         new CustomEvent("phanes-toast", {
           detail: {
             title: t("toast.successTitle"),
             description: t("toast.successDescription", {
-              email: userCredential.user.email,
+              email: userEmail,
             }),
             variant: "success",
           },
@@ -296,7 +298,7 @@ export function AuthForm({
               <div className="space-y-3">
                 <p>
                   {t("session.active", {
-                    email: user.email,
+                    email: user.email ?? "",
                     uid: user.uid,
                   })}
                 </p>
