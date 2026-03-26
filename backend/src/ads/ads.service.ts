@@ -373,7 +373,7 @@ export class AdsService {
         );
 
         const preparedRenderRequest = this.renderService.prepareRenderRequest({
-          videoUrl: localSourcePath, // Pass local path instead of signed URL
+          videoUrl: localSourcePath, // Pass absolute local path
           segments: subtitleSegments,
           fps: 30,
           durationInFrames: createAdDto.veo_config.duration_sec * 30,
