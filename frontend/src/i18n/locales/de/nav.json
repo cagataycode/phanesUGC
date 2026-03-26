@@ -6,6 +6,9 @@
   },
   "actions": {
     "login": "Anmelden",
-    "getStarted": "Loslegen"
+    "loginMock": "Mock-Anmeldung",
+    "logout": "Abmelden",
+    "getStarted": "Loslegen",
+    "mockReady": "Mock-Auth bereit"
   }
 }

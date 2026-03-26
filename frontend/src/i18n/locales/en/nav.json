@@ -6,6 +6,9 @@
   },
   "actions": {
     "login": "Log in",
-    "getStarted": "Get started"
+    "loginMock": "Mock login",
+    "logout": "Log out",
+    "getStarted": "Get started",
+    "mockReady": "Mock auth ready"
   }
 }
