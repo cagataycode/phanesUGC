@@ -31,7 +31,7 @@
       "login": "Login",
       "signup": "Sign up"
     },
-    "description": "Sign in to your account to create and manage video ads.",
+    "description": "Sign in or create your account with Firebase authentication.",
     "fields": {
       "name": "Full name",
       "email": "Email",
@@ -47,10 +47,40 @@
       "signOut": "Sign out"
     },
     "toast": {
-      "successTitle": "Authentication Successful",
-      "successDescription": "Signed in as {email}."
+      "successTitle": "Authentication successful",
+      "successDescription": "Signed in as {email}.",
+      "apiTitle": "Backend synchronization",
+      "apiDescription": "Firebase session synchronized with {endpoint}."
     },
-    "footnote": "Secure authentication powered by Firebase.",
+    "api": {
+      "title": "Backend integration",
+      "description": "Authentication is handled by Firebase on the client, then synchronized with the backend workspace context through /me."
+    },
+    "footnote": "Authentication uses Firebase on the client and the backend provisioning flow described in the auth guide.",
     "close": "Close authentication dialog"
+  },
+  "profile": {
+    "title": "Profile",
+    "fallbackName": "Phanes User",
+    "fallbackEmail": "No email available",
+    "remainingCredits": "Remaining credits",
+    "role": "Role",
+    "member": "Member",
+    "accountDetails": "Account details",
+    "fullName": "Full name",
+    "emailAddress": "Email address",
+    "workspaceId": "Workspace ID",
+    "noWorkspace": "No workspace linked yet",
+    "userId": "User ID",
+    "unavailable": "Unavailable",
+    "subscriptionAccess": "Subscription & access",
+    "subscriptionTier": "Subscription tier",
+    "free": "Free",
+    "entitlementSource": "Entitlement source",
+    "subscription": "Subscription",
+    "sessionStatus": "Session status",
+    "checkingSession": "Checking session…",
+    "authenticated": "Authenticated",
+    "signedOut": "Signed out"
   }
 }
