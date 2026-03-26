@@ -23,9 +23,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
-  AUTH_API_PLACEHOLDERS,
-} from "@/lib/auth/api";
-import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -103,7 +100,6 @@ export function AuthForm({
   async function onSubmit(values: AuthFormValues) {
     if (!auth) return;
     setIsSubmitting(true);
-    setApiMessage(null);
 
     try {
       const userCredential =
@@ -295,18 +291,6 @@ export function AuthForm({
               </Button>
             </form>
           </Form>
-
-          <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-left text-sm text-amber-950 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-50">
-            <p className="font-semibold">{t("api.title")}</p>
-            <p className="mt-1 opacity-90">{t("api.description")}</p>
-            <div className="mt-3 space-y-1 font-mono text-xs opacity-90">
-              <p>BASE_URL: {AUTH_API_PLACEHOLDERS.baseUrl}</p>
-              <p>LOGIN: POST {AUTH_API_PLACEHOLDERS.loginEndpoint}</p>
-              <p>SIGNUP: POST {AUTH_API_PLACEHOLDERS.signupEndpoint}</p>
-              <p>HEADER: {AUTH_API_PLACEHOLDERS.tokenHeader}</p>
-            </div>
-            {apiMessage ? <p className="mt-3 text-xs">{apiMessage}</p> : null}
-          </div>
 
           <div className="rounded-xl border border-dashed border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-foreground/70">
             {isAuthenticated && user ? (

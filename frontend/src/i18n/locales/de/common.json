@@ -29,32 +29,26 @@
       "login": "Anmelden",
       "signup": "Registrieren"
     },
-    "description": "Mock-Auth-Formular für Frontend- und Backend-Integrationstests.",
+    "description": "Melden Sie sich an, um Videoanzeigen zu erstellen und zu verwalten.",
     "fields": {
       "name": "Vollständiger Name",
       "email": "E-Mail",
       "password": "Passwort"
     },
     "submit": {
-      "login": "Mit Mock-Konto anmelden",
-      "signup": "Mock-Konto erstellen"
+      "login": "Anmelden",
+      "signup": "Konto erstellen"
     },
     "session": {
-      "active": "Aktive Mock-Sitzung für {email} ({uid}).",
-      "inactive": "Derzeit ist kein Mock-Benutzer angemeldet.",
+      "active": "Angemeldet als {email} ({uid}).",
+      "inactive": "Derzeit ist kein Benutzer angemeldet.",
       "signOut": "Abmelden"
     },
     "toast": {
-      "successTitle": "Mock-Auth bereit",
-      "successDescription": "Angemeldet als {email}.",
-      "apiTitle": "Backend-API-Platzhalter aufgerufen",
-      "apiDescription": "Anfrage für {endpoint} vorbereitet."
+      "successTitle": "Authentifizierung erfolgreich",
+      "successDescription": "Angemeldet als {email}."
     },
-    "api": {
-      "title": "Backend-Integrationsplatzhalter",
-      "description": "Diese Frontend-Auth-Buttons rufen bereits Platzhalter-API-Helper auf. Ersetzen Sie Base-URL, Endpunkte und Request/Response-Vertrag, sobald das Backend-Auth bereit ist."
-    },
-    "footnote": "Dieses Formular ist nur lokal und simuliert Login/Signup UX, bis echte Firebase Authentication verbunden ist.",
+    "footnote": "Sichere Authentifizierung durch Firebase.",
     "close": "Authentifizierungsdialog schließen"
   }
 }
