@@ -1,7 +1,13 @@
 [
   {
-    "origin": ["https://phanesugc.com", "http://localhost:3000"],
-    "method": ["GET"],
+    "origin": [
+      "https://phanesugc.com",
+      "http://localhost:3000",
+      "http://localhost:3001"
+    ],
+    "method": [
+      "GET"
+    ],
     "maxAgeSeconds": 3600
   }
 ]
