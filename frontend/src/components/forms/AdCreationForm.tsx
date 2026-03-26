@@ -21,6 +21,7 @@ import { createAdJob, getAdJobResult } from "@/lib/api";
 import { useProject } from "@/lib/firebase/hooks";
 import { useAuth } from "@/lib/firebase/auth-provider";
 import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/routing";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -73,13 +74,13 @@ const formSchema = z.object({
 
 export function AdCreationForm() {
   const t = useTranslations();
+  const router = useRouter();
   const { user, platformContext } = useAuth();
   const isAuthenticated = !!user;
   const [isProductOpen, setIsProductOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
-  const [videoResult, setVideoResult] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [activeProjectId, setActiveProjectId] = useState<string | undefined>(
@@ -118,6 +119,35 @@ export function AdCreationForm() {
     [t],
   );
 
+  const storeGeneration = useCallback((id: string, prompt: string) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const storageKey = "phanes.generations";
+      const raw = window.localStorage.getItem(storageKey);
+      const current = raw
+        ? (JSON.parse(raw) as Array<{
+            id: string;
+            title: string;
+            createdAt: string;
+          }>)
+        : [];
+      const next = [
+        {
+          id,
+          title: prompt.trim() || "Untitled generation",
+          createdAt: new Date().toISOString(),
+        },
+        ...current.filter((item) => item.id !== id),
+      ].slice(0, 20);
+      window.localStorage.setItem(storageKey, JSON.stringify(next));
+    } catch {
+      // ignore local storage failures
+    }
+  }, []);
+
   useEffect(() => {
     if (project) {
       setTimeout(() => {
@@ -129,9 +159,9 @@ export function AdCreationForm() {
         getAdJobResult(project.id, businessId)
           .then((result) => {
             if (result.video_url) {
-              setVideoResult(result.video_url);
               setStatusMessage(null);
               setIsGenerating(false);
+              router.push(`/results/${project.id}`);
             }
           })
           .catch(() => {
@@ -158,7 +188,7 @@ export function AdCreationForm() {
         }
       }
     }
-  }, [project, businessId, t, showGenerationError]);
+  }, [project, businessId, t, showGenerationError, router]);
 
   useEffect(() => {
     if (projectError) {
@@ -246,6 +276,7 @@ export function AdCreationForm() {
       };
 
       const job = await createAdJob(payload);
+      storeGeneration(job.id, values.prompt);
       setActiveProjectId(job.id);
     } catch (error) {
       console.error(error);
@@ -255,37 +286,12 @@ export function AdCreationForm() {
     }
   }
 
-  if (videoResult) {
-    return (
-      <div className="w-full flex flex-col items-center animate-in fade-in slide-in-from-bottom-8 duration-700">
-        <video
-          src={videoResult}
-          controls
-          autoPlay
-          className="w-full max-w-[400px] h-[720px] object-cover bg-black rounded-[32px] shadow-2xl border border-white/10"
-        />
-        <Button
-          onClick={() => {
-            setVideoResult(null);
-            setGenerationProgress(0);
-          }}
-          variant="outline"
-          className="mt-8 rounded-full px-8 h-12 text-sm uppercase tracking-wider font-semibold"
-        >
-          {t("result.createAnother")}
-        </Button>
-      </div>
-    );
-  }
-
   const activeTesterEmail = user?.email ?? "Not signed in";
 
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-foreground/10 bg-background/60 px-4 py-3 text-left shadow-sm backdrop-blur-sm">
-        <p className="text-sm font-semibold text-foreground/90">
-          Auth session
-        </p>
+        <p className="text-sm font-semibold text-foreground/90">Auth session</p>
         <p className="mt-1 text-sm text-foreground/70">
           {isAuthenticated
             ? `Signed in as ${activeTesterEmail}. Workspace: ${businessId}.`
