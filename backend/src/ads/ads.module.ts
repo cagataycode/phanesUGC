@@ -6,8 +6,10 @@ import { JobStoreService } from './services/job-store.service';
 import { ScriptGenerationService } from './services/script-generation.service';
 import { VertexAiService } from '../ai/vertex-ai.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
+import { RenderModule } from '../render/render.module';
 
 @Module({
+  imports: [RenderModule],
   controllers: [AdsController],
   providers: [
     AdsService,

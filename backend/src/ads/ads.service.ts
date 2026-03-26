@@ -5,6 +5,8 @@ import { BriefGenerationService } from './services/brief-generation.service';
 import { ScriptGenerationService } from './services/script-generation.service';
 import { VertexAiService } from '../ai/vertex-ai.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
+import { RenderService } from '../render/render.service';
+import { RawSubtitleSegment } from '../render/subtitles/subtitle-types';
 
 @Injectable()
 export class AdsService {
@@ -14,7 +16,48 @@ export class AdsService {
     private readonly jobStoreService: JobStoreService,
     private readonly vertexAiService: VertexAiService,
     private readonly gcsStorageService: GcsStorageService,
+    private readonly renderService: RenderService,
   ) {}
+
+  private buildFallbackSubtitleSegments(
+    script: {
+      title?: string;
+      hook?: string;
+      body?: string;
+      cta?: string;
+      full_text: string;
+    },
+    durationSec: number,
+  ): RawSubtitleSegment[] {
+    const words = script.full_text
+      .split(/\s+/)
+      .map((word) => word.trim())
+      .filter(Boolean);
+
+    if (words.length === 0) {
+      return [];
+    }
+
+    const secondsPerWord = durationSec / words.length;
+
+    return words.map((word, index) => {
+      const start = Number((index * secondsPerWord).toFixed(3));
+      const end = Number(((index + 1) * secondsPerWord).toFixed(3));
+
+      return {
+        start,
+        end,
+        text: word,
+        words: [
+          {
+            word,
+            start,
+            end,
+          },
+        ],
+      } satisfies RawSubtitleSegment;
+    });
+  }
 
   private parseAndFlattenPrompt(createAdDto: CreateAdDto): void {
     let promptData: string | Record<string, unknown> =
@@ -284,9 +327,32 @@ export class AdsService {
         throw new Error('Vertex AI did not return a downloadable video URL');
       }
 
+      const sourceVideoStorageKey = `businesses/${businessId}/projects/${projectId}/output/source.mp4`;
+      await this.gcsStorageService.importGeneratedVideo(
+        generatedAsset.downloadUrl,
+        sourceVideoStorageKey,
+      );
+
+      const sourceVideoUrl = await this.gcsStorageService.createSignedVideoUrl(
+        sourceVideoStorageKey,
+      );
+      const subtitleSegments = this.buildFallbackSubtitleSegments(
+        script,
+        createAdDto.veo_config.duration_sec,
+      );
+      const preparedRenderRequest = this.renderService.prepareRenderRequest({
+        videoUrl: sourceVideoUrl,
+        segments: subtitleSegments,
+        fps: 30,
+        durationInFrames: createAdDto.veo_config.duration_sec * 30,
+        width: createAdDto.veo_config.aspect_ratio === '9:16' ? 1080 : 1920,
+        height: createAdDto.veo_config.aspect_ratio === '9:16' ? 1920 : 1080,
+      });
+
       // 4. Storage & Finalization
       await this.jobStoreService.update(businessId, projectId, {
         progress: 80,
+        subtitleSegments,
         stages: {
           scrape: 'done',
           brief: 'done',
@@ -308,9 +374,18 @@ export class AdsService {
       await this.jobStoreService.update(businessId, projectId, {
         status: 'completed',
         progress: 100,
+        subtitleSegments,
         output: {
           videoStorageKey: storageKey,
+          sourceVideoStorageKey,
         },
+        metadata: {
+          renderRequest: {
+            fps: preparedRenderRequest.fps,
+            durationInFrames: preparedRenderRequest.durationInFrames,
+            phraseCount: preparedRenderRequest.phrases?.length ?? 0,
+          },
+        } as never,
         stages: {
           scrape: 'done',
           brief: 'done',

@@ -3,10 +3,31 @@ import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
 import path from 'node:path';
 import { RenderRequest, REMOTION_COMPOSITION_ID } from './remotion/constants';
+import { chunkSubtitleSegments } from './subtitles/subtitle-chunker';
+import { RawSubtitleSegment, SubtitlePhrase } from './subtitles/subtitle-types';
+
+export type PrepareRenderRequestInput = Omit<RenderRequest, 'phrases'> & {
+  phrases?: SubtitlePhrase[];
+};
 
 @Injectable()
 export class RenderService {
-  async prepareRender(request: RenderRequest) {
+  prepareRenderRequest(request: PrepareRenderRequestInput): RenderRequest {
+    return {
+      ...request,
+      phrases:
+        request.phrases && request.phrases.length > 0
+          ? request.phrases
+          : this.prepareSubtitlePhrases(request.segments),
+    };
+  }
+
+  prepareSubtitlePhrases(segments: RawSubtitleSegment[]): SubtitlePhrase[] {
+    return chunkSubtitleSegments(segments);
+  }
+
+  async prepareRender(request: PrepareRenderRequestInput) {
+    const preparedRequest = this.prepareRenderRequest(request);
     const entryPoint = path.resolve(
       process.cwd(),
       'src/render/remotion/index.ts',
@@ -20,17 +41,17 @@ export class RenderService {
     const composition = await selectComposition({
       serveUrl: bundleLocation,
       id: REMOTION_COMPOSITION_ID,
-      inputProps: request,
+      inputProps: preparedRequest,
     });
 
     return {
       bundleLocation,
       composition,
-      inputProps: request,
+      inputProps: preparedRequest,
     };
   }
 
-  async render(request: RenderRequest, outputLocation: string) {
+  async render(request: PrepareRenderRequestInput, outputLocation: string) {
     const prepared = await this.prepareRender(request);
 
     await renderMedia({
