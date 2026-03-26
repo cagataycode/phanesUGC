@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -20,6 +20,8 @@ export type RenderToTempFileResult = {
 
 @Injectable()
 export class RenderService {
+  private readonly logger = new Logger(RenderService.name);
+
   prepareRenderRequest(request: PrepareRenderRequestInput): RenderRequest {
     return {
       ...request,
@@ -60,15 +62,44 @@ export class RenderService {
   }
 
   async render(request: PrepareRenderRequestInput, outputLocation: string) {
+    const startTime = Date.now();
     const prepared = await this.prepareRender(request);
 
-    await renderMedia({
+    this.logger.log(
+      `Starting Remotion render: ${prepared.inputProps.width}x${prepared.inputProps.height}, ${prepared.inputProps.fps}fps, ${prepared.inputProps.durationInFrames} frames`,
+    );
+
+    const RENDER_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+    const renderPromise = renderMedia({
       serveUrl: prepared.bundleLocation,
       composition: prepared.composition,
       codec: 'h264',
       outputLocation,
       inputProps: prepared.inputProps,
     });
+
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(
+          new Error(`Remotion render timed out after ${RENDER_TIMEOUT_MS}ms`),
+        );
+      }, RENDER_TIMEOUT_MS);
+    });
+
+    try {
+      await Promise.race([renderPromise, timeoutPromise]);
+    } catch (error) {
+      this.logger.error(
+        `Render failed or timed out: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
+    }
+
+    const duration = Date.now() - startTime;
+    this.logger.log(
+      `Remotion render completed in ${duration}ms. Output: ${outputLocation}`,
+    );
 
     return outputLocation;
   }
@@ -88,7 +119,17 @@ export class RenderService {
       outputPath,
       request: preparedRequest,
       cleanup: async () => {
-        await rm(tempDirectory, { recursive: true, force: true });
+        try {
+          await rm(tempDirectory, { recursive: true, force: true });
+          this.logger.debug(
+            `Cleaned up temp render directory: ${tempDirectory}`,
+          );
+        } catch (error) {
+          this.logger.error(
+            `Failed to cleanup temp render directory: ${tempDirectory}`,
+            error instanceof Error ? error.stack : undefined,
+          );
+        }
       },
     };
   }
