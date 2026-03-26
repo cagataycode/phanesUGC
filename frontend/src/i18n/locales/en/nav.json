@@ -11,6 +11,8 @@
     "login": "Log in",
     "logout": "Log out",
     "getStarted": "Get started",
-    "profile": "Profile"
+    "profile": "Profile",
+    "profileWorkspace": "Profile & workspace",
+    "library": "Library"
   }
 }

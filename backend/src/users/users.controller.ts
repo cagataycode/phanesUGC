@@ -22,6 +22,13 @@ export class UsersController {
         role: 'owner', // Defaulting for simple onboarding response
         subscription_tier: 'free',
         entitlement_source: 'subscription',
+        entitlements: {
+          // placeholder for entitlements
+          can_generate_ads: true,
+          can_render_final: false,
+          can_regenerate_scene: false,
+          max_duration_sec: 30,
+        },
       },
       profile: userProfile,
     };

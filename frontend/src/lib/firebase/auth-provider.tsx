@@ -18,6 +18,13 @@ export interface PlatformContext {
   role?: string;
   subscription_tier?: string;
   entitlement_source?: string;
+  entitlements?: {
+    // placeholder for entitlements
+    can_generate_ads?: boolean;
+    can_render_final?: boolean;
+    can_regenerate_scene?: boolean;
+    max_duration_sec?: number;
+  };
 }
 
 interface AuthContextType {
