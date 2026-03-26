@@ -5,16 +5,24 @@ import { AuthForm } from "@/components/forms/AuthForm";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
-import { useMockAuth } from "@/lib/firebase/mock-auth";
+import { signOut as firebaseSignOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useAuth } from "@/lib/firebase/auth-provider";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 export function Navbar() {
   const t = useTranslations();
-  const { user, isAuthenticated, isLoading, signOut } = useMockAuth();
+  const { user, loading } = useAuth();
+  const isAuthenticated = !!user;
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+
+  const handleSignOut = async () => {
+    if (!auth) return;
+    await firebaseSignOut(auth);
+  };
 
   return (
     <>
@@ -56,7 +64,7 @@ export function Navbar() {
           {isAuthenticated && user ? (
             <div className="hidden md:flex flex-col items-end text-xs text-foreground/70">
               <span className="font-medium text-foreground/90">
-                {user.displayName}
+                {user.displayName || user.email}
               </span>
               <span>{user.email}</span>
             </div>
@@ -67,7 +75,7 @@ export function Navbar() {
             <Button
               type="button"
               variant="ghost"
-              onClick={signOut}
+              onClick={handleSignOut}
               className="hidden sm:inline-flex text-sm border-foreground/10 hover:bg-foreground/5 h-8 px-4 font-normal"
             >
               {t("actions.logout")}
@@ -80,7 +88,7 @@ export function Navbar() {
                 setAuthMode("login");
                 setIsAuthModalOpen(true);
               }}
-              disabled={isLoading}
+              disabled={loading}
               className="hidden sm:inline-flex text-sm border-foreground/10 hover:bg-foreground/5 h-8 px-4 font-normal"
             >
               {t("actions.login")}
