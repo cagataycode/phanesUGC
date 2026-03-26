@@ -105,4 +105,34 @@ describe('RenderService', () => {
       text: 'Make videos faster with AI',
     });
   });
+
+  it('returns a temp render result shape with cleanup contract', async () => {
+    const originalRender = renderService.render.bind(renderService);
+    renderService.render = jest.fn().mockResolvedValue('/tmp/fake-output.mp4');
+
+    const result = await renderService.renderToTempFile({
+      videoUrl: 'https://example.com/video.mp4',
+      segments: [
+        {
+          start: 0,
+          end: 0.4,
+          text: 'Hello world',
+          words: [
+            { word: 'Hello', start: 0, end: 0.2 },
+            { word: 'world', start: 0.2, end: 0.4 },
+          ],
+        },
+      ],
+      fps: 30,
+      durationInFrames: 30,
+      width: 1080,
+      height: 1920,
+    });
+
+    expect(result.outputPath.endsWith('subtitled-output.mp4')).toBe(true);
+    expect(result.request.phrases?.length).toBeGreaterThan(0);
+    await expect(result.cleanup()).resolves.toBeUndefined();
+
+    renderService.render = originalRender;
+  });
 });

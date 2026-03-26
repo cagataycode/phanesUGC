@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { RenderRequest, REMOTION_COMPOSITION_ID } from './remotion/constants';
 import { chunkSubtitleSegments } from './subtitles/subtitle-chunker';
@@ -8,6 +10,12 @@ import { RawSubtitleSegment, SubtitlePhrase } from './subtitles/subtitle-types';
 
 export type PrepareRenderRequestInput = Omit<RenderRequest, 'phrases'> & {
   phrases?: SubtitlePhrase[];
+};
+
+export type RenderToTempFileResult = {
+  outputPath: string;
+  cleanup: () => Promise<void>;
+  request: RenderRequest;
 };
 
 @Injectable()
@@ -63,5 +71,25 @@ export class RenderService {
     });
 
     return outputLocation;
+  }
+
+  async renderToTempFile(
+    request: PrepareRenderRequestInput,
+  ): Promise<RenderToTempFileResult> {
+    const tempDirectory = await mkdtemp(
+      path.join(tmpdir(), 'phanes-remotion-render-'),
+    );
+    const outputPath = path.join(tempDirectory, 'subtitled-output.mp4');
+    const preparedRequest = this.prepareRenderRequest(request);
+
+    await this.render(preparedRequest, outputPath);
+
+    return {
+      outputPath,
+      request: preparedRequest,
+      cleanup: async () => {
+        await rm(tempDirectory, { recursive: true, force: true });
+      },
+    };
   }
 }

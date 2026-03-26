@@ -7,6 +7,7 @@ import { VertexAiService } from '../ai/vertex-ai.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
 import { RenderService } from '../render/render.service';
 import { RawSubtitleSegment } from '../render/subtitles/subtitle-types';
+import { rm } from 'node:fs/promises';
 
 @Injectable()
 export class AdsService {
@@ -366,10 +367,19 @@ export class AdsService {
       });
 
       const storageKey = `businesses/${businessId}/projects/${projectId}/output/final.mp4`;
-      await this.gcsStorageService.importGeneratedVideo(
-        generatedAsset.downloadUrl,
-        storageKey,
-      );
+      const renderedOutput = await this.renderService.renderToTempFile({
+        ...preparedRenderRequest,
+        phrases: preparedRenderRequest.phrases,
+      });
+
+      try {
+        await this.gcsStorageService.uploadLocalFile(
+          renderedOutput.outputPath,
+          storageKey,
+        );
+      } finally {
+        await renderedOutput.cleanup();
+      }
 
       await this.jobStoreService.update(businessId, projectId, {
         status: 'completed',

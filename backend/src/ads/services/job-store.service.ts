@@ -31,6 +31,7 @@ export interface AdJob {
   };
   creativeBrief?: any;
   script?: any;
+  metadata?: Record<string, unknown>;
   subtitleSegments?: Array<{
     start: number;
     end: number;
