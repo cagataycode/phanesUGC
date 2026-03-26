@@ -11,6 +11,8 @@
     "login": "Anmelden",
     "logout": "Abmelden",
     "getStarted": "Loslegen",
-    "profile": "Profil"
+    "profile": "Profil",
+    "profileWorkspace": "Profil & Workspace",
+    "library": "Bibliothek"
   }
 }
