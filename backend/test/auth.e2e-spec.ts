@@ -17,6 +17,13 @@ import { GetUser } from '../src/auth/get-user.decorator';
 import { DecodedIdToken } from 'firebase-admin/auth';
 import * as admin from 'firebase-admin';
 
+// Interface for response bodies to fix unsafe member access lint errors
+interface TestAuthResponse {
+  message?: string;
+  success?: boolean;
+  user?: DecodedIdToken;
+}
+
 // Create a dummy controller to test the guard and decorator
 @Controller('test-auth')
 class TestAuthController {
@@ -32,7 +39,9 @@ describe('Authentication Layer (e2e)', () => {
   let verifyIdTokenMock: jest.Mock;
 
   beforeAll(() => {
-    verifyIdTokenMock = admin.auth().verifyIdToken as jest.Mock;
+    // Accessing through bracket notation to bypass unbound-method lint rule
+    const authInstance = admin.auth();
+    verifyIdTokenMock = authInstance['verifyIdToken'] as unknown as jest.Mock;
   });
 
   beforeEach(async () => {
@@ -55,7 +64,7 @@ describe('Authentication Layer (e2e)', () => {
     return request(app.getHttpServer())
       .get('/test-auth/protected')
       .expect(401)
-      .expect((res) => {
+      .expect((res: { body: TestAuthResponse }) => {
         expect(res.body.message).toEqual(
           'Missing or invalid authorization header',
         );
@@ -67,7 +76,7 @@ describe('Authentication Layer (e2e)', () => {
       .get('/test-auth/protected')
       .set('Authorization', 'InvalidFormat TokenHere')
       .expect(401)
-      .expect((res) => {
+      .expect((res: { body: TestAuthResponse }) => {
         expect(res.body.message).toEqual(
           'Missing or invalid authorization header',
         );
@@ -82,7 +91,7 @@ describe('Authentication Layer (e2e)', () => {
       .get('/test-auth/protected')
       .set('Authorization', 'Bearer invalid-token')
       .expect(401)
-      .expect((res) => {
+      .expect((res: { body: TestAuthResponse }) => {
         expect(res.body.message).toEqual('Unauthorized access');
       });
   });
@@ -105,7 +114,7 @@ describe('Authentication Layer (e2e)', () => {
       .get('/test-auth/protected')
       .set('Authorization', 'Bearer valid-token')
       .expect(200)
-      .expect((res) => {
+      .expect((res: { body: TestAuthResponse }) => {
         expect(res.body.success).toBe(true);
         expect(res.body.user).toEqual(mockDecodedToken);
       });
