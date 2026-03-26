@@ -103,6 +103,16 @@ export class GcsStorageService {
     return objectPath;
   }
 
+  async downloadFile(
+    objectPath: string,
+    destinationLocalPath: string,
+  ): Promise<void> {
+    await this.storage
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .download({ destination: destinationLocalPath });
+  }
+
   async uploadLocalFile(
     localFilePath: string,
     objectPath: string,

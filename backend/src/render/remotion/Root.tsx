@@ -19,12 +19,12 @@ export const RemotionRoot = () => {
     <Composition
       id={REMOTION_COMPOSITION_ID}
       component={KaraokeSubtitledVideo}
-      calculateMetadata={({ inputProps }) => {
+      calculateMetadata={({ props }) => {
         return {
-          durationInFrames: inputProps.durationInFrames || 1,
-          fps: inputProps.fps || 30,
-          width: inputProps.width || 1080,
-          height: inputProps.height || 1920,
+          durationInFrames: props.durationInFrames || 1,
+          fps: props.fps || 30,
+          width: props.width || 1080,
+          height: props.height || 1920,
         };
       }}
       durationInFrames={defaultProps.durationInFrames}
