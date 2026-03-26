@@ -62,7 +62,6 @@ export function AuthForm({
   const isAuthenticated = !!user;
   const [mode, setMode] = useState<AuthMode>(defaultMode);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [apiMessage, setApiMessage] = useState<string | null>(null);
 
   const schema = useMemo(
     () => (mode === "login" ? loginSchema : signupSchema),
@@ -107,33 +106,35 @@ export function AuthForm({
           ? await signInWithEmailAndPassword(
               auth,
               values.email,
-              values.password
+              values.password,
             )
           : await createUserWithEmailAndPassword(
               auth,
               values.email,
-              values.password
+              values.password,
             );
 
       const idToken = await userCredential.user.getIdToken();
       await refreshPlatformContext(idToken);
+
+      const userEmail = userCredential.user.email ?? values.email;
 
       window.dispatchEvent(
         new CustomEvent("phanes-toast", {
           detail: {
             title: t("toast.successTitle"),
             description: t("toast.successDescription", {
-              email: userCredential.user.email,
+              email: userEmail,
             }),
             variant: "success",
           },
-        })
+        }),
       );
-
       setIsSubmitting(false);
       onClose();
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to authenticate";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to authenticate";
       console.error("Auth error:", error);
       window.dispatchEvent(
         new CustomEvent("phanes-toast", {
@@ -142,7 +143,7 @@ export function AuthForm({
             description: errorMessage,
             variant: "error",
           },
-        })
+        }),
       );
       setIsSubmitting(false);
     }
@@ -297,7 +298,7 @@ export function AuthForm({
               <div className="space-y-3">
                 <p>
                   {t("session.active", {
-                    email: user.email,
+                    email: user.email ?? "",
                     uid: user.uid,
                   })}
                 </p>

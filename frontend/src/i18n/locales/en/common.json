@@ -39,9 +39,12 @@
     },
     "submit": {
       "login": "Log in",
+      "signup": "Create account""login": "Log in",
       "signup": "Create account"
     },
     "session": {
+      "active": "Signed in as {email} ({uid}).",
+      "inactive": "No user is currently signed in.",
       "active": "Signed in as {email} ({uid}).",
       "inactive": "No user is currently signed in.",
       "signOut": "Sign out"
