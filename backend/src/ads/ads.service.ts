@@ -7,7 +7,6 @@ import { VertexAiService } from '../ai/vertex-ai.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
 import { RenderService } from '../render/render.service';
 import { RawSubtitleSegment } from '../render/subtitles/subtitle-types';
-import { rm } from 'node:fs/promises';
 
 @Injectable()
 export class AdsService {

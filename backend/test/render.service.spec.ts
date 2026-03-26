@@ -107,8 +107,9 @@ describe('RenderService', () => {
   });
 
   it('returns a temp render result shape with cleanup contract', async () => {
-    const originalRender = renderService.render.bind(renderService);
-    renderService.render = jest.fn().mockResolvedValue('/tmp/fake-output.mp4');
+    const renderSpy = jest
+      .spyOn(renderService, 'render')
+      .mockResolvedValue('/tmp/fake-output.mp4');
 
     const result = await renderService.renderToTempFile({
       videoUrl: 'https://example.com/video.mp4',
@@ -133,6 +134,6 @@ describe('RenderService', () => {
     expect(result.request.phrases?.length).toBeGreaterThan(0);
     await expect(result.cleanup()).resolves.toBeUndefined();
 
-    renderService.render = originalRender;
+    renderSpy.mockRestore();
   });
 });
