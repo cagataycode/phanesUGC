@@ -16,7 +16,7 @@ import { useTranslations } from "next-intl";
 
 export function Navbar() {
   const t = useTranslations();
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const isAuthenticated = !!user;
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");

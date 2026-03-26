@@ -1,6 +1,10 @@
 import React from 'react';
 import { AbsoluteFill, Sequence, Video, useCurrentFrame } from 'remotion';
 import { RenderRequest } from '../constants';
+import {
+  getSubtitleTimelineState,
+  resolveRenderPhrases,
+} from '../../subtitles/subtitle-timeline';
 
 const containerStyle: React.CSSProperties = {
   position: 'absolute',
@@ -29,8 +33,17 @@ const captionStyle: React.CSSProperties = {
 export const KaraokeSubtitledVideo: React.FC<RenderRequest> = ({
   videoUrl,
   segments,
+  phrases,
+  fps,
 }) => {
   const frame = useCurrentFrame();
+  const renderPhrases = resolveRenderPhrases(segments, phrases);
+  const subtitleState = getSubtitleTimelineState({
+    frame,
+    fps,
+    phrases: renderPhrases,
+  });
+  const visiblePhrase = subtitleState.activePhrase;
 
   return (
     <AbsoluteFill style={{ backgroundColor: 'black' }}>
@@ -39,8 +52,9 @@ export const KaraokeSubtitledVideo: React.FC<RenderRequest> = ({
       </Sequence>
       <div style={containerStyle}>
         <div style={captionStyle}>
-          Placeholder karaoke subtitles at frame {frame} with {segments.length}{' '}
-          segments
+          {visiblePhrase
+            ? `${visiblePhrase.text} [activeWord=${subtitleState.activeWord?.text ?? 'none'} frame=${frame}]`
+            : `No active subtitle at frame ${frame}`}
         </div>
       </div>
     </AbsoluteFill>
