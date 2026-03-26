@@ -31,32 +31,26 @@
       "login": "Login",
       "signup": "Sign up"
     },
-    "description": "Mock auth form for frontend and backend integration testing.",
+    "description": "Sign in to your account to create and manage video ads.",
     "fields": {
       "name": "Full name",
       "email": "Email",
       "password": "Password"
     },
     "submit": {
-      "login": "Log in with mock account",
-      "signup": "Create mock account"
+      "login": "Log in",
+      "signup": "Create account"
     },
     "session": {
-      "active": "Active mock session for {email} ({uid}).",
-      "inactive": "No mock user is currently signed in.",
+      "active": "Signed in as {email} ({uid}).",
+      "inactive": "No user is currently signed in.",
       "signOut": "Sign out"
     },
     "toast": {
-      "successTitle": "Mock auth ready",
-      "successDescription": "Signed in as {email}.",
-      "apiTitle": "Backend API placeholder called",
-      "apiDescription": "Prepared request for {endpoint}."
+      "successTitle": "Authentication Successful",
+      "successDescription": "Signed in as {email}."
     },
-    "api": {
-      "title": "Backend integration placeholder",
-      "description": "These frontend auth buttons already call placeholder API helpers. Replace the placeholder base URL, endpoints, and request/response contract when backend auth is ready."
-    },
-    "footnote": "This form is local-only and simulates login/signup UX until real Firebase Authentication is connected.",
+    "footnote": "Secure authentication powered by Firebase.",
     "close": "Close authentication dialog"
   }
 }
