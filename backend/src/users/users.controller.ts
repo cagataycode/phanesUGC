@@ -4,7 +4,7 @@ import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
 import { GetUser } from '../auth/get-user.decorator';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 
-@Controller('api/v1')
+@Controller('v1')
 @UseGuards(FirebaseAuthGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

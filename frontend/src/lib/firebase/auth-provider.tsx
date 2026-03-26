@@ -9,8 +9,9 @@ import {
 } from "react";
 import { User, onIdTokenChanged, getIdToken } from "firebase/auth";
 import { auth } from "./index"; // Assuming the exported firebase initialized instance is here
+import { API_BASE_URL } from "../api-client";
 
-// This defines the structure returned by our backend `/api/v1/me`
+// This defines the structure returned by our backend `/v1/me`
 export interface PlatformContext {
   user_id?: string;
   account_id?: string;
@@ -24,7 +25,7 @@ interface AuthContextType {
   platformContext: PlatformContext | null;
   loading: boolean;
   getIdToken: () => Promise<string | null>;
-  refreshPlatformContext: () => Promise<void>;
+  refreshPlatformContext: (token?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -42,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [platformContext, setPlatformContext] = useState<PlatformContext | null>(null);
   const [loading, setLoading] = useState(!auth ? false : true);
 
-  // Helper function to hit the backend `/api/v1/me` endpoint
+  // Helper function to hit the backend `/v1/me` endpoint
   const refreshPlatformContext = async (token?: string) => {
     try {
       // If token isn't provided, try to grab the latest one
@@ -54,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Backend endpoint implemented in Phase 3
-      const response = await fetch("http://localhost:3000/api/v1/me", {
+      const response = await fetch(`${API_BASE_URL}/v1/me`, {
         headers: {
           Authorization: `Bearer ${idToken}`,
         },
@@ -104,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         platformContext,
         loading,
         getIdToken: getToken,
-        refreshPlatformContext: () => refreshPlatformContext(),
+        refreshPlatformContext: (token?: string) => refreshPlatformContext(token),
       }}
     >
       {children}

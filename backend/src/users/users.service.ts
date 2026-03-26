@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { FirestoreService } from '../firebase/firestore.service';
 import { DecodedIdToken } from 'firebase-admin/auth';
 import * as admin from 'firebase-admin';
+import { UserRole } from '../auth/roles.enum';
 
 export interface UserProfile {
   uid: string;
@@ -74,7 +75,7 @@ export class UsersService {
     const memberData = {
       uid,
       email: email || '',
-      role: 'owner',
+      role: UserRole.OWNER,
       joinedAt: timestamp,
     };
     batch.set(memberRef, memberData);

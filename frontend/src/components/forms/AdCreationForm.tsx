@@ -19,7 +19,7 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import { createAdJob, getAdJobResult } from "@/lib/api";
 import { useProject } from "@/lib/firebase/hooks";
-import { useMockAuth } from "@/lib/firebase/mock-auth";
+import { useAuth } from "@/lib/firebase/auth-provider";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -73,7 +73,8 @@ const formSchema = z.object({
 
 export function AdCreationForm() {
   const t = useTranslations();
-  const { user, isAuthenticated, signInWithMockCredentials } = useMockAuth();
+  const { user, platformContext } = useAuth();
+  const isAuthenticated = !!user;
   const [isProductOpen, setIsProductOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -93,7 +94,7 @@ export function AdCreationForm() {
     process.env.NEXT_PUBLIC_FIREBASE_APP_ID.trim().length > 0;
 
   const businessId =
-    user?.businessId ||
+    platformContext?.account_id ||
     process.env.NEXT_PUBLIC_DEFAULT_BUSINESS_ID ||
     "test-business-id";
   const { project, error: projectError } = useProject(
@@ -199,11 +200,16 @@ export function AdCreationForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!isAuthenticated || !user) {
-      signInWithMockCredentials({
-        mode: "login",
-        email: "backend.tester@phanes.local",
-        password: "mock-password",
-      });
+      window.dispatchEvent(
+        new CustomEvent("phanes-toast", {
+          detail: {
+            title: "Authentication Required",
+            description: "Please sign in to generate ads.",
+            variant: "error",
+          },
+        }),
+      );
+      return;
     }
 
     try {
@@ -215,7 +221,7 @@ export function AdCreationForm() {
       const payload = {
         businessId: businessId,
         productId: "test-product-id",
-        createdBy: user?.uid || "mock-user-id",
+        createdBy: user.uid,
         prompt_inputs: {
           prompt: values.prompt,
           platform: values.platform,
@@ -272,18 +278,18 @@ export function AdCreationForm() {
     );
   }
 
-  const activeTesterEmail = user?.email ?? "backend.tester@phanes.local";
+  const activeTesterEmail = user?.email ?? "Not signed in";
 
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-foreground/10 bg-background/60 px-4 py-3 text-left shadow-sm backdrop-blur-sm">
         <p className="text-sm font-semibold text-foreground/90">
-          Mock auth test session
+          Auth session
         </p>
         <p className="mt-1 text-sm text-foreground/70">
           {isAuthenticated
-            ? `Signed in as ${activeTesterEmail}. Requests use mock user ${user?.uid}.`
-            : "Not signed in. Submitting the form will automatically sign in a local mock tester session."}
+            ? `Signed in as ${activeTesterEmail}. Workspace: ${businessId}.`
+            : "Not signed in. Please sign in to generate ads."}
         </p>
       </div>
       <Form {...form}>
