@@ -22,7 +22,7 @@ export function ToastProvider() {
 
   useEffect(() => {
     function handleToast(event: WindowEventMap["phanes-toast"]) {
-      const id = Date.now();
+      const id = Date.now() + Math.random();
       const nextToast: ToastItem = { id, ...event.detail };
 
       setToasts((current) => [...current, nextToast]);
