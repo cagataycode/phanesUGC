@@ -19,6 +19,14 @@ export const RemotionRoot = () => {
     <Composition
       id={REMOTION_COMPOSITION_ID}
       component={KaraokeSubtitledVideo}
+      calculateMetadata={({ inputProps }) => {
+        return {
+          durationInFrames: inputProps.durationInFrames || 1,
+          fps: inputProps.fps || 30,
+          width: inputProps.width || 1080,
+          height: inputProps.height || 1920,
+        };
+      }}
       durationInFrames={defaultProps.durationInFrames}
       fps={defaultProps.fps}
       width={defaultProps.width}

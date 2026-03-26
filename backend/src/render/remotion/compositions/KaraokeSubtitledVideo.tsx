@@ -26,9 +26,10 @@ const captionStyle: React.CSSProperties = {
   fontWeight: 800,
   lineHeight: 1.2,
   textAlign: 'center',
-  textShadow:
-    '0 2px 8px rgba(0,0,0,0.6), 0 0 24px rgba(0,0,0,0.35), 0 4px 16px rgba(0,0,0,0.5)',
 };
+
+const wordShadow =
+  '0 2px 8px rgba(0,0,0,0.6), 0 0 24px rgba(0,0,0,0.35), 0 4px 16px rgba(0,0,0,0.5)';
 
 const lineStyle: React.CSSProperties = {
   display: 'flex',
@@ -44,9 +45,8 @@ const baseWordStyle: React.CSSProperties = {
   padding: '0.08em 0.18em',
   borderRadius: '0.28em',
   color: '#ffffff',
-  backgroundColor: 'rgba(15, 23, 42, 0.45)',
-  border: '1px solid rgba(255,255,255,0.08)',
   transform: 'scale(1)',
+  textShadow: wordShadow,
 };
 
 const getWordStyle = (
@@ -61,6 +61,7 @@ const getWordStyle = (
       border: '1px solid rgba(255,255,255,0.32)',
       transform: 'scale(1.06)',
       boxShadow: '0 8px 24px rgba(250, 204, 21, 0.35)',
+      textShadow: 'none',
     };
   }
 
