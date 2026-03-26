@@ -1,7 +1,8 @@
 import { auth } from "./firebase";
 import { getIdToken } from "firebase/auth";
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
 
 interface FetchOptions extends RequestInit {
   requireAuth?: boolean;
@@ -27,7 +28,17 @@ export async function fetchWithAuth(
     }
   }
 
-  const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
+  const isAbsoluteUrl = /^https?:\/\//i.test(endpoint);
+  let url: string;
+  if (isAbsoluteUrl) {
+    url = endpoint;
+  } else {
+    const normalizedBase = API_BASE_URL.replace(/\/+$/, "");
+    const normalizedEndpoint = endpoint.startsWith("/")
+      ? endpoint
+      : `/${endpoint}`;
+    url = `${normalizedBase}${normalizedEndpoint}`;
+  }
 
   return fetch(url, {
     ...rest,

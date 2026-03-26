@@ -1,20 +1,33 @@
 "use client";
 
 import { useState } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Logout03Icon } from "@hugeicons/core-free-icons";
 import { AuthForm } from "@/components/forms/AuthForm";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
-import { useMockAuth } from "@/lib/firebase/mock-auth";
+import { signOut as firebaseSignOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useAuth } from "@/lib/firebase/auth-provider";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 export function Navbar() {
   const t = useTranslations();
-  const { user, isAuthenticated, isLoading, signOut } = useMockAuth();
+  const { user, loading } = useAuth();
+  const isAuthenticated = !!user;
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const remainingCredits = 42;
+  const profileInitial =
+    user?.displayName?.trim().charAt(0) || user?.email?.trim().charAt(0) || "P";
+
+  const handleSignOut = async () => {
+    if (!auth) return;
+    await firebaseSignOut(auth);
+  };
 
   return (
     <>
@@ -53,25 +66,43 @@ export function Navbar() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {isAuthenticated && user ? (
-            <div className="hidden md:flex flex-col items-end text-xs text-foreground/70">
-              <span className="font-medium text-foreground/90">
-                {user.displayName}
-              </span>
-              <span>{user.email}</span>
-            </div>
-          ) : null}
           <LanguageSwitcher />
-          <ThemeToggle />
           {isAuthenticated ? (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={signOut}
-              className="hidden sm:inline-flex text-sm border-foreground/10 hover:bg-foreground/5 h-8 px-4 font-normal"
-            >
-              {t("actions.logout")}
-            </Button>
+            <>
+              <div className="hidden sm:flex items-center rounded-full border border-foreground/10 bg-background/70 px-3 py-1.5 text-xs font-medium text-foreground/80 backdrop-blur-sm">
+                {t("credits.remaining", { count: remainingCredits })}
+              </div>
+              <div className="hidden md:flex items-center gap-3">
+                <Link
+                  href="/profile"
+                  className="flex items-center gap-3 rounded-2xl border border-foreground/10 bg-background/70 px-3 py-2 shadow-sm backdrop-blur-sm transition-colors hover:bg-foreground/5"
+                  aria-label={t("actions.profile")}
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground">
+                    {profileInitial.toUpperCase()}
+                  </div>
+                  <div className="flex flex-col text-xs text-foreground/70">
+                    <span className="font-medium text-foreground/90">
+                      {user?.displayName || user?.email || t("actions.profile")}
+                    </span>
+                    <span>{user?.email}</span>
+                  </div>
+                </Link>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleSignOut}
+                  className="h-8 w-8 rounded-full border border-foreground/10 p-0 hover:bg-foreground/5"
+                  aria-label={t("actions.logout")}
+                >
+                  <HugeiconsIcon
+                    icon={Logout03Icon}
+                    strokeWidth={2}
+                    className="size-4"
+                  />
+                </Button>
+              </div>
+            </>
           ) : (
             <Button
               type="button"
@@ -80,26 +111,24 @@ export function Navbar() {
                 setAuthMode("login");
                 setIsAuthModalOpen(true);
               }}
-              disabled={isLoading}
               className="hidden sm:inline-flex text-sm border-foreground/10 hover:bg-foreground/5 h-8 px-4 font-normal"
             >
               {t("actions.login")}
             </Button>
           )}
-          <Button
-            type="button"
-            onClick={() => {
-              if (isAuthenticated) {
-                return;
-              }
-
-              setAuthMode("signup");
-              setIsAuthModalOpen(true);
-            }}
-            className="h-8 px-4 rounded-md font-medium bg-foreground text-background hover:bg-foreground/90 transition-colors"
-          >
-            {isAuthenticated ? t("actions.mockReady") : t("actions.getStarted")}
-          </Button>
+          {!isAuthenticated ? (
+            <Button
+              type="button"
+              onClick={() => {
+                setAuthMode("signup");
+                setIsAuthModalOpen(true);
+              }}
+              className="h-8 px-4 rounded-md font-medium bg-foreground text-background hover:bg-foreground/90 transition-colors"
+            >
+              {t("actions.getStarted")}
+            </Button>
+          ) : null}
+          <ThemeToggle />
         </div>
       </nav>
       <AuthForm

@@ -9,6 +9,13 @@ async function bootstrap() {
   const apiPrefix = configService.get('API_PREFIX', { infer: true }) ?? 'api';
   const port = configService.get('PORT', { infer: true }) ?? 3000;
 
+  app.enableCors({
+    origin: ['http://localhost:3001', 'http://127.0.0.1:3001'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  });
+
   app.setGlobalPrefix(apiPrefix);
 
   await app.listen(port);

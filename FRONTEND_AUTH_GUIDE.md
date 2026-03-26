@@ -28,14 +28,17 @@ export function UserDashboard() {
 
 ## 2. API Client Wrapper
 
-To make requests to our backend (`http://localhost:3000/api/v1`), do **not** use `axios` or standard `fetch` manually. Instead, use the `fetchWithAuth` wrapper. It will automatically wait for the Firebase ID token and inject it into the `Authorization: Bearer <token>` header.
+To make requests to our backend (`http://localhost:3000/api`), do **not** use `axios` or standard `fetch` manually. Instead, use the `fetchWithAuth` wrapper. For users who are already signed in, it will obtain the current Firebase ID token (if available) and inject it into the `Authorization: Bearer <token>` header. 
+
+If no user is signed in yet, the request will proceed without an `Authorization` header, so make sure you only call it after auth has finished initializing when you require an authenticated call.
 
 ```tsx
 import { fetchWithAuth } from "@/lib/api-client";
 
-// The endpoint is automatically prefixed with the API base URL
+// The endpoint is automatically prefixed with the API base URL (e.g., http://localhost:3000/api)
+// Leading slashes are optional; the client normalizes them.
 async function createProject(data) {
-  const response = await fetchWithAuth("/workspaces/projects", {
+  const response = await fetchWithAuth("/v1/projects", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -68,10 +71,10 @@ export function LoginForm() {
   
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
+    if (!auth) return;
     try {
       const result = await signInWithPopup(auth, provider);
-      // Optional: Manually trigger backend sync if you want to block until provisioning is done
-      // (Though onIdTokenChanged usually catches this automatically)
+      // Manually trigger backend sync if you want to block until provisioning is done
       const token = await result.user.getIdToken();
       await refreshPlatformContext(token);
     } catch (error) {
@@ -92,4 +95,4 @@ The very first time a user logs in, the `AuthProvider` will call the backend `GE
 2. Auto-provisions a `Business` (Personal Workspace).
 3. Adds the user as an `owner` of that workspace.
 
-You do **not** need to call any separate "create workspace" endpoints during sign-up. The `/me` endpoint handles all of Phase 3 provisioning automatically.
+You do **not** need to call any separate "create workspace" endpoints during sign-up. The `/v1/me` endpoint handles all of Phase 3 provisioning automatically.

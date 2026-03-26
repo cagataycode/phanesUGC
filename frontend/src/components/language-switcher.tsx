@@ -7,8 +7,12 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
+
+const LOCALE_FLAGS: Record<string, string> = {
+  en: "🇬🇧",
+  de: "🇩🇪",
+};
 
 export function LanguageSwitcher() {
   const locale = useLocale();
@@ -21,12 +25,28 @@ export function LanguageSwitcher() {
 
   return (
     <Select value={locale} onValueChange={handleChange}>
-      <SelectTrigger className="w-[100px] h-8 text-xs border-foreground/10 hover:bg-foreground/5 bg-transparent">
-        <SelectValue />
+      <SelectTrigger
+        hideIcon
+        className="h-9 w-9 rounded-full border border-foreground/10 bg-background/70 px-0 py-0 text-sm shadow-sm backdrop-blur-sm hover:bg-foreground/5"
+      >
+        <span
+          aria-hidden="true"
+          className="flex h-full w-full items-center justify-center px-2 text-base leading-none"
+        >
+          {LOCALE_FLAGS[locale] ?? "🌐"}
+        </span>
+        <span className="sr-only">
+          {locale === "de" ? "Deutsch" : "English"}
+        </span>
       </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="en">English</SelectItem>
-        <SelectItem value="de">Deutsch</SelectItem>
+      <SelectContent
+        position="popper"
+        sideOffset={8}
+        align="end"
+        className="min-w-[140px] rounded-xl"
+      >
+        <SelectItem value="en">🇬🇧 English</SelectItem>
+        <SelectItem value="de">🇩🇪 Deutsch</SelectItem>
       </SelectContent>
     </Select>
   );

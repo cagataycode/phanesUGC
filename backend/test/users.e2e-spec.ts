@@ -83,7 +83,7 @@ describe('Users / Me (e2e)', () => {
     await app.close();
   });
 
-  it('/api/v1/me (GET) - should provision a new user and workspace if they do not exist', async () => {
+  it('/v1/me (GET) - should provision a new user and workspace if they do not exist', async () => {
     const mockUid = 'new-user-123';
     const mockEmail = 'new@example.com';
 
@@ -102,7 +102,7 @@ describe('Users / Me (e2e)', () => {
     batchCommitMock.mockResolvedValueOnce(null);
 
     const response = await request(app.getHttpServer())
-      .get('/api/v1/me')
+      .get('/v1/me')
       .set('Authorization', 'Bearer valid-token')
       .expect(200);
 
@@ -116,7 +116,7 @@ describe('Users / Me (e2e)', () => {
     expect(batchCommitMock).toHaveBeenCalled();
   });
 
-  it('/api/v1/me (GET) - should return existing user data if they already exist', async () => {
+  it('/v1/me (GET) - should return existing user data if they already exist', async () => {
     const mockUid = 'existing-user-456';
     const mockEmail = 'existing@example.com';
     const mockBizId = 'biz-789';
@@ -140,7 +140,7 @@ describe('Users / Me (e2e)', () => {
     });
 
     const response = await request(app.getHttpServer())
-      .get('/api/v1/me')
+      .get('/v1/me')
       .set('Authorization', 'Bearer valid-token')
       .expect(200);
 
@@ -151,7 +151,7 @@ describe('Users / Me (e2e)', () => {
     expect(batchCommitMock).not.toHaveBeenCalled();
   });
 
-  it('/api/v1/me (GET) - should return 401 if unauthorized', () => {
-    return request(app.getHttpServer()).get('/api/v1/me').expect(401);
+  it('/v1/me (GET) - should return 401 if unauthorized', () => {
+    return request(app.getHttpServer()).get('/v1/me').expect(401);
   });
 });

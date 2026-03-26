@@ -23,14 +23,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
-  AUTH_API_PLACEHOLDERS,
-  loginWithBackendPlaceholder,
-  signupWithBackendPlaceholder,
-} from "@/lib/auth/api";
-import { useMockAuth } from "@/lib/firebase/mock-auth";
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+} from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useAuth } from "@/lib/firebase/auth-provider";
 
 const loginSchema = z.object({
-  email: z.email("Please enter a valid email address."),
+  email: z.string().email("Please enter a valid email address."),
   password: z.string().min(6, "Password must be at least 6 characters."),
 });
 
@@ -57,11 +58,10 @@ export function AuthForm({
   defaultMode = "login",
 }: AuthFormProps) {
   const t = useTranslations("auth");
-  const { user, isAuthenticated, signInWithMockCredentials, signOut } =
-    useMockAuth();
+  const { user, refreshPlatformContext } = useAuth();
+  const isAuthenticated = !!user;
   const [mode, setMode] = useState<AuthMode>(defaultMode);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [apiMessage, setApiMessage] = useState<string | null>(null);
 
   const schema = useMemo(
     () => (mode === "login" ? loginSchema : signupSchema),
@@ -70,11 +70,11 @@ export function AuthForm({
 
   const defaultValues = useMemo<AuthFormValues>(
     () => ({
-      name: defaultMode === "signup" ? "Backend Tester" : "",
-      email: "backend.tester@phanes.local",
-      password: "mock-password",
+      name: "",
+      email: "",
+      password: "",
     }),
-    [defaultMode],
+    [],
   );
 
   const form = useForm<AuthFormValues>({
@@ -85,65 +85,68 @@ export function AuthForm({
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
     form.reset({
-      name: nextMode === "signup" ? "Backend Tester" : "",
-      email: "backend.tester@phanes.local",
-      password: "mock-password",
+      name: "",
+      email: "",
+      password: "",
     });
   }
 
+  async function handleSignOut() {
+    if (!auth) return;
+    await firebaseSignOut(auth);
+  }
+
   async function onSubmit(values: AuthFormValues) {
+    if (!auth) return;
     setIsSubmitting(true);
-    setApiMessage(null);
 
-    const apiResponse =
-      mode === "login"
-        ? await loginWithBackendPlaceholder({
-            email: values.email,
-            password: values.password,
-          })
-        : await signupWithBackendPlaceholder({
-            name: values.name,
-            email: values.email,
-            password: values.password,
-          });
+    try {
+      const userCredential =
+        mode === "login"
+          ? await signInWithEmailAndPassword(
+              auth,
+              values.email,
+              values.password,
+            )
+          : await createUserWithEmailAndPassword(
+              auth,
+              values.email,
+              values.password,
+            );
 
-    const nextUser = signInWithMockCredentials({
-      mode,
-      name: values.name,
-      email: values.email,
-      password: values.password,
-    });
+      const idToken = await userCredential.user.getIdToken();
+      await refreshPlatformContext(idToken);
 
-    setApiMessage(
-      `${apiResponse.method} ${apiResponse.endpoint} → ${apiResponse.message}`,
-    );
+      const userEmail = userCredential.user.email ?? values.email;
 
-    window.dispatchEvent(
-      new CustomEvent("phanes-toast", {
-        detail: {
-          title: t("toast.successTitle"),
-          description: t("toast.successDescription", {
-            email: nextUser.email,
-          }),
-          variant: "success",
-        },
-      }),
-    );
-
-    window.dispatchEvent(
-      new CustomEvent("phanes-toast", {
-        detail: {
-          title: t("toast.apiTitle"),
-          description: t("toast.apiDescription", {
-            endpoint: apiResponse.endpoint,
-          }),
-          variant: "success",
-        },
-      }),
-    );
-
-    setIsSubmitting(false);
-    onClose();
+      window.dispatchEvent(
+        new CustomEvent("phanes-toast", {
+          detail: {
+            title: t("toast.successTitle"),
+            description: t("toast.successDescription", {
+              email: userEmail,
+            }),
+            variant: "success",
+          },
+        }),
+      );
+      setIsSubmitting(false);
+      onClose();
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to authenticate";
+      console.error("Auth error:", error);
+      window.dispatchEvent(
+        new CustomEvent("phanes-toast", {
+          detail: {
+            title: "Authentication Error",
+            description: errorMessage,
+            variant: "error",
+          },
+        }),
+      );
+      setIsSubmitting(false);
+    }
   }
 
   useEffect(() => {
@@ -290,28 +293,16 @@ export function AuthForm({
             </form>
           </Form>
 
-          <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-left text-sm text-amber-950 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-50">
-            <p className="font-semibold">{t("api.title")}</p>
-            <p className="mt-1 opacity-90">{t("api.description")}</p>
-            <div className="mt-3 space-y-1 font-mono text-xs opacity-90">
-              <p>BASE_URL: {AUTH_API_PLACEHOLDERS.baseUrl}</p>
-              <p>LOGIN: POST {AUTH_API_PLACEHOLDERS.loginEndpoint}</p>
-              <p>SIGNUP: POST {AUTH_API_PLACEHOLDERS.signupEndpoint}</p>
-              <p>HEADER: {AUTH_API_PLACEHOLDERS.tokenHeader}</p>
-            </div>
-            {apiMessage ? <p className="mt-3 text-xs">{apiMessage}</p> : null}
-          </div>
-
           <div className="rounded-xl border border-dashed border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-foreground/70">
             {isAuthenticated && user ? (
               <div className="space-y-3">
                 <p>
                   {t("session.active", {
-                    email: user.email,
+                    email: user.email ?? "",
                     uid: user.uid,
                   })}
                 </p>
-                <Button type="button" variant="outline" onClick={signOut}>
+                <Button type="button" variant="outline" onClick={handleSignOut}>
                   {t("session.signOut")}
                 </Button>
               </div>

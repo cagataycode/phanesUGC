@@ -4,11 +4,13 @@
     "pricing": "Preise",
     "security": "Sicherheit"
   },
+  "credits": {
+    "remaining": "Noch {count} Credits"
+  },
   "actions": {
     "login": "Anmelden",
-    "loginMock": "Mock-Anmeldung",
     "logout": "Abmelden",
     "getStarted": "Loslegen",
-    "mockReady": "Mock-Auth bereit"
+    "profile": "Profil"
   }
 }

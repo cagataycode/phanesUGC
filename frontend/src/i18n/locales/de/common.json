@@ -29,32 +29,56 @@
       "login": "Anmelden",
       "signup": "Registrieren"
     },
-    "description": "Mock-Auth-Formular für Frontend- und Backend-Integrationstests.",
+    "description": "Melde dich an oder erstelle dein Konto mit Firebase-Authentifizierung.",
     "fields": {
       "name": "Vollständiger Name",
       "email": "E-Mail",
       "password": "Passwort"
     },
     "submit": {
-      "login": "Mit Mock-Konto anmelden",
-      "signup": "Mock-Konto erstellen"
+      "login": "Anmelden",
+      "signup": "Konto erstellen"
     },
     "session": {
-      "active": "Aktive Mock-Sitzung für {email} ({uid}).",
-      "inactive": "Derzeit ist kein Mock-Benutzer angemeldet.",
+      "active": "Angemeldet als {email} ({uid}).",
+      "inactive": "Derzeit ist kein Benutzer angemeldet.",
       "signOut": "Abmelden"
     },
     "toast": {
-      "successTitle": "Mock-Auth bereit",
+      "successTitle": "Authentifizierung erfolgreich",
       "successDescription": "Angemeldet als {email}.",
-      "apiTitle": "Backend-API-Platzhalter aufgerufen",
-      "apiDescription": "Anfrage für {endpoint} vorbereitet."
+      "apiTitle": "Backend-Synchronisierung",
+      "apiDescription": "Firebase-Sitzung mit {endpoint} synchronisiert."
     },
     "api": {
-      "title": "Backend-Integrationsplatzhalter",
-      "description": "Diese Frontend-Auth-Buttons rufen bereits Platzhalter-API-Helper auf. Ersetzen Sie Base-URL, Endpunkte und Request/Response-Vertrag, sobald das Backend-Auth bereit ist."
+      "title": "Backend-Integration",
+      "description": "Die Authentifizierung läuft im Client über Firebase und wird anschließend über /me mit dem Backend-Arbeitsbereich synchronisiert."
     },
-    "footnote": "Dieses Formular ist nur lokal und simuliert Login/Signup UX, bis echte Firebase Authentication verbunden ist.",
+    "footnote": "Die Authentifizierung nutzt Firebase im Client und den im Auth-Guide beschriebenen Backend-Provisioning-Flow.",
     "close": "Authentifizierungsdialog schließen"
+  },
+  "profile": {
+    "title": "Profil",
+    "fallbackName": "Phanes-Benutzer",
+    "fallbackEmail": "Keine E-Mail verfügbar",
+    "remainingCredits": "Verbleibende Credits",
+    "role": "Rolle",
+    "member": "Mitglied",
+    "accountDetails": "Kontodetails",
+    "fullName": "Vollständiger Name",
+    "emailAddress": "E-Mail-Adresse",
+    "workspaceId": "Workspace-ID",
+    "noWorkspace": "Noch kein Workspace verknüpft",
+    "userId": "Benutzer-ID",
+    "unavailable": "Nicht verfügbar",
+    "subscriptionAccess": "Abo & Zugriff",
+    "subscriptionTier": "Abo-Stufe",
+    "free": "Kostenlos",
+    "entitlementSource": "Berechtigungsquelle",
+    "subscription": "Abonnement",
+    "sessionStatus": "Sitzungsstatus",
+    "checkingSession": "Sitzung wird geprüft…",
+    "authenticated": "Angemeldet",
+    "signedOut": "Abgemeldet"
   }
 }

@@ -1,4 +1,8 @@
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import {
+  createParamDecorator,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { DecodedIdToken } from 'firebase-admin/auth';
 import { AuthenticatedRequest } from './firebase-auth.guard';
 
@@ -10,7 +14,7 @@ export const GetUser = createParamDecorator(
   (data: unknown, ctx: ExecutionContext): DecodedIdToken => {
     const request = ctx.switchToHttp().getRequest<AuthenticatedRequest>();
     if (!request.user) {
-      throw new Error(
+      throw new UnauthorizedException(
         'User not found in request. Ensure FirebaseAuthGuard is applied.',
       );
     }
