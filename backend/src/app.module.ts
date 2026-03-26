@@ -7,6 +7,7 @@ import { FirebaseModule } from './firebase/firebase.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { validateEnv } from './config/env';
+import { RenderModule } from './render/render.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { validateEnv } from './config/env';
     FirebaseModule,
     AuthModule,
     UsersModule,
+    RenderModule,
     AdsModule,
   ],
   controllers: [AppController],
