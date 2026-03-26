@@ -5,6 +5,7 @@ import {
   getSubtitleTimelineState,
   resolveRenderPhrases,
 } from '../../subtitles/subtitle-timeline';
+import { buildKaraokeCaptionPresentation } from './karaoke-presenter';
 
 const containerStyle: React.CSSProperties = {
   position: 'absolute',
@@ -18,16 +19,61 @@ const containerStyle: React.CSSProperties = {
 
 const captionStyle: React.CSSProperties = {
   display: 'flex',
-  flexWrap: 'wrap',
-  justifyContent: 'center',
-  gap: '0.3em',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 12,
   fontSize: 64,
   fontWeight: 800,
   lineHeight: 1.2,
-  color: '#ffffff',
   textAlign: 'center',
   textShadow:
     '0 2px 8px rgba(0,0,0,0.6), 0 0 24px rgba(0,0,0,0.35), 0 4px 16px rgba(0,0,0,0.5)',
+};
+
+const lineStyle: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'center',
+  gap: '0.24em',
+};
+
+const baseWordStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '0.08em 0.18em',
+  borderRadius: '0.28em',
+  color: '#ffffff',
+  backgroundColor: 'rgba(15, 23, 42, 0.45)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  transform: 'scale(1)',
+};
+
+const getWordStyle = (
+  isActive: boolean,
+  isSpoken: boolean,
+): React.CSSProperties => {
+  if (isActive) {
+    return {
+      ...baseWordStyle,
+      color: '#0f172a',
+      backgroundColor: '#facc15',
+      border: '1px solid rgba(255,255,255,0.32)',
+      transform: 'scale(1.06)',
+      boxShadow: '0 8px 24px rgba(250, 204, 21, 0.35)',
+    };
+  }
+
+  if (isSpoken) {
+    return {
+      ...baseWordStyle,
+      color: '#ffffff',
+      backgroundColor: 'rgba(147, 197, 253, 0.28)',
+      border: '1px solid rgba(191,219,254,0.24)',
+    };
+  }
+
+  return baseWordStyle;
 };
 
 export const KaraokeSubtitledVideo: React.FC<RenderRequest> = ({
@@ -44,19 +90,30 @@ export const KaraokeSubtitledVideo: React.FC<RenderRequest> = ({
     phrases: renderPhrases,
   });
   const visiblePhrase = subtitleState.activePhrase;
+  const captionPresentation = visiblePhrase
+    ? buildKaraokeCaptionPresentation(visiblePhrase, subtitleState)
+    : null;
 
   return (
     <AbsoluteFill style={{ backgroundColor: 'black' }}>
       <Sequence from={0}>
         <Video src={videoUrl} style={{ width: '100%', height: '100%' }} />
       </Sequence>
-      <div style={containerStyle}>
-        <div style={captionStyle}>
-          {visiblePhrase
-            ? `${visiblePhrase.text} [activeWord=${subtitleState.activeWord?.text ?? 'none'} frame=${frame}]`
-            : `No active subtitle at frame ${frame}`}
+      {captionPresentation ? (
+        <div style={containerStyle}>
+          <div style={captionStyle}>
+            {captionPresentation.lines.map((line, lineIndex) => (
+              <div key={`${visiblePhrase?.id ?? 'line'}-${lineIndex}`} style={lineStyle}>
+                {line.words.map((word) => (
+                  <span key={word.id} style={getWordStyle(word.isActive, word.isSpoken)}>
+                    {word.text}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
     </AbsoluteFill>
   );
 };
