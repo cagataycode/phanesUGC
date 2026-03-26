@@ -45,6 +45,11 @@ export function Navbar() {
 
     if (value === "library") {
       router.push("/library");
+      return;
+    }
+
+    if (value === "results") {
+      router.push("/results/history");
     }
   };
 
@@ -120,6 +125,9 @@ export function Navbar() {
                     </SelectItem>
                     <SelectItem value="library">
                       {t("actions.library")}
+                    </SelectItem>
+                    <SelectItem value="results">
+                      {t("actions.results")}
                     </SelectItem>
                   </SelectContent>
                 </Select>
