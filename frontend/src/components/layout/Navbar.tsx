@@ -7,16 +7,25 @@ import { AuthForm } from "@/components/forms/AuthForm";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { signOut as firebaseSignOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/firebase/auth-provider";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname, useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 
 export function Navbar() {
   const t = useTranslations();
   const { user, loading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
   const isAuthenticated = !!user;
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
@@ -27,6 +36,17 @@ export function Navbar() {
   const handleSignOut = async () => {
     if (!auth) return;
     await firebaseSignOut(auth);
+  };
+
+  const handleProfileMenuChange = (value: string) => {
+    if (value === "profile") {
+      router.push("/profile");
+      return;
+    }
+
+    if (value === "library") {
+      router.push("/library");
+    }
   };
 
   return (
@@ -73,21 +93,37 @@ export function Navbar() {
                 {t("credits.remaining", { count: remainingCredits })}
               </div>
               <div className="hidden md:flex items-center gap-3">
-                <Link
-                  href="/profile"
-                  className="flex items-center gap-3 rounded-2xl border border-foreground/10 bg-background/70 px-3 py-2 shadow-sm backdrop-blur-sm transition-colors hover:bg-foreground/5"
-                  aria-label={t("actions.profile")}
-                >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground">
-                    {profileInitial.toUpperCase()}
-                  </div>
-                  <div className="flex flex-col text-xs text-foreground/70">
-                    <span className="font-medium text-foreground/90">
-                      {user?.displayName || user?.email || t("actions.profile")}
-                    </span>
-                    <span>{user?.email}</span>
-                  </div>
-                </Link>
+                <Select onValueChange={handleProfileMenuChange}>
+                  <SelectTrigger
+                    hideIcon
+                    className="flex min-h-14 items-center gap-3 rounded-2xl border border-foreground/10 bg-background/70 px-4 py-3 shadow-sm backdrop-blur-sm transition-colors hover:bg-foreground/5"
+                    aria-label={t("actions.profile")}
+                  >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground">
+                      {profileInitial.toUpperCase()}
+                    </div>
+                    <div className="flex flex-col text-left text-xs text-foreground/70">
+                      <span className="font-medium text-foreground/90">
+                        {user?.displayName ||
+                          user?.email ||
+                          t("actions.profile")}
+                      </span>
+                      <span>{user?.email}</span>
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent
+                    position="popper"
+                    align="end"
+                    className="min-w-[220px]"
+                  >
+                    <SelectItem value="profile">
+                      {t("actions.profileWorkspace")}
+                    </SelectItem>
+                    <SelectItem value="library">
+                      {t("actions.library")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button
                   type="button"
                   variant="ghost"
