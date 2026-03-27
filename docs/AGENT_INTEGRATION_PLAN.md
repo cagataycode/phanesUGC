@@ -20,16 +20,16 @@
 | **Script Generation**               | AI (LLM)         | Writing ad copy, hooks, CTAs — generative task                                                      |
 | **Scene Planning**                  | AI (LLM)         | Deciding what visual goes where, durations, transitions — creative reasoning                        |
 | **Asset Strategy / Selection**      | Algorithm + AI   | Priority rules are algorithmic; deciding "is this image suitable?" could use AI                     |
-| **Scene Video + Speech Generation** | AI               | Veo generates motion and embedded spoken output                                                     |
-| **Subtitle Sync & Chunking**        | AI + Algorithm   | Transcription/alignment = AI (Whisper); chunking rules = algorithm                                  |
+| **Scene Video + Speech Generation** | AI               | Veo generates motion, embedded speech, and subtitles                |
+| **Subtitle Integration**           | AI + Algorithm   | Veo provides timestamps (AI); formatting = algorithm                |
 | **Quality Evaluation**              | Algorithm + AI   | Some checks are rule-based (file exists, duration match); others need LLM (is the hook compelling?) |
 | **Retry / Fallback Decisions**      | Algorithm        | Bounded policy logic — pure code                                                                    |
-| **Video Composition / Rendering**   | Algorithm        | Building a deterministic render spec and calling FFmpeg/Remotion                                    |
+| **Video Composition / Rendering**   | Algorithm        | Building a deterministic render spec and calling Remotion           |
 
 ### Summary
 
 - **Orchestration logic** = pure algorithm (TypeScript code in NestJS backend)
-- **Stage execution** = calls to AI services and worker tools (Gemini LLM, Veo, Whisper, Crawlee, Remotion, FFmpeg)
+- **Stage execution** = calls to AI services and worker tools (Gemini LLM, Veo, Crawlee, Remotion)
 - **Quality evaluation** = mix of rule-based checks and LLM scoring
 - **Retry/fallback** = pure algorithm with coded policies
 
@@ -61,7 +61,7 @@ prompt → Vertex AI Veo → GCS → signed URL
 The agent document describes a **multi-stage pipeline**:
 
 ```
-prompt → normalize → scrape → brief → script → scenes → assets → generate_video_with_speech → extract_audio → subtitles → compose → render → validate → deliver
+prompt → normalize → scrape → brief → script → scenes → assets → generate_veo_output → compose → render → validate → deliver
 ```
 
 ## 3.1 Canonical Build Order
@@ -107,7 +107,7 @@ Agent needs a **stage-aware state machine**:
 
 ```
 created → platform_ready → normalized → context_ready → brief_ready → script_ready →
-scenes_ready → assets_ready → audio_ready → subtitles_ready →
+scenes_ready → assets_ready → veo_output_ready →
 composition_ready → rendering → validation → completed
 ```
 
@@ -134,9 +134,7 @@ LLMAdapter          — for Gemini text generation (brief, script, scene plannin
 ScraperAdapter      — for Crawlee-based URL scraping and extraction
 StockMediaAdapter   — for stock media search
 ImageGenAdapter     — for image generation
-VideoGenAdapter     — for video generation (Veo)
-TranscriptionAdapter — for Whisper transcription
-AlignmentAdapter    — for script-aware cleanup / forced alignment
+VideoGenAdapter     — for video and subtitle generation (Veo 3.1)
 RendererAdapter     — for final video rendering
 ```
 
@@ -168,9 +166,7 @@ backend/src/
 │   │   ├── scraper.adapter.ts               # Interface for Crawlee scraping
 │   │   ├── stock-media.adapter.ts           # Interface for stock media
 │   │   ├── image-generation.adapter.ts      # Interface for image gen
-│   │   ├── video-generation.adapter.ts      # Interface for video gen (Veo)
-│   │   ├── transcription.adapter.ts         # Interface for Whisper transcription
-│   │   ├── speech-alignment.adapter.ts      # Interface for forced alignment
+│   │   ├── video-generation.adapter.ts      # Interface for video & subtitles (Veo)
 │   │   └── renderer.adapter.ts              # Interface for rendering
 │   │
 │   ├── stages/
@@ -180,9 +176,8 @@ backend/src/
 │   │   ├── script-generator.service.ts      # Stage 5-6: Generate & evaluate script (LLM)
 │   │   ├── scene-planner.service.ts         # Stage 7: Plan scenes (LLM)
 │   │   ├── asset-resolver.service.ts        # Stage 8: Select/generate assets
-│   │   ├── scene-video-generator.service.ts # Stage 9: Veo generation with speech
-│   │   ├── audio-extractor.service.ts       # Stage 10: FFmpeg extraction + normalization
-│   │   ├── subtitle-generator.service.ts    # Stage 11-12: Transcribe + chunk
+│   │   ├── scene-video-generator.service.ts # Stage 9: Veo generation with subtitles
+│   │   ├── veo-output-processor.service.ts   # Stage 10: Format Veo subtitles
 │   │   ├── timeline-assembler.service.ts    # Stage 13: Build render spec
 │   │   ├── render-executor.service.ts       # Stage 14-15: Trigger render
 │   │   └── output-validator.service.ts      # Stage 16: Quality checks
@@ -216,8 +211,8 @@ backend/src/
 │                                                   └─────┬──────┘    │
 │                                                         │            │
 │  ┌──────────┐   ┌───────────┐   ┌──────────┐   ┌──────▼───────┐    │
-│  │  Render  │◀──│ Timeline  │◀──│ Subtitle │◀──│   Scene      │    │
-│  │ Executor │   │ Assembler │   │Generator │   │   Planner    │    │
+│  │  Render  │◀──│ Timeline  │◀──│   Veo    │◀──│   Scene      │    │
+│  │ Executor │   │ Assembler │   │ Processor│   │   Planner    │    │
 │  └────┬─────┘   └───────────┘   └──────────┘   └──────────────┘    │
 │       │                                                              │
 │  ┌────▼─────┐   ┌───────────┐                                       │
@@ -237,8 +232,7 @@ backend/src/
 | script_ready      | `AdScript` — hook, narration lines, CTA, overlay text       |
 | scenes_ready      | `ScenePlan[]` — per-scene instructions                      |
 | assets_ready      | `ResolvedAsset[]` — media URLs/keys per scene               |
-| audio_ready       | `GeneratedSceneVideo[]` + extracted/normalized speech audio |
-| subtitles_ready   | `SubtitleTrack` — chunked, timed caption segments           |
+| veo_output_ready   | `VeoOutput` — generated video and subtitle segments        |
 | composition_ready | `RenderTimeline` — deterministic render specification       |
 | rendering         | (render in progress)                                        |
 | validation        | `QualityReport` — pass/revise/fail per check                |
@@ -264,15 +258,9 @@ Quality gates are checkpoints between stages where the agent evaluates output be
 - crop strategy is valid
 - the plan supports the requested aspect ratio
 
-### Audio Gate
-
-- voiceover is generated
-- duration is within tolerance
-- timing metadata is usable
-
 ### Subtitle Gate
 
-- captions are synchronized
+- captions are synchronized (from Veo)
 - line breaks are readable
 - captions remain within safe area
 
@@ -315,9 +303,8 @@ You don't need to build all 14 stages at once. The natural build order:
 | --------------------- | -------------------------------------------------------------- | ----------------------------------------- |
 | **Phase 0 (current)** | prompt → Veo → GCS                                             | Already done                              |
 | **Phase 1**           | + Input normalization + LLM brief + LLM script                 | Agent starts "thinking" before generating |
-| **Phase 2**           | + Scene planning + Asset strategy                              | Multi-scene support                       |
-| **Phase 3**           | + Audio extraction + Whisper transcription + Subtitle chunking | Subtitles work                            |
-| **Phase 4**           | + Remotion/FFmpeg render composition                           | Full render pipeline                      |
+| **Phase 3**           | + Veo video and subtitle generation           | Video + Subtitles work                    |
+| **Phase 4**           | + Remotion render composition                           | Full render pipeline                      |
 | **Phase 5**           | + Quality gates + Retry logic                                  | Agent becomes truly agentic               |
 
 ---
@@ -347,10 +334,10 @@ AdsController
       → QualityGatesService.evaluateScript()  ← LLM + rules
       → ScenePlannerService.plan()            ← LLM call
       → AssetResolverService.resolve()
-      → VoiceGeneratorService.generate()      ← TTS call
-      → SubtitleGeneratorService.generate()   ← Whisper + rules
+      → VoiceGeneratorService.generate()      ← Veo 3.1 call (Video + Subtitles)
+      → SubtitleFormattingService.format()
       → TimelineAssemblerService.assemble()
-      → RenderExecutorService.render()        ← FFmpeg/Remotion
+      → RenderExecutorService.render()        ← Remotion
       → OutputValidatorService.validate()     ← rules + LLM
       → Deliver or Retry
 ```
@@ -402,7 +389,7 @@ export class CreateAdDto {
 ## 13. Open Questions
 
 1. **Which Gemini model for text generation?** (e.g., `gemini-2.0-flash`, `gemini-2.5-pro`)
-2. **TTS provider for MVP?** (Google Cloud TTS, ElevenLabs, or rely on Veo's embedded speech?)
+2. **Subtitles for MVP?** (Use direct Veo 3.1 output)
 3. **Stock media provider?** (Pexels, Shutterstock, none for MVP?)
-4. **Render engine?** (Remotion, pure FFmpeg, or hybrid?)
+4. **Render engine?** (Remotion)
 5. **Should Phase 1 start immediately or do we need to resolve open questions first?**

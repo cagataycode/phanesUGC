@@ -32,12 +32,20 @@ export class ScriptGenerationService {
     const cta = brief.cta ?? 'Try it now.';
     const full_text = [hook, body, cta].filter(Boolean).join(' ');
 
+    const visual_description = [
+      brief.visual_style ? `Visual style: ${brief.visual_style}.` : undefined,
+      brief.key_message ? `Key message: ${brief.key_message}.` : undefined,
+    ]
+      .filter(Boolean)
+      .join(' ');
+
     return {
       title,
       hook,
       body,
       cta,
       full_text,
+      visual_description,
     };
   }
 }

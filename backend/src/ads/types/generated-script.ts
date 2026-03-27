@@ -4,4 +4,5 @@ export interface GeneratedScript {
   body?: string;
   cta?: string;
   full_text: string;
+  visual_description?: string;
 }

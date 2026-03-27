@@ -20,7 +20,7 @@ export class BriefGenerationService {
         
         Given the following inputs, create a structured creative brief for a ${veo_config.duration_sec}-second ${prompt_inputs.platform} ad.
         
-        User prompt: ${typeof prompt_inputs.prompt === 'string' ? prompt_inputs.prompt : JSON.stringify(prompt_inputs.prompt)}
+        **High-Priority User Prompt**: ${typeof prompt_inputs.prompt === 'string' ? prompt_inputs.prompt : JSON.stringify(prompt_inputs.prompt)}
         Product name: ${prompt_inputs.product_info?.name || 'Not provided'}
         Product description: ${prompt_inputs.product_info?.description || 'Not provided'}
         Product benefits: ${prompt_inputs.product_info?.benefits?.join(', ') || 'Not provided'}
@@ -31,6 +31,7 @@ export class BriefGenerationService {
         
         Requirements:
         - The brief must be specific enough to produce a coherent ad script
+        - **Your primary goal is to translate the "High-Priority User Prompt" into a clear, actionable "visual_style" and "key_message".**
         - Infer any missing fields from context
         - The visual style should match the tone and platform
         - The ad must fit within ${veo_config.duration_sec} seconds when spoken aloud

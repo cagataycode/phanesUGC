@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import path from 'node:path';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { JobStoreService } from './services/job-store.service';
 import { BriefGenerationService } from './services/brief-generation.service';
@@ -7,6 +8,7 @@ import { VertexAiService } from '../ai/vertex-ai.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
 import { RenderService } from '../render/render.service';
 import { RawSubtitleSegment } from '../render/subtitles/subtitle-types';
+import { GeneratedScript } from './types/generated-script';
 
 @Injectable()
 export class AdsService {
@@ -215,41 +217,52 @@ export class AdsService {
 
   private buildPromptFromScript(
     createAdDto: CreateAdDto,
-    script: {
-      title?: string;
-      hook?: string;
-      body?: string;
-      cta?: string;
-      full_text: string;
-    },
+    script: GeneratedScript,
   ): string {
     const { prompt_inputs, veo_config } = createAdDto;
-    const sections: string[] = [script.full_text];
+    const sections: string[] = [];
 
-    if (script.title) {
-      sections.unshift(`Ad title: ${script.title}`);
+    // 1. Start with the user's original creative prompt
+    const userPrompt =
+      typeof prompt_inputs.prompt === 'string'
+        ? prompt_inputs.prompt
+        : JSON.stringify(prompt_inputs.prompt);
+    if (userPrompt) {
+      sections.push(`**User's Creative Vision**:
+${userPrompt}`);
     }
 
+    // 2. Add the visual direction
+    if (script.visual_description) {
+      sections.push(`**Visual Direction**:
+${script.visual_description}`);
+    }
+
+    // 3. Add the ad script text
+    if (script.full_text) {
+      sections.push(`**Ad Script**:
+${script.full_text}`);
+    }
+
+    // 4. Add generation context
     const generationContext: string[] = [];
-
     if (prompt_inputs.platform) {
-      generationContext.push(`Platform: ${prompt_inputs.platform}`);
+      generationContext.push(`- Platform: ${prompt_inputs.platform}`);
     }
-
     if (prompt_inputs.language) {
-      generationContext.push(`Language: ${prompt_inputs.language}`);
+      generationContext.push(`- Language: ${prompt_inputs.language}`);
     }
-
     if (veo_config.aspect_ratio) {
-      generationContext.push(`Aspect ratio: ${veo_config.aspect_ratio}`);
+      generationContext.push(`- Aspect ratio: ${veo_config.aspect_ratio}`);
     }
-
     if (veo_config.duration_sec) {
-      generationContext.push(`Duration: ${veo_config.duration_sec} seconds`);
+      generationContext.push(`- Duration: ${veo_config.duration_sec} seconds`);
     }
 
     if (generationContext.length > 0) {
-      sections.push(`Generation context:\n- ${generationContext.join('\n- ')}`);
+      sections.push(
+        `**Technical Constraints**:\n${generationContext.join('\n')}`,
+      );
     }
 
     return sections.join('\n\n');
@@ -345,9 +358,6 @@ export class AdsService {
         sourceVideoStorageKey,
       );
 
-      const sourceVideoUrl = await this.gcsStorageService.createSignedVideoUrl(
-        sourceVideoStorageKey,
-      );
       this.logger.debug(
         `[${projectId}] Preparing subtitles and render request`,
       );
@@ -356,80 +366,109 @@ export class AdsService {
         createAdDto.veo_config.duration_sec,
       );
 
-      const preparedRenderRequest = this.renderService.prepareRenderRequest({
-        videoUrl: sourceVideoUrl,
-        segments: subtitleSegments,
-        fps: 30,
-        durationInFrames: createAdDto.veo_config.duration_sec * 30,
-        width: createAdDto.veo_config.aspect_ratio === '9:16' ? 1080 : 1920,
-        height: createAdDto.veo_config.aspect_ratio === '9:16' ? 1920 : 1080,
-      });
-
-      // 4. Storage & Finalization
-      this.logger.debug(`[${projectId}] Stage 4: Subtitle rendering`);
-      await this.jobStoreService.update(businessId, projectId, {
-        progress: 80,
-        subtitleSegments,
-        stages: {
-          scrape: 'done',
-          brief: 'done',
-          script: 'done',
-          scenes: 'done',
-          assets: 'done',
-          audio: 'done',
-          subtitles: 'done',
-          render: 'running',
-        },
-      });
-
-      const storageKey = `businesses/${businessId}/projects/${projectId}/output/final.mp4`;
-      this.logger.log(
-        `[${projectId}] Starting Remotion subtitled video render`,
+      // Ensure public dir exists (will silently succeed if it does)
+      const publicDir = path.resolve(
+        process.cwd(),
+        'src/render/remotion/public',
       );
-      const renderedOutput = await this.renderService.renderToTempFile({
-        ...preparedRenderRequest,
-        phrases: preparedRenderRequest.phrases,
-      });
+      await import('node:fs/promises').then((fs) =>
+        fs.mkdir(publicDir, { recursive: true }),
+      );
+
+      const fileName = `source-${projectId}.mp4`;
+      const localSourcePath = path.join(publicDir, fileName);
 
       try {
         this.logger.log(
-          `[${projectId}] Render finished. Uploading to GCS: ${storageKey}`,
+          `[${projectId}] Downloading source video for local rendering: ${localSourcePath}`,
         );
-        await this.gcsStorageService.uploadLocalFile(
-          renderedOutput.outputPath,
-          storageKey,
-        );
-      } finally {
-        await renderedOutput.cleanup();
-      }
-
-      this.logger.log(`[${projectId}] Job completed successfully`);
-      await this.jobStoreService.update(businessId, projectId, {
-        status: 'completed',
-        progress: 100,
-        subtitleSegments,
-        output: {
-          videoStorageKey: storageKey,
+        await this.gcsStorageService.downloadFile(
           sourceVideoStorageKey,
-        },
-        metadata: {
-          renderRequest: {
-            fps: preparedRenderRequest.fps,
-            durationInFrames: preparedRenderRequest.durationInFrames,
-            phraseCount: preparedRenderRequest.phrases?.length ?? 0,
+          localSourcePath,
+        );
+
+        // Remotion automatically exposes everything in the public/ folder at the root path during render
+        const videoUrlForRemotion = fileName;
+
+        const preparedRenderRequest = this.renderService.prepareRenderRequest({
+          videoUrl: videoUrlForRemotion,
+          segments: subtitleSegments,
+          fps: 30,
+          durationInFrames: createAdDto.veo_config.duration_sec * 30,
+          width: createAdDto.veo_config.aspect_ratio === '9:16' ? 1080 : 1920,
+          height: createAdDto.veo_config.aspect_ratio === '9:16' ? 1920 : 1080,
+        });
+
+        // 4. Storage & Finalization
+        this.logger.debug(`[${projectId}] Stage 4: Subtitle rendering`);
+        await this.jobStoreService.update(businessId, projectId, {
+          progress: 80,
+          subtitleSegments,
+          stages: {
+            scrape: 'done',
+            brief: 'done',
+            script: 'done',
+            scenes: 'done',
+            assets: 'done',
+            audio: 'done',
+            subtitles: 'done',
+            render: 'running',
           },
-        } as never,
-        stages: {
-          scrape: 'done',
-          brief: 'done',
-          script: 'done',
-          scenes: 'done',
-          assets: 'done',
-          audio: 'done',
-          subtitles: 'done',
-          render: 'done',
-        },
-      });
+        });
+
+        const storageKey = `businesses/${businessId}/projects/${projectId}/output/final.mp4`;
+        this.logger.log(
+          `[${projectId}] Starting Remotion subtitled video render`,
+        );
+        const renderedOutput = await this.renderService.renderToTempFile({
+          ...preparedRenderRequest,
+          phrases: preparedRenderRequest.phrases,
+        });
+
+        try {
+          this.logger.log(
+            `[${projectId}] Render finished. Uploading to GCS: ${storageKey}`,
+          );
+          await this.gcsStorageService.uploadLocalFile(
+            renderedOutput.outputPath,
+            storageKey,
+          );
+        } finally {
+          await renderedOutput.cleanup();
+        }
+
+        this.logger.log(`[${projectId}] Job completed successfully`);
+        await this.jobStoreService.update(businessId, projectId, {
+          status: 'completed',
+          progress: 100,
+          subtitleSegments,
+          output: {
+            videoStorageKey: storageKey,
+            sourceVideoStorageKey,
+          },
+          metadata: {
+            renderRequest: {
+              fps: preparedRenderRequest.fps,
+              durationInFrames: preparedRenderRequest.durationInFrames,
+              phraseCount: preparedRenderRequest.phrases?.length ?? 0,
+            },
+          } as never,
+          stages: {
+            scrape: 'done',
+            brief: 'done',
+            script: 'done',
+            scenes: 'done',
+            assets: 'done',
+            audio: 'done',
+            subtitles: 'done',
+            render: 'done',
+          },
+        });
+      } finally {
+        await import('node:fs/promises').then((fs) =>
+          fs.rm(localSourcePath, { force: true }),
+        );
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Video generation failed';

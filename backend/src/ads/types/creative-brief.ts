@@ -11,4 +11,5 @@ export interface CreativeBrief {
   cta?: string;
   visual_style?: string;
   aspect_ratio?: string;
+  key_message?: string;
 }

@@ -51,7 +51,7 @@ A user can:
 
 ### 2.3 Primary MVP Use Case
 
-**Prompt -> brief -> script -> assets -> video+audio generation -> audio extraction -> transcription/alignment -> subtitles -> render -> export**
+**Prompt -> brief -> script -> assets -> Veo 3.1 (video + subtitles) -> render -> export**
 
 ### 2.4 Current Implementation Slice
 
@@ -59,7 +59,7 @@ The first delivery slice of the MVP shall implement a narrower end-to-end flow f
 
 **Prompt -> async job creation -> Vertex AI video generation -> GCS storage -> signed URL delivery -> frontend playback**
 
-This slice is intentionally narrower than the full MVP scope and defers subtitle generation, audio extraction, transcription, forced alignment, and final social render composition to later steps.
+This slice is intentionally narrower than the full MVP scope and defers final social render composition to later steps. Video and subtitles are now provided directly by Veo 3.1.
 
 ---
 
@@ -102,10 +102,6 @@ The MVP will **not** include:
 
 For the current implementation milestone, the system will **not yet** implement:
 
-- subtitle generation
-- audio extraction
-- speech transcription
-- forced alignment
 - final caption burn-in
 - script/scene regeneration
 - persistent job queue infrastructure
@@ -145,10 +141,7 @@ For the current implementation milestone, the system will **not yet** implement:
 - script generation
 - scene planning
 - asset selection or generation
-- generated video with embedded speech/audio
-- audio extraction and normalization
-- speech transcription and forced alignment
-- subtitle timing generation
+- Veo 3.1 video generation with direct subtitle/timestamp output
 - subtitle burn-in
 - social-safe rendering
 
@@ -381,44 +374,43 @@ The system shall support the following asset sources for MVP:
 
 ---
 
-## 7.7 Video Audio Extraction and Speech Preparation
+## 7.7 Veo 3.1 Video and Subtitle Output
 
-The system shall treat generated video output as the source of truth for speech audio.
+The system shall utilize Veo 3.1 to generate both the video and the corresponding synchronized subtitle data in a single step.
 
 ### Requirements
-- generated video scenes may include embedded speech/audio
-- the system shall extract audio from generated video before transcription
-- audio extraction shall use FFmpeg
-- extracted audio should be normalized to a transcription-friendly format such as mono 16k PCM WAV
-- extracted speech audio must be accessible to downstream transcription/alignment workers
+- Veo 3.1 generation shall provide the source video storage key and a detailed array of subtitle segments.
+- Subtitle segments must include start/end times at both the phrase and word level.
 
-### Example Extraction Command
-```bash
-ffmpeg -i input.mp4 -vn -ac 1 -ar 16000 -c:a pcm_s16le output.wav
-```
-
-### Output Schema
+### Output Schema (partial)
 ```json
 {
-  "source_video_url": "",
-  "extracted_audio_url": "",
-  "audio_format": "wav",
-  "sample_rate_hz": 16000,
-  "channels": 1
+  "output": {
+    "videoStorageKey": "...",
+    "sourceVideoStorageKey": "..."
+  },
+  "subtitleSegments": [
+    {
+      "start": 0,
+      "end": 0.571,
+      "text": "Discover",
+      "words": [
+        {"word": "Discover", "start": 0, "end": 0.571}
+      ]
+    }
+  ]
 }
 ```
 
 ---
 
-## 7.8 Subtitle Generation and Sync
+## 7.8 Subtitle Processing
 
-The system shall generate subtitles synchronized to speech.
+The system shall use the timing and word data provided directly by Veo 3.1 to format subtitles for the final render.
 
 ### Subtitle Requirements
-- subtitles must align to speech extracted from the generated video
-- transcription shall use faster-whisper
-- the system shall apply forced alignment to refine timestamps for word-level accuracy
-- the system must produce per-word timing data suitable for karaoke-style highlighting
+- subtitles must align to the timing provided by Veo 3.1.
+- the system shall use the word-level timing data for karaoke-style highlighting.
 - subtitles must be chunked for readability, not raw word dumps
 - maximum 2 lines on screen at once
 - support style presets
@@ -529,11 +521,9 @@ Client App
       -> Scraping service
       -> LLM service
       -> Asset service
-      -> Video generation service
-      -> Audio extraction service
-      -> Transcription service
-      -> Forced alignment service
-      -> Subtitle engine
+      -> Asset service
+      -> Veo 3.1 Generation Service
+      -> Subtitle formatting engine
       -> Render service
   -> Object Storage
   -> Database
@@ -569,13 +559,10 @@ Frontend
 
 ### Rendering
 - Remotion for composition layer
-- FFmpeg workers for media processing and encoding
 
 ### AI Services
 - LLM provider for brief/script generation
-- Veo 3.1 for generated video with embedded speech/audio
-- faster-whisper for transcription
-- forced alignment component for word-level timing refinement
+- Veo 3.1 for generated video with direct subtitle/timestamp output
 - optional video/image generation provider
 - optional stock media provider
 
@@ -596,10 +583,7 @@ The implementation should keep vendors abstracted behind internal interfaces.
 - `LLMAdapter`
 - `StockMediaAdapter`
 - `ImageGenerationAdapter`
-- `VideoGenerationAdapter`
-- `SpeechTranscriptionAdapter`
-- `SpeechAlignmentAdapter`
-- `SpeechAlignmentAdapter`
+- `VideoGenerationAdapter` (Veo 3.1)
 - `RendererAdapter`
 
 This prevents hard vendor lock-in and supports replacement during compliance, cost, or quality changes.
@@ -619,9 +603,8 @@ This prevents hard vendor lock-in and supports replacement during compliance, co
 6. Script is generated
 7. Scenes are planned
 8. Assets are collected/generated
-9. Voiceover is generated
-10. Subtitle timings are generated
-11. Timeline JSON is built
+9. Video + Subtitles generated via Veo 3.1
+10. Timeline JSON is built
 12. Render worker exports video
 13. Final artifacts are stored
 14. Client receives completed result
@@ -637,8 +620,7 @@ created
 -> brief_ready
 -> script_ready
 -> assets_ready
--> audio_ready
--> subtitles_ready
+-> veo_output_ready
 -> composition_ready
 -> rendering
 -> completed
@@ -708,8 +690,7 @@ GET /v1/ads/{id}
     "brief": "done",
     "script": "done",
     "assets": "done",
-    "voice": "done",
-    "subtitles": "done",
+    "veo": "done",
     "render": "running"
   }
 }
