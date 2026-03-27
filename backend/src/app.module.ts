@@ -6,6 +6,7 @@ import { AdsModule } from './ads/ads.module';
 import { FirebaseModule } from './firebase/firebase.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { ProductsModule } from './products/products.module';
 import { validateEnv } from './config/env';
 
 @Module({
@@ -19,6 +20,7 @@ import { validateEnv } from './config/env';
     AuthModule,
     UsersModule,
     AdsModule,
+    ProductsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
