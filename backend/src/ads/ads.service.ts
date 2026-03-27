@@ -228,17 +228,20 @@ export class AdsService {
         ? prompt_inputs.prompt
         : JSON.stringify(prompt_inputs.prompt);
     if (userPrompt) {
-      sections.push(`**User's Creative Vision**:\n${userPrompt}`);
+      sections.push(`**User's Creative Vision**:
+${userPrompt}`);
     }
 
     // 2. Add the visual direction
     if (script.visual_description) {
-      sections.push(`**Visual Direction**:\n${script.visual_description}`);
+      sections.push(`**Visual Direction**:
+${script.visual_description}`);
     }
 
     // 3. Add the ad script text
     if (script.full_text) {
-      sections.push(`**Ad Script**:\n${script.full_text}`);
+      sections.push(`**Ad Script**:
+${script.full_text}`);
     }
 
     // 4. Add generation context
@@ -363,12 +366,11 @@ export class AdsService {
         createAdDto.veo_config.duration_sec,
       );
 
-      // Download source video to the remotion 'public' dir so it can be served over http://localhost without CORS or file:// issues
+      // Ensure public dir exists (will silently succeed if it does)
       const publicDir = path.resolve(
         process.cwd(),
         'src/render/remotion/public',
       );
-      // Ensure public dir exists (will silently succeed if it does)
       await import('node:fs/promises').then((fs) =>
         fs.mkdir(publicDir, { recursive: true }),
       );

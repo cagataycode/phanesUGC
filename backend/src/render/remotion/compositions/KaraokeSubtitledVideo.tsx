@@ -83,6 +83,13 @@ export const KaraokeSubtitledVideo: React.FC<RenderRequest> = ({
   phrases,
   fps,
 }) => {
+  const resolvedVideoUrl = useMemo(() => {
+    if (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) {
+      return videoUrl;
+    }
+    return staticFile(videoUrl);
+  }, [videoUrl]);
+
   const frame = useCurrentFrame();
   const renderPhrases = resolveRenderPhrases(segments, phrases);
   const subtitleState = getSubtitleTimelineState({
@@ -94,13 +101,6 @@ export const KaraokeSubtitledVideo: React.FC<RenderRequest> = ({
   const captionPresentation = visiblePhrase
     ? buildKaraokeCaptionPresentation(visiblePhrase, subtitleState)
     : null;
-
-  const resolvedVideoUrl = useMemo(() => {
-    if (videoUrl.startsWith('http') || videoUrl.startsWith('file://')) {
-      return videoUrl;
-    }
-    return staticFile(videoUrl);
-  }, [videoUrl]);
 
   return (
     <AbsoluteFill style={{ backgroundColor: 'black' }}>
