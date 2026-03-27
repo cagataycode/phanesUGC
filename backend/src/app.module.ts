@@ -6,6 +6,7 @@ import { AdsModule } from './ads/ads.module';
 import { FirebaseModule } from './firebase/firebase.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { ProductsModule } from './products/products.module';
 import { validateEnv } from './config/env';
 import { RenderModule } from './render/render.module';
 
@@ -21,6 +22,7 @@ import { RenderModule } from './render/render.module';
     UsersModule,
     RenderModule,
     AdsModule,
+    ProductsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
