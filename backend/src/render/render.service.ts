@@ -70,13 +70,16 @@ export class RenderService {
     );
 
     const RENDER_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-
     const renderPromise = renderMedia({
       serveUrl: prepared.bundleLocation,
       composition: prepared.composition,
       codec: 'h264',
       outputLocation,
       inputProps: prepared.inputProps,
+      chromiumOptions: {
+        disableWebSecurity: true,
+        gl: 'angle',
+      },
     });
 
     const timeoutPromise = new Promise((_, reject) => {
