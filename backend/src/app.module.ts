@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ProductsModule } from './products/products.module';
 import { validateEnv } from './config/env';
+import { RenderModule } from './render/render.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { validateEnv } from './config/env';
     FirebaseModule,
     AuthModule,
     UsersModule,
+    RenderModule,
     AdsModule,
     ProductsModule,
   ],

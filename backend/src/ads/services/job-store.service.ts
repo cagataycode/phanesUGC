@@ -31,8 +31,20 @@ export interface AdJob {
   };
   creativeBrief?: any;
   script?: any;
+  metadata?: Record<string, unknown>;
+  subtitleSegments?: Array<{
+    start: number;
+    end: number;
+    text: string;
+    words: Array<{
+      word: string;
+      start: number;
+      end: number;
+    }>;
+  }>;
   output?: {
     videoStorageKey: string;
+    sourceVideoStorageKey?: string;
     thumbnailStorageKey?: string;
   };
   error?: string;

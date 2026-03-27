@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Storage } from '@google-cloud/storage';
+import { readFile } from 'node:fs/promises';
 import { Env } from '../config/env';
 
 @Injectable()
@@ -98,6 +99,34 @@ export class GcsStorageService {
       resumable: false,
       contentType: response.headers.get('content-type') ?? 'video/mp4',
     });
+
+    return objectPath;
+  }
+
+  async downloadFile(
+    objectPath: string,
+    destinationLocalPath: string,
+  ): Promise<void> {
+    await this.storage
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .download({ destination: destinationLocalPath });
+  }
+
+  async uploadLocalFile(
+    localFilePath: string,
+    objectPath: string,
+    contentType = 'video/mp4',
+  ): Promise<string> {
+    const fileBuffer = await readFile(localFilePath);
+
+    await this.storage
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .save(fileBuffer, {
+        resumable: false,
+        contentType,
+      });
 
     return objectPath;
   }
