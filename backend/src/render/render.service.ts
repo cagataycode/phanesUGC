@@ -43,8 +43,10 @@ export class RenderService {
       'src/render/remotion/index.ts',
     );
 
+    const publicDir = path.resolve(process.cwd(), 'src/render/remotion/public');
     const bundleLocation = await bundle({
       entryPoint,
+      publicDir,
       webpackOverride: (config) => config,
     });
 
@@ -55,7 +57,7 @@ export class RenderService {
     });
 
     return {
-      bundleLocation,
+      bundleLocation: bundleLocation,
       composition,
       inputProps: preparedRequest,
     };
