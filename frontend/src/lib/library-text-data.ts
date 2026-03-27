@@ -40,7 +40,7 @@ export function buildProductTextDataUpdate(
     benefits: parseMultilineList(values.benefitsRaw),
     urls: parseMultilineList(values.urlsRaw),
     defaults: {
-      tone: values.tone && values.tone !== "__none__" ? values.tone : undefined,
+      tone: values.tone && values.tone !== "none" ? values.tone : undefined,
       targetAudience: values.targetAudience.trim() || undefined,
       language: values.language || undefined,
       cta: values.cta.trim() || undefined,
