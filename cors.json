@@ -6,7 +6,14 @@
       "http://localhost:3001"
     ],
     "method": [
-      "GET"
+      "GET",
+      "PUT",
+      "HEAD",
+      "OPTIONS"
+    ],
+    "responseHeader": [
+      "Content-Type",
+      "x-goog-resumable"
     ],
     "maxAgeSeconds": 3600
   }

@@ -46,10 +46,11 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const firebaseAvailable = Boolean(auth);
   const [user, setUser] = useState<User | null>(null);
   const [platformContext, setPlatformContext] =
     useState<PlatformContext | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(firebaseAvailable);
 
   // Helper function to hit the backend `/me` endpoint
   const refreshPlatformContext = async (token?: string) => {
@@ -83,7 +84,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (!auth) return;
+    if (!firebaseAvailable || !auth) {
+      return;
+    }
 
     // `onIdTokenChanged` fires on login, logout, and token refresh
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
@@ -98,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [firebaseAvailable]);
 
   const getToken = async () => {
     if (auth?.currentUser) {

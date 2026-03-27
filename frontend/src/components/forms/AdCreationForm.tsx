@@ -9,7 +9,6 @@ import {
   ArrowDown01Icon,
   ArrowRight01Icon,
   Link01Icon,
-  Upload01Icon,
   Add01Icon,
   Mic01Icon,
   Settings01Icon,
@@ -18,7 +17,13 @@ import {
 } from "@hugeicons/core-free-icons";
 import { useState, useEffect, useCallback } from "react";
 import { createAdJob, getAdJobResult } from "@/lib/api";
-import { useProject, useProducts, useProduct } from "@/lib/firebase/hooks";
+import {
+  useAvatar,
+  useAvatars,
+  useProject,
+  useProduct,
+  useProducts,
+} from "@/lib/firebase/hooks";
 import { useAuth } from "@/lib/firebase/auth-provider";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
@@ -87,6 +92,7 @@ export function AdCreationForm() {
     undefined,
   );
   const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [selectedAvatarId, setSelectedAvatarId] = useState<string>("");
 
   const isFirebaseConfigured =
     typeof process.env.NEXT_PUBLIC_FIREBASE_API_KEY === "string" &&
@@ -107,11 +113,20 @@ export function AdCreationForm() {
   const { products } = useProducts(
     isFirebaseConfigured && isAuthenticated ? businessId : undefined,
   );
-  const { product: selectedProduct } = useProduct(
+  const { avatars } = useAvatars(
+    isFirebaseConfigured && isAuthenticated ? businessId : undefined,
+  );
+  useProduct(
     isFirebaseConfigured && isAuthenticated && selectedProductId
       ? businessId
       : undefined,
     selectedProductId || undefined,
+  );
+  useAvatar(
+    isFirebaseConfigured && isAuthenticated && selectedAvatarId
+      ? businessId
+      : undefined,
+    selectedAvatarId || undefined,
   );
 
   const showGenerationError = useCallback(
@@ -187,16 +202,9 @@ export function AdCreationForm() {
           showGenerationError(project.error ?? t("errors.generationFailed"));
         }, 0);
       } else if (project.status === "processing") {
-        // Find which stage is currently running
-        const runningStage = Object.entries(project.stages || {}).find(
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          ([_, status]) => status === "running",
-        );
-        if (runningStage) {
-          setTimeout(() => {
-            setStatusMessage(`Running: ${runningStage[0]}...`);
-          }, 0);
-        }
+        setTimeout(() => {
+          setStatusMessage(null);
+        }, 0);
       }
     }
   }, [project, businessId, t, showGenerationError, router]);
@@ -313,59 +321,6 @@ export function AdCreationForm() {
         </p>
       </div>
 
-      {/* Product picker */}
-      {isAuthenticated && products.length > 0 && (
-        <div className="rounded-2xl border border-foreground/10 bg-background/60 px-4 py-3 text-left shadow-sm backdrop-blur-sm">
-          <p className="mb-2 text-sm font-semibold text-foreground/90">
-            Product
-          </p>
-          <Select
-            value={selectedProductId}
-            onValueChange={(val) => {
-              setSelectedProductId(val === "__none__" ? "" : val);
-              const picked = products.find((p) => p.id === val);
-              if (picked) {
-                form.setValue("product_name", picked.name ?? "");
-                form.setValue("product_description", picked.description ?? "");
-                form.setValue(
-                  "product_benefits",
-                  (picked.benefits ?? []).join(", "),
-                );
-                form.setValue("product_urls", (picked.urls ?? []).join(", "));
-                if (picked.defaults?.tone) {
-                  form.setValue("tone", picked.defaults.tone);
-                }
-                if (picked.defaults?.targetAudience) {
-                  form.setValue(
-                    "target_audience",
-                    picked.defaults.targetAudience,
-                  );
-                }
-                if (picked.defaults?.cta) {
-                  form.setValue("cta", picked.defaults.cta);
-                }
-              }
-            }}
-          >
-            <SelectTrigger className="h-9 w-full rounded-lg text-sm">
-              <SelectValue placeholder="Select a product…" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">No product selected</SelectItem>
-              {products.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {selectedProduct && (
-            <p className="mt-2 text-xs text-muted-foreground line-clamp-1">
-              {selectedProduct.description ?? "No description"}
-            </p>
-          )}
-        </div>
-      )}
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
@@ -795,7 +750,7 @@ export function AdCreationForm() {
                   />
                 </div>
 
-                {/* Product Information Form */}
+                {/* Product & Avatar Context */}
                 <Collapsible
                   open={isProductOpen}
                   onOpenChange={setIsProductOpen}
@@ -803,7 +758,7 @@ export function AdCreationForm() {
                 >
                   <div className="flex items-center justify-between space-x-4 px-1">
                     <h3 className="text-lg font-semibold tracking-tight">
-                      {t("productDetails.title")}
+                      Product & avatar context
                     </h3>
                     <CollapsibleTrigger asChild>
                       <Button variant="ghost" size="sm" className="w-9 p-0">
@@ -829,85 +784,107 @@ export function AdCreationForm() {
                     <Card>
                       <CardHeader className="pb-3">
                         <CardTitle className="text-base">
-                          {t("productDetails.provideDetails")}
+                          Selected context
                         </CardTitle>
                         <CardDescription>
-                          {t("productDetails.description")}
+                          Choose reusable product and avatar records instead of
+                          filling duplicate fields manually.
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <FormField
-                          control={form.control}
-                          name="product_name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>
-                                {t("fields.productName.label")}
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder={t(
-                                    "fields.productName.placeholder",
-                                  )}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        {isAuthenticated && products.length > 0 ? (
+                          <div className="space-y-2">
+                            <FormLabel>Product</FormLabel>
+                            <Select
+                              value={selectedProductId}
+                              onValueChange={(val) => {
+                                setSelectedProductId(val === "none" ? "" : val);
+                                const picked = products.find(
+                                  (p) => p.id === val,
+                                );
+                                if (picked) {
+                                  form.setValue(
+                                    "product_name",
+                                    picked.name ?? "",
+                                  );
+                                  form.setValue(
+                                    "product_description",
+                                    picked.description ?? "",
+                                  );
+                                  form.setValue(
+                                    "product_benefits",
+                                    (picked.benefits ?? []).join(", "),
+                                  );
+                                  form.setValue(
+                                    "product_urls",
+                                    (picked.urls ?? []).join(", "),
+                                  );
+                                  if (picked.defaults?.tone)
+                                    form.setValue("tone", picked.defaults.tone);
+                                  if (picked.defaults?.targetAudience) {
+                                    form.setValue(
+                                      "target_audience",
+                                      picked.defaults.targetAudience,
+                                    );
+                                  }
+                                  if (picked.defaults?.cta)
+                                    form.setValue("cta", picked.defaults.cta);
+                                }
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a product…" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">
+                                  No product selected
+                                </SelectItem>
+                                {products.map((p) => (
+                                  <SelectItem key={p.id} value={p.id}>
+                                    {p.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : null}
 
-                        <FormField
-                          control={form.control}
-                          name="product_description"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>
-                                {t("fields.productDescription.label")}
-                              </FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder={t(
-                                    "fields.productDescription.placeholder",
-                                  )}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="product_benefits"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>
-                                {t("fields.productBenefits.label")}
-                              </FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder={t(
-                                    "fields.productBenefits.placeholder",
-                                  )}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        {isAuthenticated && avatars.length > 0 ? (
+                          <div className="space-y-2">
+                            <FormLabel>Avatar</FormLabel>
+                            <Select
+                              value={selectedAvatarId}
+                              onValueChange={(val) => {
+                                setSelectedAvatarId(val === "none" ? "" : val);
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select an avatar…" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">
+                                  No avatar selected
+                                </SelectItem>
+                                {avatars.map((a) => (
+                                  <SelectItem key={a.id} value={a.id}>
+                                    {a.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : null}
                       </CardContent>
                     </Card>
 
                     <Card>
                       <CardHeader className="pb-3">
                         <CardTitle className="text-base">
-                          {t("externalSources.title")}
+                          External sources
                         </CardTitle>
                         <CardDescription>
-                          {t("externalSources.description")}
+                          Optional URLs and future asset uploads can support the
+                          selected product.
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
@@ -935,23 +912,9 @@ export function AdCreationForm() {
                           )}
                         />
 
-                        <div className="space-y-2">
-                          <FormLabel className="flex items-center gap-2">
-                            <HugeiconsIcon
-                              icon={Upload01Icon}
-                              strokeWidth={2}
-                              className="h-4 w-4 text-muted-foreground"
-                            />
-                            {t("fields.brandAssets.label")}
-                          </FormLabel>
-                          <Input
-                            type="file"
-                            multiple
-                            className="cursor-pointer file:text-primary file:bg-primary/10 file:border-0 file:mr-4 file:px-4 file:py-1 file:rounded-md hover:file:bg-primary/20 transition-colors"
-                          />
-                          <p className="text-[0.8rem] text-muted-foreground">
-                            {t("fields.brandAssets.note")}
-                          </p>
+                        <div className="rounded-lg border border-dashed border-border bg-background/60 px-4 py-3 text-sm text-muted-foreground">
+                          Visual asset uploads are managed from the Library
+                          asset workflow.
                         </div>
                       </CardContent>
                     </Card>

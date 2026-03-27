@@ -14,6 +14,11 @@ import {
 } from "@/components/ui/select";
 import type { ProductData } from "@/lib/firebase/hooks";
 import {
+  createUploadUrl,
+  toProductAsset,
+  uploadFileToSignedUrl,
+} from "@/lib/assets-api";
+import {
   createProduct,
   updateProduct,
   type CreateProductPayload,
@@ -47,8 +52,10 @@ export function ProductForm({
   );
   const [language, setLanguage] = useState(product?.defaults?.language ?? "en");
   const [cta, setCta] = useState(product?.defaults?.cta ?? "");
+  const [brandAssets, setBrandAssets] = useState(product?.brandAssets ?? []);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function parseLinesArray(raw: string): string[] {
@@ -56,6 +63,49 @@ export function ProductForm({
       .split("\n")
       .map((s) => s.trim())
       .filter(Boolean);
+  }
+
+  async function handleAssetUpload(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0 || !product?.id) {
+      return;
+    }
+
+    setIsUploading(true);
+    setError(null);
+
+    try {
+      const uploaded = [] as NonNullable<CreateProductPayload["brandAssets"]>;
+
+      for (const file of Array.from(fileList)) {
+        const assetType = file.type.startsWith("video/")
+          ? "video"
+          : file.type.includes("logo")
+            ? "logo"
+            : "image";
+
+        const upload = await createUploadUrl(businessId, product.id, {
+          filename: file.name,
+          contentType: file.type || "application/octet-stream",
+          entityType: "product",
+          assetType,
+          role: "brand",
+        });
+
+        await uploadFileToSignedUrl(upload.uploadUrl, file);
+        uploaded.push(toProductAsset(upload.asset));
+      }
+
+      const nextAssets = [...brandAssets, ...uploaded];
+      setBrandAssets(nextAssets);
+      await updateProduct(businessId, product.id, {
+        brandAssets: nextAssets,
+      });
+    } catch (err) {
+      console.error("Product asset upload error:", err);
+      setError(err instanceof Error ? err.message : "Failed to upload asset.");
+    } finally {
+      setIsUploading(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -73,8 +123,9 @@ export function ProductForm({
       description: description.trim() || undefined,
       benefits: parseLinesArray(benefitsRaw),
       urls: parseLinesArray(urlsRaw),
+      brandAssets,
       defaults: {
-        tone: tone && tone !== "__none__" ? tone : undefined,
+        tone: tone && tone !== "none" ? tone : undefined,
         targetAudience: targetAudience.trim() || undefined,
         language: language || undefined,
         cta: cta.trim() || undefined,
@@ -156,6 +207,53 @@ export function ProductForm({
         />
       </div>
 
+      <div className="space-y-2 rounded-lg border border-border p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-foreground">Brand assets</p>
+            <p className="text-xs text-muted-foreground">
+              Upload images, videos, or logos after the product exists.
+            </p>
+          </div>
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent">
+            <span>{isUploading ? "Uploading…" : "Upload asset"}</span>
+            <input
+              type="file"
+              className="hidden"
+              multiple
+              disabled={!product?.id || isUploading || isSubmitting}
+              onChange={(e) => void handleAssetUpload(e.target.files)}
+            />
+          </label>
+        </div>
+        {!product?.id ? (
+          <p className="text-xs text-muted-foreground">
+            Create the product first to enable uploads.
+          </p>
+        ) : null}
+        {brandAssets.length > 0 ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {brandAssets.map((asset, index) => (
+              <div
+                key={`${asset.storageKey}-${index}`}
+                className="rounded-md border border-border bg-background px-3 py-2"
+              >
+                <p className="truncate text-sm font-medium text-foreground">
+                  {asset.filename}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {asset.type} • {asset.storageKey}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            No assets uploaded yet.
+          </p>
+        )}
+      </div>
+
       <div className="border-t border-border pt-4">
         <p className="mb-4 text-sm font-medium text-foreground">
           Default ad settings
@@ -168,7 +266,7 @@ export function ProductForm({
                 <SelectValue placeholder="Select tone…" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 <SelectItem value="direct">Direct</SelectItem>
                 <SelectItem value="playful">Playful</SelectItem>
                 <SelectItem value="professional">Professional</SelectItem>

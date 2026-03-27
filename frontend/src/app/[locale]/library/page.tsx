@@ -1,8 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -11,10 +22,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/lib/firebase/auth-provider";
-import { useProducts } from "@/lib/firebase/hooks";
-import type { ProductData } from "@/lib/firebase/hooks";
+import { useAvatars, useProducts } from "@/lib/firebase/hooks";
+import type { AvatarData, ProductData } from "@/lib/firebase/hooks";
 import { ProductForm } from "@/components/forms/ProductForm";
-import { deleteProduct } from "@/lib/products-api";
+import { AvatarForm } from "@/components/forms/AvatarForm";
+import {
+  deleteProduct,
+  updateProduct,
+  type UpdateProductPayload,
+} from "@/lib/products-api";
+import { deleteAvatar } from "@/lib/avatars-api";
+import {
+  buildProductTextDataUpdate,
+  productToTextDataValues,
+} from "@/lib/library-text-data";
 
 type LibrarySectionKey = "products" | "text" | "avatars" | "assets";
 type LibraryView = "list" | "create" | "edit";
@@ -24,17 +45,37 @@ export default function LibraryPage() {
   const businessId = platformContext?.account_id;
 
   const { products, loading, error: productsError } = useProducts(businessId);
+  const {
+    avatars,
+    loading: avatarsLoading,
+    error: avatarsError,
+  } = useAvatars(businessId);
 
   const [activeSection, setActiveSection] =
     useState<LibrarySectionKey>("products");
   const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [selectedAvatarId, setSelectedAvatarId] = useState<string>("");
   const [view, setView] = useState<LibraryView>("list");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isSavingTextData, setIsSavingTextData] = useState(false);
+  const [textDataError, setTextDataError] = useState<string | null>(null);
+  const [textDataValues, setTextDataValues] = useState(() =>
+    productToTextDataValues(undefined),
+  );
 
   const selectedProduct: ProductData | undefined = useMemo(
     () => products.find((p) => p.id === selectedProductId) ?? products[0],
     [products, selectedProductId],
   );
+  const selectedAvatar: AvatarData | undefined = useMemo(
+    () => avatars.find((a) => a.id === selectedAvatarId) ?? avatars[0],
+    [avatars, selectedAvatarId],
+  );
+
+  useEffect(() => {
+    setTextDataValues(productToTextDataValues(selectedProduct));
+    setTextDataError(null);
+  }, [selectedProduct]);
 
   const navItems: Array<{ key: LibrarySectionKey; label: string }> = useMemo(
     () => [
@@ -56,6 +97,42 @@ export default function LibraryPage() {
       console.error("Failed to delete product:", err);
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function handleAvatarDelete(avatarId: string) {
+    if (!businessId) return;
+    setDeletingId(avatarId);
+    try {
+      await deleteAvatar(businessId, avatarId);
+      if (selectedAvatarId === avatarId) setSelectedAvatarId("");
+    } catch (err) {
+      console.error("Failed to delete avatar:", err);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleSaveTextData() {
+    if (!businessId || !selectedProduct) {
+      return;
+    }
+
+    setIsSavingTextData(true);
+    setTextDataError(null);
+
+    try {
+      const payload: UpdateProductPayload =
+        buildProductTextDataUpdate(textDataValues);
+      await updateProduct(businessId, selectedProduct.id, payload);
+    } catch (error) {
+      setTextDataError(
+        error instanceof Error
+          ? error.message
+          : "Failed to save product text data.",
+      );
+    } finally {
+      setIsSavingTextData(false);
     }
   }
 
@@ -116,52 +193,95 @@ export default function LibraryPage() {
                     Library
                   </p>
                   <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                    Product library
+                    Library workspace
                   </h1>
                   <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-                    Manage reusable product data, brand context, avatars, and
-                    assets for ad generation.
+                    Manage reusable products, editable text data, visual product
+                    assets, and image-based avatars for ad generation.
                   </p>
                 </div>
 
-                {view === "list" && products.length > 0 && (
-                  <div className="w-full max-w-sm rounded-xl border border-border bg-background/80 p-4">
-                    <p className="mb-2 text-xs text-muted-foreground">
-                      Selected product
-                    </p>
-                    <Select
-                      value={selectedProduct?.id ?? ""}
-                      onValueChange={setSelectedProductId}
-                    >
-                      <SelectTrigger className="h-10 w-full rounded-lg text-sm">
-                        <SelectValue placeholder="Select a product…" />
-                      </SelectTrigger>
-                      <SelectContent
-                        position="popper"
-                        align="end"
-                        className="min-w-[220px]"
+                {view === "list" &&
+                  activeSection === "products" &&
+                  products.length > 0 && (
+                    <div className="w-full max-w-sm rounded-xl border border-border bg-background/80 p-4">
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        Selected product
+                      </p>
+                      <Select
+                        value={selectedProduct?.id ?? ""}
+                        onValueChange={setSelectedProductId}
                       >
-                        {products.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedProduct && (
-                      <div className="mt-3 rounded-lg border border-border bg-card px-3 py-3">
-                        <p className="text-sm font-medium text-foreground">
-                          {selectedProduct.name}
-                        </p>
-                        {selectedProduct.description && (
-                          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                            {selectedProduct.description}
+                        <SelectTrigger className="h-10 w-full rounded-lg text-sm">
+                          <SelectValue placeholder="Select a product…" />
+                        </SelectTrigger>
+                        <SelectContent
+                          position="popper"
+                          align="end"
+                          className="min-w-[220px]"
+                        >
+                          {products.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedProduct && (
+                        <div className="mt-3 rounded-lg border border-border bg-card px-3 py-3">
+                          <p className="text-sm font-medium text-foreground">
+                            {selectedProduct.name}
                           </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
+                          {selectedProduct.description && (
+                            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                              {selectedProduct.description}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                {view === "list" &&
+                  activeSection === "avatars" &&
+                  avatars.length > 0 && (
+                    <div className="w-full max-w-sm rounded-xl border border-border bg-background/80 p-4">
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        Selected avatar
+                      </p>
+                      <Select
+                        value={selectedAvatar?.id ?? ""}
+                        onValueChange={setSelectedAvatarId}
+                      >
+                        <SelectTrigger className="h-10 w-full rounded-lg text-sm">
+                          <SelectValue placeholder="Select an avatar…" />
+                        </SelectTrigger>
+                        <SelectContent
+                          position="popper"
+                          align="end"
+                          className="min-w-[220px]"
+                        >
+                          {avatars.map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedAvatar && (
+                        <div className="mt-3 rounded-lg border border-border bg-card px-3 py-3">
+                          <p className="text-sm font-medium text-foreground">
+                            {selectedAvatar.name}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {selectedAvatar.assets?.length
+                              ? `${selectedAvatar.assets.length} uploaded image${selectedAvatar.assets.length !== 1 ? "s" : ""}`
+                              : "No avatar images uploaded"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
               </div>
             </section>
 
@@ -169,17 +289,35 @@ export default function LibraryPage() {
             {(view === "create" || view === "edit") && (
               <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
                 <h2 className="mb-6 text-xl font-semibold tracking-tight text-foreground">
-                  {view === "create" ? "Create product" : "Edit product"}
+                  {activeSection === "avatars"
+                    ? view === "create"
+                      ? "Create avatar"
+                      : "Edit avatar"
+                    : view === "create"
+                      ? "Create product"
+                      : "Edit product"}
                 </h2>
-                <ProductForm
-                  businessId={businessId}
-                  product={view === "edit" ? selectedProduct : undefined}
-                  onSuccess={(id) => {
-                    setSelectedProductId(id);
-                    setView("list");
-                  }}
-                  onCancel={() => setView("list")}
-                />
+                {activeSection === "avatars" ? (
+                  <AvatarForm
+                    businessId={businessId}
+                    avatar={view === "edit" ? selectedAvatar : undefined}
+                    onSuccess={(id) => {
+                      setSelectedAvatarId(id);
+                      setView("list");
+                    }}
+                    onCancel={() => setView("list")}
+                  />
+                ) : (
+                  <ProductForm
+                    businessId={businessId}
+                    product={view === "edit" ? selectedProduct : undefined}
+                    onSuccess={(id) => {
+                      setSelectedProductId(id);
+                      setView("list");
+                    }}
+                    onCancel={() => setView("list")}
+                  />
+                )}
               </section>
             )}
 
@@ -224,9 +362,9 @@ export default function LibraryPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     {products.map((p) => (
-                      <div
+                      <Card
                         key={p.id}
                         className={`rounded-xl border bg-card p-5 shadow-sm transition-colors ${
                           selectedProduct?.id === p.id
@@ -234,47 +372,57 @@ export default function LibraryPage() {
                             : "border-border"
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <CardHeader className="px-0 pb-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <CardTitle className="truncate text-sm font-medium text-foreground">
+                                {p.name}
+                              </CardTitle>
+                              <CardDescription className="mt-1 line-clamp-2">
+                                {p.description || "No description yet."}
+                              </CardDescription>
+                            </div>
+                            <div className="flex shrink-0 gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => {
+                                  setSelectedProductId(p.id);
+                                  setView("edit");
+                                }}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                                disabled={deletingId === p.id}
+                                onClick={() => handleDelete(p.id)}
+                              >
+                                {deletingId === p.id ? "…" : "Delete"}
+                              </Button>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <Separator />
+                        <CardContent className="px-0 pt-3">
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-foreground">
-                              {p.name}
-                            </p>
-                            {p.description && (
-                              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                                {p.description}
-                              </p>
-                            )}
-                            {p.benefits && p.benefits.length > 0 && (
-                              <p className="mt-2 text-xs text-muted-foreground">
-                                {p.benefits.length} benefit
-                                {p.benefits.length !== 1 ? "s" : ""}
-                              </p>
-                            )}
+                            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                              <span className="rounded-full border border-border px-2 py-0.5">
+                                {(p.benefits ?? []).length} benefits
+                              </span>
+                              <span className="rounded-full border border-border px-2 py-0.5">
+                                {(p.brandAssets ?? []).length} assets
+                              </span>
+                              <span className="rounded-full border border-border px-2 py-0.5">
+                                {(p.urls ?? []).length} urls
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex shrink-0 gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-xs"
-                              onClick={() => {
-                                setSelectedProductId(p.id);
-                                setView("edit");
-                              }}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-                              disabled={deletingId === p.id}
-                              onClick={() => handleDelete(p.id)}
-                            >
-                              {deletingId === p.id ? "…" : "Delete"}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
+                        </CardContent>
+                      </Card>
                     ))}
                   </div>
                 )}
@@ -284,13 +432,13 @@ export default function LibraryPage() {
             {/* Text information section */}
             {view === "list" && activeSection === "text" && (
               <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                <Card className="rounded-xl border border-border bg-card p-6 shadow-sm">
                   <h2 className="text-xl font-semibold tracking-tight text-foreground">
                     Text information
                   </h2>
                   {selectedProduct ? (
-                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                      <div className="rounded-lg border border-border bg-background/70 px-4 py-3 sm:col-span-2">
+                    <div className="mt-5 space-y-4">
+                      <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
                         <p className="text-xs text-muted-foreground">
                           Product name
                         </p>
@@ -298,60 +446,174 @@ export default function LibraryPage() {
                           {selectedProduct.name}
                         </p>
                       </div>
-                      {selectedProduct.description && (
-                        <div className="rounded-lg border border-border bg-background/70 px-4 py-3 sm:col-span-2">
-                          <p className="text-xs text-muted-foreground">
-                            Description
-                          </p>
-                          <p className="mt-1 text-sm text-foreground">
-                            {selectedProduct.description}
-                          </p>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-1.5 sm:col-span-2">
+                          <Label htmlFor="text-description">Description</Label>
+                          <Textarea
+                            id="text-description"
+                            value={textDataValues.description}
+                            onChange={(e) =>
+                              setTextDataValues((current) => ({
+                                ...current,
+                                description: e.target.value,
+                              }))
+                            }
+                            className="min-h-24 resize-none"
+                          />
                         </div>
-                      )}
-                      {selectedProduct.benefits &&
-                        selectedProduct.benefits.length > 0 && (
-                          <div className="rounded-lg border border-border bg-background/70 px-4 py-3 sm:col-span-2">
-                            <p className="text-xs text-muted-foreground">
-                              Benefits
-                            </p>
-                            <ul className="mt-1 space-y-1">
-                              {selectedProduct.benefits.map((b, i) => (
-                                <li key={i} className="text-sm text-foreground">
-                                  • {b}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      {selectedProduct.defaults?.cta && (
-                        <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
-                          <p className="text-xs text-muted-foreground">
-                            Default CTA
-                          </p>
-                          <p className="mt-1 text-sm text-foreground">
-                            {selectedProduct.defaults.cta}
-                          </p>
+
+                        <div className="space-y-1.5 sm:col-span-2">
+                          <Label htmlFor="text-benefits">
+                            Benefits
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              one per line
+                            </span>
+                          </Label>
+                          <Textarea
+                            id="text-benefits"
+                            value={textDataValues.benefitsRaw}
+                            onChange={(e) =>
+                              setTextDataValues((current) => ({
+                                ...current,
+                                benefitsRaw: e.target.value,
+                              }))
+                            }
+                            className="min-h-24 resize-none"
+                          />
                         </div>
-                      )}
-                      {selectedProduct.defaults?.tone && (
-                        <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
-                          <p className="text-xs text-muted-foreground">
-                            Default tone
-                          </p>
-                          <p className="mt-1 text-sm text-foreground capitalize">
-                            {selectedProduct.defaults.tone}
-                          </p>
+
+                        <div className="space-y-1.5 sm:col-span-2">
+                          <Label htmlFor="text-urls">
+                            URLs
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              one per line
+                            </span>
+                          </Label>
+                          <Textarea
+                            id="text-urls"
+                            value={textDataValues.urlsRaw}
+                            onChange={(e) =>
+                              setTextDataValues((current) => ({
+                                ...current,
+                                urlsRaw: e.target.value,
+                              }))
+                            }
+                            className="min-h-20 resize-none"
+                          />
                         </div>
-                      )}
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="text-tone">Default tone</Label>
+                          <Select
+                            value={textDataValues.tone}
+                            onValueChange={(value) =>
+                              setTextDataValues((current) => ({
+                                ...current,
+                                tone: value,
+                              }))
+                            }
+                          >
+                            <SelectTrigger
+                              id="text-tone"
+                              className="h-9 text-sm"
+                            >
+                              <SelectValue placeholder="Select tone…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">None</SelectItem>
+                              <SelectItem value="direct">Direct</SelectItem>
+                              <SelectItem value="playful">Playful</SelectItem>
+                              <SelectItem value="professional">
+                                Professional
+                              </SelectItem>
+                              <SelectItem value="emotional">
+                                Emotional
+                              </SelectItem>
+                              <SelectItem value="urgent">Urgent</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="text-language">
+                            Default language
+                          </Label>
+                          <Select
+                            value={textDataValues.language}
+                            onValueChange={(value) =>
+                              setTextDataValues((current) => ({
+                                ...current,
+                                language: value,
+                              }))
+                            }
+                          >
+                            <SelectTrigger
+                              id="text-language"
+                              className="h-9 text-sm"
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="en">English</SelectItem>
+                              <SelectItem value="de">Deutsch</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="text-audience">Target audience</Label>
+                          <Input
+                            id="text-audience"
+                            value={textDataValues.targetAudience}
+                            onChange={(e) =>
+                              setTextDataValues((current) => ({
+                                ...current,
+                                targetAudience: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="text-cta">CTA</Label>
+                          <Input
+                            id="text-cta"
+                            value={textDataValues.cta}
+                            onChange={(e) =>
+                              setTextDataValues((current) => ({
+                                ...current,
+                                cta: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {textDataError ? (
+                        <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                          {textDataError}
+                        </div>
+                      ) : null}
+
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          onClick={() => void handleSaveTextData()}
+                          disabled={isSavingTextData}
+                        >
+                          {isSavingTextData ? "Saving…" : "Save text data"}
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <p className="mt-4 text-sm text-muted-foreground">
                       Select or create a product to see its text information.
                     </p>
                   )}
-                </div>
+                </Card>
 
-                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                <Card className="rounded-xl border border-border bg-card p-6 shadow-sm">
                   <h2 className="text-xl font-semibold tracking-tight text-foreground">
                     Content checklist
                   </h2>
@@ -392,34 +654,175 @@ export default function LibraryPage() {
                       </div>
                     ))}
                   </div>
-                </div>
+                </Card>
               </section>
             )}
 
-            {/* Avatars section — static placeholder */}
+            {/* Avatars section */}
             {view === "list" && activeSection === "avatars" && (
-              <section className="grid gap-6 lg:grid-cols-2">
-                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+              <section className="space-y-4">
+                <div className="flex items-center justify-between">
                   <h2 className="text-xl font-semibold tracking-tight text-foreground">
                     Avatars
+                    {!avatarsLoading && (
+                      <span className="ml-2 text-sm font-normal text-muted-foreground">
+                        ({avatars.length})
+                      </span>
+                    )}
                   </h2>
-                  <p className="mt-4 text-sm text-muted-foreground">
-                    Avatar management is coming soon.
-                  </p>
+                  <Button size="sm" onClick={() => setView("create")}>
+                    + Add avatar
+                  </Button>
                 </div>
+
+                {avatarsError && (
+                  <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+                    <p className="font-medium">Failed to load avatars</p>
+                    <p className="mt-1 opacity-80">{avatarsError.message}</p>
+                  </div>
+                )}
+
+                {avatarsLoading ? (
+                  <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+                    Loading avatars…
+                  </div>
+                ) : avatars.length === 0 && !avatarsError ? (
+                  <div className="rounded-xl border border-border bg-card p-8 text-center">
+                    <p className="mb-4 text-sm text-muted-foreground">
+                      No avatars yet. Create your first avatar to get started.
+                    </p>
+                    <Button size="sm" onClick={() => setView("create")}>
+                      Create first avatar
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {avatars.map((a) => (
+                      <Card
+                        key={a.id}
+                        className={`rounded-xl border bg-card p-5 shadow-sm transition-colors ${
+                          selectedAvatar?.id === a.id
+                            ? "border-primary/40"
+                            : "border-border"
+                        }`}
+                      >
+                        <CardHeader className="px-0 pb-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <CardTitle className="truncate text-sm font-medium text-foreground">
+                                {a.name}
+                              </CardTitle>
+                              <CardDescription className="mt-1 uppercase">
+                                {a.type.replaceAll("_", " ")}
+                              </CardDescription>
+                            </div>
+                            <div className="flex shrink-0 gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => {
+                                  setSelectedAvatarId(a.id);
+                                  setView("edit");
+                                }}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                                disabled={deletingId === a.id}
+                                onClick={() => handleAvatarDelete(a.id)}
+                              >
+                                {deletingId === a.id ? "…" : "Delete"}
+                              </Button>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <Separator />
+                        <CardContent className="px-0 pt-3">
+                          <div className="min-w-0">
+                            <p className="text-xs text-muted-foreground">
+                              {a.assets?.length
+                                ? `${a.assets.length} image${a.assets.length !== 1 ? "s" : ""}`
+                                : "No avatar images"}
+                              {a.isDefault ? " • Default" : ""}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </section>
             )}
 
-            {/* Assets section — static placeholder */}
+            {/* Assets section — product visual data */}
             {view === "list" && activeSection === "assets" && (
               <section className="grid gap-6 lg:grid-cols-2">
                 <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
                   <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                    Assets
+                    Product assets
                   </h2>
-                  <p className="mt-4 text-sm text-muted-foreground">
-                    Asset management is coming soon.
-                  </p>
+                  <div className="mt-4 space-y-4 text-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        Manage visual references linked to the selected product.
+                      </p>
+                      {selectedProduct ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedProductId(selectedProduct.id);
+                            setActiveSection("products");
+                            setView("edit");
+                          }}
+                        >
+                          Manage product assets
+                        </Button>
+                      ) : null}
+                    </div>
+
+                    <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
+                      <p className="text-xs text-muted-foreground">
+                        Visual product data
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Store and review product-related images, logos,
+                        packaging, screenshots, and other visual references
+                        here.
+                      </p>
+                      {selectedProduct?.brandAssets?.length ? (
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          {selectedProduct.brandAssets.map((asset, index) => (
+                            <div
+                              key={`${asset.storageKey}-${index}`}
+                              className="rounded-lg border border-border bg-card px-3 py-3"
+                            >
+                              <p className="text-sm font-medium text-foreground">
+                                {asset.filename}
+                              </p>
+                              <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                                <span className="rounded-full border border-border px-2 py-0.5 uppercase">
+                                  {asset.type}
+                                </span>
+                                <span className="truncate">
+                                  {asset.storageKey}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          No visual product assets available for the selected
+                          product.
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </section>
             )}
