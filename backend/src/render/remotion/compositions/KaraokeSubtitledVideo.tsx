@@ -83,8 +83,6 @@ export const KaraokeSubtitledVideo: React.FC<RenderRequest> = ({
   phrases,
   fps,
 }) => {
-  useMemo(() => prefetch(videoUrl), [videoUrl]);
-
   const frame = useCurrentFrame();
   const renderPhrases = resolveRenderPhrases(segments, phrases);
   const subtitleState = getSubtitleTimelineState({

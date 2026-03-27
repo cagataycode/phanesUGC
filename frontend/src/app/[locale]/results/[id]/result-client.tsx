@@ -20,12 +20,14 @@ export function ResultClient({ id }: ResultClientProps) {
   useEffect(() => {
     let cancelled = false;
 
+    if (!platformContext?.account_id) return; // Wait for context
+
     async function loadResult() {
       try {
         setLoading(true);
         setError(null);
 
-        const response = await getAdJobResult(id, platformContext?.account_id);
+        const response = await getAdJobResult(id, platformContext.account_id);
 
         if (!cancelled) {
           setResult(response);
@@ -48,7 +50,7 @@ export function ResultClient({ id }: ResultClientProps) {
     return () => {
       cancelled = true;
     };
-  }, [id, platformContext?.account_id]);
+  }, [id, platformContext]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background bg-mesh-blur font-sans">
