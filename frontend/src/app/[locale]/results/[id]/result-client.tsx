@@ -12,7 +12,7 @@ type ResultClientProps = {
 };
 
 export function ResultClient({ id }: ResultClientProps) {
-  const { platformContext } = useAuth();
+  const { platformContext, loading: authLoading } = useAuth();
   const [result, setResult] = useState<AdJobResultResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,16 +20,16 @@ export function ResultClient({ id }: ResultClientProps) {
   useEffect(() => {
     let cancelled = false;
 
-    if (!platformContext?.account_id) return; // Wait for context
+    if (authLoading) return; // Wait for AuthProvider to finish loading
 
     async function loadResult() {
-      if (!platformContext?.account_id) return;
+      const businessId = platformContext?.account_id || "test-business-id";
 
       try {
         setLoading(true);
         setError(null);
 
-        const response = await getAdJobResult(id, platformContext.account_id);
+        const response = await getAdJobResult(id, businessId);
 
         if (!cancelled) {
           setResult(response);
@@ -52,7 +52,7 @@ export function ResultClient({ id }: ResultClientProps) {
     return () => {
       cancelled = true;
     };
-  }, [id, platformContext]);
+  }, [id, platformContext, authLoading]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background bg-mesh-blur font-sans">
