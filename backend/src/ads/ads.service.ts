@@ -1,6 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { JobStoreService } from './services/job-store.service';
@@ -356,12 +354,18 @@ export class AdsService {
         createAdDto.veo_config.duration_sec,
       );
 
-      // Download source video to a temp file for Remotion to use locally
-      // This avoids signed URL decoding issues and potential network flakes during render
-      const sourceVideoTempDir = await mkdtemp(
-        path.join(tmpdir(), 'phanes-source-'),
+      // Download source video to the remotion 'public' dir so it can be served over http://localhost without CORS or file:// issues
+      const publicDir = path.resolve(
+        process.cwd(),
+        'src/render/remotion/public',
       );
-      const localSourcePath = path.join(sourceVideoTempDir, 'source.mp4');
+      // Ensure public dir exists (will silently succeed if it does)
+      await import('node:fs/promises').then((fs) =>
+        fs.mkdir(publicDir, { recursive: true }),
+      );
+
+      const fileName = `source-${projectId}.mp4`;
+      const localSourcePath = path.join(publicDir, fileName);
 
       try {
         this.logger.log(
@@ -372,8 +376,8 @@ export class AdsService {
           localSourcePath,
         );
 
-        // Prepend file:// for Remotion to interpret as absolute local file
-        const videoUrlForRemotion = `file://${localSourcePath}`;
+        // Remotion automatically exposes everything in the public/ folder at the root path during render
+        const videoUrlForRemotion = fileName;
 
         const preparedRenderRequest = this.renderService.prepareRenderRequest({
           videoUrl: videoUrlForRemotion,
@@ -450,7 +454,9 @@ export class AdsService {
           },
         });
       } finally {
-        await rm(sourceVideoTempDir, { recursive: true, force: true });
+        await import('node:fs/promises').then((fs) =>
+          fs.rm(localSourcePath, { force: true }),
+        );
       }
     } catch (error) {
       const message =
