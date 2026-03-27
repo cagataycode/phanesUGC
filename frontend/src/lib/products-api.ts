@@ -1,4 +1,5 @@
 import { fetchWithAuth } from "./api-client";
+import type { ProductAsset } from "./asset-types";
 
 export interface ProductDefaultsPayload {
   tone?: string;
@@ -7,18 +8,12 @@ export interface ProductDefaultsPayload {
   cta?: string;
 }
 
-export interface BrandAssetPayload {
-  storageKey: string;
-  type: "image" | "video" | "logo";
-  filename: string;
-}
-
 export interface CreateProductPayload {
   name: string;
   description?: string;
   benefits?: string[];
   urls?: string[];
-  brandAssets?: BrandAssetPayload[];
+  brandAssets?: ProductAsset[];
   defaults?: ProductDefaultsPayload;
 }
 

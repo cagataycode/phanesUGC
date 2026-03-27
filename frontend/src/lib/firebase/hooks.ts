@@ -10,6 +10,7 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db } from "./index";
+import type { AvatarAsset, ProductAsset } from "../asset-types";
 
 export interface ProductData extends DocumentData {
   id: string;
@@ -18,17 +19,46 @@ export interface ProductData extends DocumentData {
   description?: string;
   benefits?: string[];
   urls?: string[];
-  brandAssets?: {
-    storageKey: string;
-    type: "image" | "video" | "logo";
-    filename: string;
-  }[];
+  brandAssets?: ProductAsset[];
   defaults?: {
     tone?: string;
     targetAudience?: string;
     language?: string;
     cta?: string;
   };
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  deletedAt?: Timestamp;
+}
+
+export interface AvatarData extends DocumentData {
+  id: string;
+  businessId: string;
+  createdBy: string;
+  name: string;
+  description?: string;
+  type: "ugc_creator" | "brand_rep" | "voice_only";
+  gender?: string;
+  ageRange?: string;
+  locale?: string;
+  appearance?: {
+    hair?: string;
+    outfit?: string;
+    style?: string;
+  };
+  voiceProfile?: {
+    voiceId?: string;
+    provider?: string;
+    language?: string;
+  };
+  persona?: {
+    tone?: string;
+    targetAudience?: string;
+    ctaStyle?: string;
+  };
+  assets?: AvatarAsset[];
+  thumbnailStorageKey?: string;
+  isDefault?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   deletedAt?: Timestamp;
@@ -272,4 +302,106 @@ export function useProduct(
   }, [canSubscribe, businessId, productId, firebaseUnavailableError]);
 
   return { product, loading, error };
+}
+
+export function useAvatars(businessId: string | undefined) {
+  const firebaseUnavailableError = useMemo(
+    () => (!db ? new Error("Firebase is not configured.") : null),
+    [],
+  );
+  const canSubscribe = Boolean(db && businessId);
+  const [avatars, setAvatars] = useState<AvatarData[]>([]);
+  const [loading, setLoading] = useState(canSubscribe);
+  const [error, setError] = useState<Error | null>(firebaseUnavailableError);
+
+  useEffect(() => {
+    if (!canSubscribe || !db) {
+      setTimeout(() => {
+        setAvatars([]);
+        setLoading(false);
+        setError(firebaseUnavailableError);
+      }, 0);
+      return;
+    }
+
+    if (!businessId) return;
+
+    const avatarsRef = collection(db, "businesses", businessId, "avatars");
+    const q = query(avatarsRef);
+
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnap) => {
+        const docs = querySnap.docs
+          .map((d) => ({ id: d.id, ...d.data() }) as AvatarData)
+          .filter((d) => !d.deletedAt)
+          .sort((a, b) => {
+            const aMs = a.createdAt?.toMillis?.() ?? 0;
+            const bMs = b.createdAt?.toMillis?.() ?? 0;
+            return bMs - aMs;
+          });
+        setAvatars(docs);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Error fetching avatars:", err);
+        setError(err);
+        setLoading(false);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [businessId, canSubscribe, firebaseUnavailableError]);
+
+  return { avatars, loading, error };
+}
+
+export function useAvatar(
+  businessId: string | undefined,
+  avatarId: string | undefined,
+) {
+  const firebaseUnavailableError = useMemo(
+    () => (!db ? new Error("Firebase is not configured.") : null),
+    [],
+  );
+  const canSubscribe = Boolean(db && businessId && avatarId);
+  const [avatar, setAvatar] = useState<AvatarData | null>(null);
+  const [loading, setLoading] = useState(canSubscribe);
+  const [error, setError] = useState<Error | null>(firebaseUnavailableError);
+
+  useEffect(() => {
+    if (!canSubscribe || !db) {
+      setTimeout(() => {
+        setAvatar(null);
+        setLoading(false);
+        setError(firebaseUnavailableError);
+      }, 0);
+      return;
+    }
+
+    if (!businessId || !avatarId) return;
+
+    const avatarRef = doc(db, "businesses", businessId, "avatars", avatarId);
+
+    const unsubscribe = onSnapshot(
+      avatarRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setAvatar({ id: docSnap.id, ...docSnap.data() } as AvatarData);
+        } else {
+          setAvatar(null);
+        }
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Error fetching avatar:", err);
+        setError(err);
+        setLoading(false);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [canSubscribe, businessId, avatarId, firebaseUnavailableError]);
+
+  return { avatar, loading, error };
 }
