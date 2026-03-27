@@ -201,17 +201,41 @@ export class AdsService {
       );
     }
 
+    let source_video_url: string | undefined;
+    if (job.output?.sourceVideoStorageKey) {
+      source_video_url = await this.gcsStorageService.createSignedVideoUrl(
+        job.output.sourceVideoStorageKey,
+      );
+    }
+
+    const thumbnail_url = job.output?.thumbnailStorageKey
+      ? await this.gcsStorageService.createSignedVideoUrl(
+          job.output.thumbnailStorageKey,
+        )
+      : undefined;
+
     return {
       video_url,
-      thumbnail_url: job.output?.thumbnailStorageKey
-        ? await this.gcsStorageService.createSignedVideoUrl(
-            job.output.thumbnailStorageKey,
-          )
-        : undefined,
-      script: job.script as Record<string, unknown>,
-      subtitles: [],
-      transcript: [],
-      metadata: {},
+      source_video_url,
+      thumbnail_url,
+      script: (job.script as unknown as Record<string, unknown>) ?? null,
+      creativeBrief: job.creativeBrief ?? null,
+      subtitles: job.subtitleSegments ?? [],
+      transcript: job.script?.full_text ? [{ text: job.script.full_text }] : [],
+      metadata: job.metadata ?? {},
+      generationConfig: {
+        platform: job.platform ?? undefined,
+        aspectRatio: job.aspectRatio ?? undefined,
+        durationSec: job.durationSec ?? undefined,
+      },
+      timestamps: {
+        createdAt: job.createdAt?.toDate?.()?.toISOString() ?? null,
+        updatedAt: job.updatedAt?.toDate?.()?.toISOString() ?? null,
+      },
+      pipeline: {
+        status: job.status,
+        stages: job.stages ?? {},
+      },
     };
   }
 

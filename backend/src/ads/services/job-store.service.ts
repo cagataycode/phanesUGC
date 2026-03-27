@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { FirestoreService } from '../../firebase/firestore.service';
+import { CreativeBrief } from '../types/creative-brief';
+import { GeneratedScript } from '../types/generated-script';
 import * as admin from 'firebase-admin';
 
 export type AdJobStatus = 'created' | 'processing' | 'completed' | 'failed';
@@ -29,8 +31,8 @@ export interface AdJob {
     subtitles: AdJobStatus | 'pending' | 'running' | 'done';
     render: AdJobStatus | 'pending' | 'running' | 'done';
   };
-  creativeBrief?: any;
-  script?: any;
+  creativeBrief?: CreativeBrief;
+  script?: GeneratedScript;
   metadata?: Record<string, unknown>;
   subtitleSegments?: Array<{
     start: number;
