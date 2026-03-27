@@ -23,6 +23,8 @@ export function ResultClient({ id }: ResultClientProps) {
     if (!platformContext?.account_id) return; // Wait for context
 
     async function loadResult() {
+      if (!platformContext?.account_id) return;
+
       try {
         setLoading(true);
         setError(null);
