@@ -15,6 +15,10 @@ import { fetchWithAuth, API_BASE_URL } from "./api-client";
 import { auth } from "./firebase";
 import { getIdToken } from "firebase/auth";
 
+interface MutableAuth {
+  currentUser: { uid: string } | null;
+}
+
 describe("fetchWithAuth", () => {
   const mockFetch = vi.fn();
 
@@ -23,7 +27,7 @@ describe("fetchWithAuth", () => {
     vi.stubGlobal("fetch", mockFetch);
     mockFetch.mockResolvedValue(new Response(JSON.stringify({ ok: true })));
     // Reset auth state
-    (auth as any).currentUser = null;
+    (auth as unknown as MutableAuth).currentUser = null;
   });
 
   afterEach(() => {
@@ -88,7 +92,7 @@ describe("fetchWithAuth", () => {
 
   it("attaches Authorization header when user is logged in", async () => {
     // Simulate logged-in user
-    (auth as any).currentUser = { uid: "user-123" };
+    (auth as unknown as MutableAuth).currentUser = { uid: "user-123" };
 
     await fetchWithAuth("/v1/test");
 
@@ -100,7 +104,7 @@ describe("fetchWithAuth", () => {
   });
 
   it("skips auth header when requireAuth is false", async () => {
-    (auth as any).currentUser = { uid: "user-123" };
+    (auth as unknown as MutableAuth).currentUser = { uid: "user-123" };
 
     await fetchWithAuth("/v1/public", { requireAuth: false });
 
