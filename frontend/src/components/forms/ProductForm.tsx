@@ -125,7 +125,7 @@ export function ProductForm({
       urls: parseLinesArray(urlsRaw),
       brandAssets,
       defaults: {
-        tone: tone && tone !== "__none__" ? tone : undefined,
+        tone: tone && tone !== "none" ? tone : undefined,
         targetAudience: targetAudience.trim() || undefined,
         language: language || undefined,
         cta: cta.trim() || undefined,
@@ -266,7 +266,7 @@ export function ProductForm({
                 <SelectValue placeholder="Select tone…" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 <SelectItem value="direct">Direct</SelectItem>
                 <SelectItem value="playful">Playful</SelectItem>
                 <SelectItem value="professional">Professional</SelectItem>
