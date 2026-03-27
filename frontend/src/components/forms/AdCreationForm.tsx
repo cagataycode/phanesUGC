@@ -18,7 +18,13 @@ import {
 } from "@hugeicons/core-free-icons";
 import { useState, useEffect, useCallback } from "react";
 import { createAdJob, getAdJobResult } from "@/lib/api";
-import { useProject, useProducts, useProduct } from "@/lib/firebase/hooks";
+import {
+  useAvatar,
+  useAvatars,
+  useProject,
+  useProduct,
+  useProducts,
+} from "@/lib/firebase/hooks";
 import { useAuth } from "@/lib/firebase/auth-provider";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
@@ -87,6 +93,7 @@ export function AdCreationForm() {
     undefined,
   );
   const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [selectedAvatarId, setSelectedAvatarId] = useState<string>("");
 
   const isFirebaseConfigured =
     typeof process.env.NEXT_PUBLIC_FIREBASE_API_KEY === "string" &&
@@ -107,11 +114,20 @@ export function AdCreationForm() {
   const { products } = useProducts(
     isFirebaseConfigured && isAuthenticated ? businessId : undefined,
   );
+  const { avatars } = useAvatars(
+    isFirebaseConfigured && isAuthenticated ? businessId : undefined,
+  );
   const { product: selectedProduct } = useProduct(
     isFirebaseConfigured && isAuthenticated && selectedProductId
       ? businessId
       : undefined,
     selectedProductId || undefined,
+  );
+  const { avatar: selectedAvatar } = useAvatar(
+    isFirebaseConfigured && isAuthenticated && selectedAvatarId
+      ? businessId
+      : undefined,
+    selectedAvatarId || undefined,
   );
 
   const showGenerationError = useCallback(
@@ -362,6 +378,37 @@ export function AdCreationForm() {
           {selectedProduct && (
             <p className="mt-2 text-xs text-muted-foreground line-clamp-1">
               {selectedProduct.description ?? "No description"}
+            </p>
+          )}
+        </div>
+      )}
+      {isAuthenticated && avatars.length > 0 && (
+        <div className="rounded-2xl border border-foreground/10 bg-background/60 px-4 py-3 text-left shadow-sm backdrop-blur-sm">
+          <p className="mb-2 text-sm font-semibold text-foreground/90">
+            Avatar
+          </p>
+          <Select
+            value={selectedAvatarId}
+            onValueChange={(val) => {
+              setSelectedAvatarId(val === "__none__" ? "" : val);
+            }}
+          >
+            <SelectTrigger className="h-9 w-full rounded-lg text-sm">
+              <SelectValue placeholder="Select an avatar…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">No avatar selected</SelectItem>
+              {avatars.map((a) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedAvatar && (
+            <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+              {selectedAvatar.description ??
+                selectedAvatar.type.replaceAll("_", " ")}
             </p>
           )}
         </div>
