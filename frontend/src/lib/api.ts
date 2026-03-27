@@ -1,4 +1,3 @@
-export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 const API_BASE_URL = "/api";
 
 // Models based on PRD Section 11.1
@@ -47,12 +46,27 @@ export interface AdJobStatusResponse {
 }
 
 export interface AdJobResultResponse {
-  video_url: string;
+  video_url?: string;
+  source_video_url?: string;
   thumbnail_url?: string;
-  script: Record<string, unknown>;
+  script: Record<string, unknown> | null;
+  creativeBrief: Record<string, unknown> | null;
   subtitles: unknown[];
   transcript: unknown[];
   metadata: Record<string, unknown>;
+  generationConfig: {
+    platform?: string;
+    aspectRatio?: string;
+    durationSec?: number;
+  };
+  timestamps: {
+    createdAt: string | null;
+    updatedAt: string | null;
+  };
+  pipeline: {
+    status: string;
+    stages: Record<string, string>;
+  };
 }
 
 /**
@@ -61,17 +75,6 @@ export interface AdJobResultResponse {
 export async function createAdJob(
   payload: AdJobRequest,
 ): Promise<AdJobResponse> {
-  if (USE_MOCK) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          id: `ad_${Math.random().toString(36).substring(7)}`,
-          status: "queued",
-        });
-      }, 800);
-    });
-  }
-
   const res = await fetch(`${API_BASE_URL}/ads`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -87,35 +90,8 @@ export async function createAdJob(
  */
 export async function getAdJobStatus(
   id: string,
-  businessId: string = "test-business-id",
+  businessId: string,
 ): Promise<AdJobStatusResponse> {
-  if (USE_MOCK) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const numericSeed = Number.parseInt(
-          id.replace(/\D/g, "").slice(-2) || "0",
-          10,
-        );
-        const timestampBucket = Math.floor(Date.now() / 1500);
-        const progress = Math.min(
-          ((timestampBucket + numericSeed) % 8) * 15,
-          100,
-        );
-
-        resolve({
-          id,
-          status: progress >= 100 ? "completed" : "processing",
-          ...(progress >= 100
-            ? {
-                video_url:
-                  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-              }
-            : {}),
-        });
-      }, 500);
-    });
-  }
-
   const res = await fetch(`${API_BASE_URL}/ads/${id}?businessId=${businessId}`);
   if (!res.ok) throw new Error("Failed to fetch ad job status");
   return res.json();
@@ -128,24 +104,6 @@ export async function getAdJobResult(
   id: string,
   businessId?: string,
 ): Promise<AdJobResultResponse> {
-  if (USE_MOCK) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          // Mock video (Big Buck Bunny via open storage)
-          video_url:
-            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-          thumbnail_url:
-            "https://images.unsplash.com/photo-1616469829581-73993eb86b02",
-          script: {},
-          subtitles: [],
-          transcript: [],
-          metadata: {},
-        });
-      }, 600);
-    });
-  }
-
   const query = businessId
     ? `?businessId=${encodeURIComponent(businessId)}`
     : "";
