@@ -1,301 +1,52 @@
-# Phase 4 — Audio Processing, Transcription, Subtitles & Timeline Composition
+# Phase 4 — Veo 3.1 Output Processing & Timeline Composition
 
 **Parent Document:** `PRD_00_OVERVIEW.md`  
-**Agent Stages:** `audio_ready → subtitles_ready → composition_ready`
+**Agent Stages:** `assets_ready → veo_output_ready → composition_ready`
 
 ---
 
 ## 1. Phase Objective
 
-Extract and normalize the voiceover audio, transcribe it to obtain word-level timing, generate readable subtitle chunks with style formatting, and assemble all media into a deterministic render timeline specification.
+Receive the video and synchronized subtitle data from Veo 3.1 and assemble all media into a deterministic render timeline specification.
 
-This phase bridges raw media assets into a complete, renderable video specification.
+This phase bridges raw media generation into a complete, renderable video specification.
 
 ---
 
 ## 2. Pipeline Stages in This Phase
 
 ```
-GeneratedSceneVideo[] + ResolvedAsset[]
-  → Stage 10: Audio Extraction & Normalization
-  → Stage 11: Speech Transcription
-  → Stage 12: Subtitle Generation & Chunking
-  → Stage 13: Timeline Assembly
+Brief + GlobalParams
+  → Stage 10: Veo 3.1 Generation (Video + Subtitles)
+  → Stage 11: Subtitle Formatting
+  → Stage 12: Timeline Assembly
   → Output: SubtitleTrack + RenderTimeline
 ```
 
 ---
 
-## 3. Stage 10: Audio Extraction & Normalization
+## 3. Stage 10: Veo 3.1 Generation
 
 ### 3.1 Purpose
 
-Prepare the speech audio for transcription. In the canonical pipeline, speech originates from Veo-generated scene or ad video outputs, so FFmpeg extraction and normalization are the standard path before transcription.
+Generate the core video content along with precisely synchronized word-level subtitle segments in a single API call.
 
-### 3.2 Normalization Process
+### 3.2 Output Verification
 
-**Target format for transcription:**
-
-- Mono channel
-- 16kHz sample rate
-- 16-bit PCM WAV
-- No background music mixed in
-
-**FFmpeg Command:**
-
-```bash
-ffmpeg -i input.mp3 -vn -ac 1 -ar 16000 -c:a pcm_s16le output.wav
-```
-
-### 3.3 When Extraction is Needed
-
-| Audio Source        | Extraction Needed | Processing                            |
-| ------------------- | ----------------- | ------------------------------------- |
-| Veo-generated video | Full extraction   | Strip video, extract audio, normalize |
-| Uploaded audio      | Format conversion | Normalize to 16kHz mono WAV           |
-
-### 3.4 Output
-
-```json
-{
-  "source_audio_key": "ads/ad-uuid/audio/voiceover.mp3",
-  "normalized_audio_key": "ads/ad-uuid/audio/voiceover_16k.wav",
-  "format": "wav",
-  "sample_rate_hz": 16000,
-  "channels": 1,
-  "duration_sec": 28.5
-}
-```
+The system must verify that the Veo 3.1 output contains:
+- Video storage key
+- Subtitle segments array
+- Word-level timestamps within segments
 
 ---
 
-## 4. Stage 11: Speech Transcription
+## 4. Stage 11: Subtitle Formatting
 
 ### 4.1 Purpose
 
-Transcribe the voiceover audio to obtain word-level timestamps. These timestamps are the foundation for synchronized subtitles.
+Convert the raw word-level timing data from Veo 3.1 into the internal `SubtitleTrack` format used by the Remotion renderer.
 
-### 4.2 Transcription Strategy
-
-**Primary:** Whisper / faster-whisper (self-hosted or worker-based)  
-**Fallback:** managed speech service if operationally required later
-
-### 4.3 Why Transcription is Needed
-
-Even though we generated the script ahead of time, we still need transcription because:
-
-1. **Veo output does not guarantee subtitle-ready word timing** — downstream subtitles require per-word timestamps
-2. **Actual speech timing differs from estimated** — the generation model decides pacing, pauses, and pronunciation
-3. **Subtitles need word-level accuracy** — for karaoke-style highlighting, every word needs a start and end time
-4. **Forced alignment against known text** — since we know the script, we can align rather than transcribe from scratch
-
-### 4.4 Whisper Transcription
-
-**Service:** Whisper / faster-whisper worker
-
-**Request Configuration (conceptual):**
-
-```json
-{
-  "audio_uri": "gs://bucket/ads/ad-uuid/audio/voiceover_16k.wav",
-  "model": "large-v3",
-  "language": "en",
-  "word_timestamps": true,
-  "vad_filter": true
-}
-```
-
-**Response provides:**
-
-```json
-{
-  "results": [
-    {
-      "alternatives": [
-        {
-          "transcript": "Still spending hours editing ad videos?",
-          "confidence": 0.97,
-          "words": [
-            {
-              "word": "Still",
-              "start_offset": "0.420s",
-              "end_offset": "0.680s",
-              "confidence": 0.99
-            },
-            {
-              "word": "spending",
-              "start_offset": "0.690s",
-              "end_offset": "1.120s",
-              "confidence": 0.98
-            },
-            {
-              "word": "hours",
-              "start_offset": "1.130s",
-              "end_offset": "1.450s",
-              "confidence": 0.97
-            },
-            {
-              "word": "editing",
-              "start_offset": "1.460s",
-              "end_offset": "1.780s",
-              "confidence": 0.99
-            },
-            {
-              "word": "ad",
-              "start_offset": "1.790s",
-              "end_offset": "1.920s",
-              "confidence": 0.96
-            },
-            {
-              "word": "videos",
-              "start_offset": "1.930s",
-              "end_offset": "2.350s",
-              "confidence": 0.98
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
-
-### 4.5 Forced Alignment (Enhanced Accuracy)
-
-Since we know the exact script text, we can use forced alignment instead of open transcription for higher accuracy:
-
-**Process:**
-
-1. Transcribe audio to get raw word timings
-2. Compare transcription against known script text
-3. Align known words to detected timestamps
-4. Correct any misrecognized words using the known script
-5. Interpolate timing for words that were missed
-
-This produces more reliable subtitle timing than raw transcription alone.
-
-### 4.6 Speech Alignment Adapter Interface
-
-```typescript
-interface SpeechAlignmentAdapter {
-  transcribe(
-    audioUri: string,
-    options: TranscriptionOptions,
-  ): Promise<TranscriptionResult>;
-  alignToScript(
-    audioUri: string,
-    scriptText: string,
-    options: AlignmentOptions,
-  ): Promise<AlignedTranscript>;
-}
-
-interface TranscriptionOptions {
-  languageCode: string;
-  model: "chirp_2" | "latest_long";
-  enableWordTimestamps: boolean;
-}
-
-interface TranscriptionResult {
-  transcript: string;
-  words: TimedWord[];
-  confidence: number;
-}
-
-interface AlignmentOptions {
-  languageCode: string;
-  toleranceSec: number;
-}
-
-interface AlignedTranscript {
-  words: TimedWord[];
-  alignmentQuality: "high" | "medium" | "low";
-  unmatchedWords: string[];
-}
-
-interface TimedWord {
-  word: string;
-  startSec: number;
-  endSec: number;
-  confidence: number;
-}
-```
-
-### 4.7 Operational Deployment
-
-Whisper transcription runs as a worker-stage dependency, typically sidecar or isolated worker execution.
-
-```
-faster-whisper model: large-v3
-Task: transcribe
-Language: {language_code}
-Word timestamps: true
-VAD filter: true
-```
-
----
-
-## 5. Stage 12: Subtitle Generation & Chunking
-
-### 5.1 Purpose
-
-Convert raw word-level timing data into readable subtitle segments. This is a critical quality stage — bad subtitles ruin the ad even if everything else is perfect.
-
-### 5.2 Subtitle Chunking Rules
-
-| Rule                     | Value            | Rationale                                 |
-| ------------------------ | ---------------- | ----------------------------------------- |
-| Max lines on screen      | 2                | More than 2 lines is unreadable on mobile |
-| Max characters per line  | 35               | Fits mobile screens at readable font size |
-| Max words per chunk      | 8                | Cognitive load limit for fast-reading     |
-| Min display duration     | 0.8 seconds      | Anything shorter is unreadable            |
-| Max display duration     | 5.0 seconds      | Avoid stale subtitles                     |
-| Avoid orphan words       | Yes              | Single-word lines look bad                |
-| Punctuation-aware breaks | Yes              | Break at commas, periods, not mid-phrase  |
-| No overlap               | Yes              | One chunk must end before the next begins |
-| Gap between chunks       | 50-100ms minimum | Prevents visual stutter                   |
-
-### 5.3 Chunking Algorithm
-
-```
-Input: TimedWord[] — word-level timestamps from transcription
-
-1. Initialize current_chunk = []
-2. For each word in TimedWord[]:
-   a. Add word to current_chunk
-   b. Check if chunk should break:
-      - current_chunk word count >= max_words (8)
-      - current_chunk character count >= max_chars (70 for 2 lines)
-      - word ends with sentence-ending punctuation (. ! ?)
-      - word ends with clause-ending punctuation (, ; :) AND chunk has >= 4 words
-      - next word starts a new scene boundary
-   c. If break:
-      - Finalize current_chunk with start=first_word.start, end=last_word.end
-      - Split into lines (max 2 lines, balanced character count)
-      - Start new current_chunk
-3. Finalize last chunk
-4. Apply minimum duration padding
-5. Apply gap between consecutive chunks
-```
-
-### 5.4 Line Breaking Within a Chunk
-
-When a chunk has more text than fits on one line:
-
-```
-"AdPilot turns your product info into scroll-stopping ads"
-
-Line breaking options:
-  ✗ "AdPilot turns your product info into" / "scroll-stopping ads"  (imbalanced)
-  ✓ "AdPilot turns your product info" / "into scroll-stopping ads"  (balanced)
-
-Strategy:
-  1. Find the midpoint character index
-  2. Search for the nearest word boundary near the midpoint
-  3. Prefer breaking at natural phrase boundaries
-  4. Balance line lengths (neither line should be >60% of total)
-```
-
-### 5.5 Subtitle Style Presets
+### 4.2 Subtitle Style Presets
 
 #### Standard Bold Caption
 
@@ -650,11 +401,9 @@ Before transitioning to Phase 5 (Rendering), the agent checks:
 
 | Service                         | Responsibility                                 |
 | ------------------------------- | ---------------------------------------------- |
-| `AudioExtractorService`         | FFmpeg audio extraction and normalization      |
 | `SubtitleGeneratorService`      | Transcription → alignment → chunking → styling |
 | `TimelineAssemblerService`      | Combine all artifacts into render spec         |
 | `SpeechAlignmentAdapter` (impl) | Chirp transcription + forced alignment         |
-| `FFmpegService`                 | Audio processing utilities                     |
 
 ---
 
@@ -674,7 +423,6 @@ Before transitioning to Phase 5 (Rendering), the agent checks:
 
 | Operation           | Provider                 | Estimated Cost     |
 | ------------------- | ------------------------ | ------------------ |
-| Audio normalization | FFmpeg (self-hosted)     | Compute only       |
 | Chirp transcription | Vertex AI Speech-to-Text | ~$0.016 per minute |
 | Forced alignment    | Computed locally         | Compute only       |
 | Subtitle chunking   | Algorithmic              | Compute only       |

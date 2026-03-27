@@ -11,7 +11,7 @@
 
 Phanes is an **AI Ad Agent** — a bounded, multi-stage ad production system that converts a user prompt and optional product context into a ready-to-post short-form social video ad.
 
-The agent accepts a prompt, interprets the advertising objective, gathers product context, writes the script, plans scenes, selects or generates visual assets, produces voiceover, synchronizes subtitles, renders the final video, evaluates quality, and delivers a social-ready MP4.
+The agent accepts a prompt, interprets the advertising objective, gathers product context, writes the script, plans scenes, selects or generates visual assets, generates video with integrated subtitles via Veo 3.1, renders the final video, evaluates quality, and delivers a social-ready MP4.
 
 ---
 
@@ -55,7 +55,7 @@ This PRD is organized into phased documents that map to the production pipeline:
 | **PRD_01_INPUT_AND_CONTEXT.md**     | Phase 1 — Input collection, validation, URL scraping, product extraction            |
 | **PRD_02_PLANNING.md**              | Phase 2 — Creative brief generation, script generation, scene planning              |
 | **PRD_03_ASSET_AND_MEDIA.md**       | Phase 3 — Asset strategy, media selection, video generation, scene generation       |
-| **PRD_04_POST_PRODUCTION.md**       | Phase 4 — Audio extraction, transcription, subtitle sync, timeline composition      |
+| **PRD_04_POST_PRODUCTION.md**       | Phase 4 — Veo 3.1 output processing, timeline composition                          |
 | **PRD_05_DELIVERY_AND_QUALITY.md**  | Phase 5 — Rendering, quality validation, delivery, retry, regeneration              |
 
 ---
@@ -76,11 +76,9 @@ Frontend (Next.js)
         → Scene Planner (Gemini LLM)
         → Asset Resolver (Uploads / Scraped Media / Stock / Imagen / Veo)
         → Scene Video Generator (Veo with built-in speech)
-        → Audio Extractor (FFmpeg)
-        → Transcription (Whisper)
-        → Subtitle Generator (alignment cleanup + chunking)
-        → Timeline Assembler (Remotion inputs)
-        → Render Executor (Remotion + FFmpeg)
+        | Veo Output Processor (subtitle formatting)
+        | Timeline Assembler (Remotion inputs)
+        | Render Executor (Remotion)
         → Output Validator
       → Quality Gates
       → Retry / Fallback Policies
@@ -95,7 +93,7 @@ Frontend (Next.js)
 | Service                                     | Purpose                                                                          |
 | ------------------------------------------- | -------------------------------------------------------------------------------- |
 | **Gemini (Vertex AI)**                      | LLM for brief, script, scene planning, extraction enrichment, quality evaluation |
-| **Veo (Vertex AI)**                         | AI scene/video generation with embedded speech                                   |
+| **Veo (Vertex AI)**                         | AI scene/video generation with embedded speech and subtitles                     |
 | **Imagen (Vertex AI)**                      | AI image generation for scene visuals                                            |
 | **Google Cloud Storage / Firebase Storage** | Asset and output storage                                                         |
 | **Firebase Auth**                           | User authentication                                                              |
@@ -109,9 +107,7 @@ Frontend (Next.js)
 | **NestJS**         | Backend API framework and orchestrator host    |
 | **Redis + BullMQ** | Job queue and stage worker orchestration       |
 | **Crawlee**        | Scraping and browser-based context acquisition |
-| **Whisper**        | Speech transcription with word-level timing    |
 | **Remotion**       | Programmatic video composition                 |
-| **FFmpeg**         | Media processing, audio extraction, encoding   |
 | **Next.js**        | Frontend application                           |
 
 ### 5.4 Canonical Build Order
@@ -124,7 +120,7 @@ Implementation shall proceed in the following order:
 4. Phase 1 — input normalization and context acquisition
 5. Phase 2 — brief, script, and scene planning
 6. Phase 3 — asset resolution and Veo scene generation
-7. Phase 4 — audio extraction, Whisper transcription, subtitles, timeline assembly
+7. Phase 4 — Veo 3.1 output processing and timeline assembly
 8. Phase 5 — render, validation, delivery, regeneration hardening
 
 The agent/orchestrator is implemented **early as a deterministic control skeleton**, then expanded as each phase is completed. It is not deferred until the end.
@@ -160,8 +156,7 @@ created
   → script_ready
   → scenes_ready
   → assets_ready
-  → audio_ready
-  → subtitles_ready
+  → veo_output_ready
   → composition_ready
   → rendering
   → validation
@@ -307,8 +302,7 @@ GET /api/v1/ads/{id}
     "script": "done",
     "scenes": "done",
     "assets": "done",
-    "audio": "done",
-    "subtitles": "done",
+    "veo": "done",
     "composition": "done",
     "render": "running",
     "validation": "pending"
@@ -562,16 +556,6 @@ All endpoints supporting `webhook_url` will POST when a job completes:
 | template_json     | jsonb  |
 | preview_image_key | string |
 
-#### AudioTrack
-
-| Field        | Type   |
-| ------------ | ------ |
-| id           | uuid   |
-| project_id   | uuid   |
-| voice_id     | string |
-| storage_key  | string |
-| duration_sec | float  |
-| timing_json  | jsonb  |
 
 #### SubtitleTrack
 
@@ -666,11 +650,8 @@ All endpoints supporting `webhook_url` will POST when a job completes:
 - AI script generation with quality evaluation
 - Scene planning
 - Asset selection (uploaded, scraped, stock, generated)
-- Video generation via Veo
-- Voice generation via Google Cloud TTS
-- Audio extraction and transcription
-- Subtitle synchronization with word-level timing
-- Subtitle burn-in with style presets
+- Video generation via Veo 3.1 with integrated subtitles
+- Subtitle formatting with style presets
 - Social-safe video rendering
 - Quality gates between stages
 - Targeted retry and fallback
@@ -704,8 +685,8 @@ The MVP is complete when:
 3. The user can review and edit extracted product data before generation
 4. A complete short-form script is generated with hook, body, and CTA
 5. Scenes are planned and visuals assembled
-6. Voiceover is generated
-7. Subtitles are synchronized with word-level timing and burned into the video
+6. Video and subtitles are generated via Veo 3.1
+7. Subtitles are formatted and burned into the video
 8. A preview can be generated before committing to full render
 9. A final MP4 is rendered in 9:16 format
 10. The output is acceptable for immediate social posting
@@ -724,5 +705,5 @@ The MVP is complete when:
 | **Phase 1** | `PRD_01_INPUT_AND_CONTEXT.md`    | Accept input, scrape URLs, extract product data, normalize |
 | **Phase 2** | `PRD_02_PLANNING.md`             | Generate creative brief, write script, plan scenes         |
 | **Phase 3** | `PRD_03_ASSET_AND_MEDIA.md`      | Select assets, generate video, produce voiceover           |
-| **Phase 4** | `PRD_04_POST_PRODUCTION.md`      | Extract audio, transcribe, sync subtitles, build timeline  |
+| **Phase 4** | `PRD_04_POST_PRODUCTION.md`      | Process Veo 3.1 output, build timeline                     |
 | **Phase 5** | `PRD_05_DELIVERY_AND_QUALITY.md` | Render, validate, deliver, retry, regenerate               |

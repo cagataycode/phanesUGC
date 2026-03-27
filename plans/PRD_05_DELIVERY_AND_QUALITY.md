@@ -96,7 +96,7 @@ The preview is generated from the same `RenderTimeline` spec but with reduced qu
 
 Render the complete video from the timeline specification at full quality.
 
-### 4.2 Render Engine: Remotion + FFmpeg
+### 4.2 Render Engine: Remotion
 
 **Architecture:**
 
@@ -106,7 +106,6 @@ RenderTimeline (JSON)
     → Scene sequences with media, overlays, subtitles
     → Audio mixing (voiceover + background music)
   → Remotion renderMedia()
-    → FFmpeg encoding
   → Final MP4
 ```
 
@@ -181,13 +180,7 @@ RenderTimeline (JSON)
 
 ### 4.5 Thumbnail Generation
 
-After render, extract a thumbnail from a key frame:
-
-```bash
-ffmpeg -i output.mp4 -vf "select=eq(n\,90)" -vframes 1 thumbnail.jpg
-```
-
-Choose frame at ~3 seconds (frame 90 at 30fps) — typically mid-hook for maximum visual impact.
+After render, extract a thumbnail from a key frame (typically mid-hook) to use for the user-facing gallery and social preview.
 
 ### 4.6 Render Output
 
@@ -250,7 +243,7 @@ Verify the rendered output meets minimum quality thresholds before delivering to
 | **File exists**          | GCS head request        | Object exists, size > 0                        | Re-render                       |
 | **File is playable**     | FFprobe analysis        | Valid video stream detected                    | Re-render                       |
 | **Duration match**       | FFprobe duration        | Within ±10% of target                          | Log warning, accept             |
-| **Audio present**        | FFprobe audio stream    | Audio stream exists                            | Re-render (TTS may have failed) |
+| **Audio present**        | FFprobe audio stream    | Audio stream exists                            | Re-render (Veo output error)    |
 | **Video resolution**     | FFprobe video stream    | Matches target (1080×1920)                     | Re-render                       |
 | **No black frames**      | Sample frame analysis   | Key frames have pixel variance                 | Warn, may re-render             |
 | **Subtitles burned in**  | Frame-by-frame sampling | Text detected in subtitle region during speech | Warn if not detected            |
@@ -397,7 +390,7 @@ Content-Type: application/json
   "id": "ad-uuid",
   "type": "ad_failed",
   "status": "failed",
-  "failed_reason": "Render failed after 2 retries: FFmpeg encoding error",
+  "failed_reason": "Render failed after 2 retries",
   "failed_stage": "rendering",
   "created_at": "2026-03-24T18:00:00Z"
 }
@@ -431,15 +424,12 @@ The agent retries the **smallest failing unit** rather than restarting the full 
 | Scene planning      | Missing fields                | Retry with defaults applied                                    |
 | Asset resolution    | Stock search returns nothing  | Fall to Imagen generation                                      |
 | Asset resolution    | Imagen fails                  | Fall to gradient placeholder                                   |
-| Voice generation    | TTS error                     | Retry with different voice                                     |
-| Voice generation    | Duration mismatch             | Retry with adjusted speaking rate                              |
-| Transcription       | Chirp error                   | Fall back to faster-whisper                                    |
-| Subtitle generation | Chunking error                | Re-chunk with relaxed rules                                    |
+| Video generation    | Veo error                     | Retry generation                                               |
+| Subtitle generation | Formatting error              | Re-format with relaxed rules                                   |
 | Timeline assembly   | Validation error              | Reassemble from artifacts                                      |
-| Render              | FFmpeg/Remotion error         | Retry render; if fails, simplify timeline (remove transitions) |
 | Render              | Timeout                       | Retry with lower quality settings                              |
 | Output validation   | Black frames detected         | Re-render                                                      |
-| Output validation   | Missing audio                 | Re-generate TTS and re-render                                  |
+| Output validation   | Missing audio                 | Re-generate via Veo and re-render              |
 
 ### 7.3 Fallback Chain
 
@@ -500,7 +490,7 @@ POST /api/v1/ads/{id}/scenes/{scene_id}/regenerate
 1. Keep all other scenes and artifacts intact
 2. Re-run scene planning for the target scene only
 3. Re-resolve asset for the target scene
-4. If scene narration changed: re-generate TTS for full script, re-transcribe, re-chunk subtitles
+4. If narration changed: re-generate via Veo, re-format subtitles
 5. Reassemble timeline with updated scene
 6. Re-render
 
@@ -573,12 +563,8 @@ POST /api/v1/ads/{id}/script/regenerate
                                 └─────────┬─────────┘
                                           │
                                 ┌─────────▼─────────┐
-                                │    audio_ready     │◄── retry (rate adjustment)
-                                └─────────┬─────────┘
-                                          │
-                                ┌─────────▼─────────┐
-                                │  subtitles_ready   │◄── retry (re-chunk)
-                                └─────────┬─────────┘
+                                │  veo_output_ready   │◄── retry (format error)
+└─────────┬─────────┘
                                           │
                                 ┌─────────▼─────────┐
                                 │composition_ready   │
@@ -680,8 +666,7 @@ Stage progress bar:
   ✓ Script written
   ✓ Scenes planned
   ✓ Assets resolved
-  ✓ Voiceover generated
-  ✓ Subtitles synchronized
+  ✓ Video + Subtitles generated via Veo 3.1
   ✓ Timeline assembled
   ⏳ Rendering... (72%)
   ○ Validating
@@ -725,8 +710,8 @@ The MVP is considered complete and ready for launch when:
 6. ✅ Script is evaluated and regenerated if weak
 7. ✅ Scenes are planned with visual instructions
 8. ✅ Assets are resolved per scene (upload > scraped > stock > generated)
-9. ✅ Voiceover is generated with appropriate voice
-10. ✅ Subtitles are synchronized with word-level timing
+9. ✅ Video is generated via Veo 3.1
+10. Subtitles are provided directly by Veo 3.1 with word-level timing
 11. ✅ Subtitles support 3 style presets (standard, kinetic, karaoke)
 12. ✅ Timeline is assembled from all artifacts
 13. ✅ Preview can be generated before full render
@@ -779,10 +764,7 @@ The MVP is considered complete and ready for launch when:
 | ------------------------------------------------- | ------------------ |
 | Gemini LLM calls (brief + script + scenes + eval) | ~$0.01             |
 | Stock media search                                | Free (API tier)    |
-| Imagen generation (2 scenes avg)                  | ~$0.04             |
-| Veo generation (1 scene max)                      | ~$0.35             |
-| Google Cloud TTS                                  | ~$0.001            |
-| Chirp transcription                               | ~$0.008            |
+| Veo 3.1 generation (video + subtitles) | Vertex AI           | ~$0.50             |
 | Remotion render (Cloud Run compute)               | ~$0.05             |
 | GCS storage                                       | ~$0.001            |
 | **Total estimated cost**                          | **~$0.10 - $0.45** |
