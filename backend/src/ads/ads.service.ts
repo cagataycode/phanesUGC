@@ -8,6 +8,7 @@ import { VertexAiService } from '../ai/vertex-ai.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
 import { RenderService } from '../render/render.service';
 import { RawSubtitleSegment } from '../render/subtitles/subtitle-types';
+import { GeneratedScript } from './types/generated-script';
 
 @Injectable()
 export class AdsService {
@@ -216,41 +217,49 @@ export class AdsService {
 
   private buildPromptFromScript(
     createAdDto: CreateAdDto,
-    script: {
-      title?: string;
-      hook?: string;
-      body?: string;
-      cta?: string;
-      full_text: string;
-    },
+    script: GeneratedScript,
   ): string {
     const { prompt_inputs, veo_config } = createAdDto;
-    const sections: string[] = [script.full_text];
+    const sections: string[] = [];
 
-    if (script.title) {
-      sections.unshift(`Ad title: ${script.title}`);
+    // 1. Start with the user's original creative prompt
+    const userPrompt =
+      typeof prompt_inputs.prompt === 'string'
+        ? prompt_inputs.prompt
+        : JSON.stringify(prompt_inputs.prompt);
+    if (userPrompt) {
+      sections.push(`**User's Creative Vision**:\n${userPrompt}`);
     }
 
+    // 2. Add the visual direction
+    if (script.visual_description) {
+      sections.push(`**Visual Direction**:\n${script.visual_description}`);
+    }
+
+    // 3. Add the ad script text
+    if (script.full_text) {
+      sections.push(`**Ad Script**:\n${script.full_text}`);
+    }
+
+    // 4. Add generation context
     const generationContext: string[] = [];
-
     if (prompt_inputs.platform) {
-      generationContext.push(`Platform: ${prompt_inputs.platform}`);
+      generationContext.push(`- Platform: ${prompt_inputs.platform}`);
     }
-
     if (prompt_inputs.language) {
-      generationContext.push(`Language: ${prompt_inputs.language}`);
+      generationContext.push(`- Language: ${prompt_inputs.language}`);
     }
-
     if (veo_config.aspect_ratio) {
-      generationContext.push(`Aspect ratio: ${veo_config.aspect_ratio}`);
+      generationContext.push(`- Aspect ratio: ${veo_config.aspect_ratio}`);
     }
-
     if (veo_config.duration_sec) {
-      generationContext.push(`Duration: ${veo_config.duration_sec} seconds`);
+      generationContext.push(`- Duration: ${veo_config.duration_sec} seconds`);
     }
 
     if (generationContext.length > 0) {
-      sections.push(`Generation context:\n- ${generationContext.join('\n- ')}`);
+      sections.push(
+        `**Technical Constraints**:\n${generationContext.join('\n')}`,
+      );
     }
 
     return sections.join('\n\n');
