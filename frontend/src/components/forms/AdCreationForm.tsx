@@ -116,13 +116,13 @@ export function AdCreationForm() {
   const { avatars } = useAvatars(
     isFirebaseConfigured && isAuthenticated ? businessId : undefined,
   );
-  const { product: selectedProduct } = useProduct(
+  useProduct(
     isFirebaseConfigured && isAuthenticated && selectedProductId
       ? businessId
       : undefined,
     selectedProductId || undefined,
   );
-  const { avatar: selectedAvatar } = useAvatar(
+  useAvatar(
     isFirebaseConfigured && isAuthenticated && selectedAvatarId
       ? businessId
       : undefined,
