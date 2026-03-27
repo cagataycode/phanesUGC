@@ -1,6 +1,5 @@
 import Image from "next/image";
 import { AdCreationForm } from "@/components/forms/AdCreationForm";
-import { Navbar } from "@/components/layout/Navbar";
 import { getTranslations } from "next-intl/server";
 
 export default async function Home() {
@@ -8,8 +7,6 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-background bg-mesh-blur relative overflow-hidden font-sans">
-      <Navbar />
-
       <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 pb-10 pt-[14vh] text-center sm:px-6">
         <div className="pointer-events-none absolute inset-x-0 top-[3.75rem] flex justify-center z-0 opacity-[0.06] dark:opacity-[0.1] sm:top-[4.5rem]">
           <Image

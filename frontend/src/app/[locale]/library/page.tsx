@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -139,7 +138,6 @@ export default function LibraryPage() {
   if (!businessId) {
     return (
       <div className="relative min-h-screen overflow-hidden bg-background bg-mesh-blur font-sans">
-        <Navbar />
         <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-center px-4">
           <p className="text-muted-foreground">
             Please sign in to access your library.
@@ -151,8 +149,6 @@ export default function LibraryPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background bg-mesh-blur font-sans">
-      <Navbar />
-
       <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 pb-12 pt-28 sm:px-6 lg:px-8">
         <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
           <aside className="lg:sticky lg:top-28">
