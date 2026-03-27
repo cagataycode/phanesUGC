@@ -521,7 +521,7 @@ export default function LibraryPage() {
                               <SelectValue placeholder="Select tone…" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="__none__">None</SelectItem>
+                              <SelectItem value="none">None</SelectItem>
                               <SelectItem value="direct">Direct</SelectItem>
                               <SelectItem value="playful">Playful</SelectItem>
                               <SelectItem value="professional">
