@@ -63,6 +63,23 @@ export class GcsStorageService {
     return signedUrl;
   }
 
+  async createSignedUploadUrl(
+    objectPath: string,
+    contentType: string,
+  ): Promise<{ uploadUrl: string; method: 'PUT' }> {
+    const [uploadUrl] = await this.storage
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .getSignedUrl({
+        action: 'write',
+        expires: Date.now() + 1000 * 60 * 15,
+        version: 'v4',
+        contentType,
+      });
+
+    return { uploadUrl, method: 'PUT' };
+  }
+
   async importGeneratedVideo(
     sourceUrl: string,
     objectPath: string,
