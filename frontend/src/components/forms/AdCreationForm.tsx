@@ -18,7 +18,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { useState, useEffect, useCallback } from "react";
 import { createAdJob, getAdJobResult } from "@/lib/api";
-import { useProject } from "@/lib/firebase/hooks";
+import { useProject, useProducts, useProduct } from "@/lib/firebase/hooks";
 import { useAuth } from "@/lib/firebase/auth-provider";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
@@ -86,6 +86,8 @@ export function AdCreationForm() {
   const [activeProjectId, setActiveProjectId] = useState<string | undefined>(
     undefined,
   );
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
+
   const isFirebaseConfigured =
     typeof process.env.NEXT_PUBLIC_FIREBASE_API_KEY === "string" &&
     process.env.NEXT_PUBLIC_FIREBASE_API_KEY.trim().length > 0 &&
@@ -101,6 +103,15 @@ export function AdCreationForm() {
   const { project, error: projectError } = useProject(
     isFirebaseConfigured ? businessId : undefined,
     isFirebaseConfigured ? activeProjectId : undefined,
+  );
+  const { products } = useProducts(
+    isFirebaseConfigured && isAuthenticated ? businessId : undefined,
+  );
+  const { product: selectedProduct } = useProduct(
+    isFirebaseConfigured && isAuthenticated && selectedProductId
+      ? businessId
+      : undefined,
+    selectedProductId || undefined,
   );
 
   const showGenerationError = useCallback(
@@ -250,7 +261,10 @@ export function AdCreationForm() {
 
       const payload = {
         businessId: businessId,
-        productId: "test-product-id",
+        productId:
+          selectedProductId && selectedProductId !== "__none__"
+            ? selectedProductId
+            : "test-product-id",
         createdBy: user.uid,
         prompt_inputs: {
           prompt: values.prompt,
@@ -298,6 +312,60 @@ export function AdCreationForm() {
             : "Not signed in. Please sign in to generate ads."}
         </p>
       </div>
+
+      {/* Product picker */}
+      {isAuthenticated && products.length > 0 && (
+        <div className="rounded-2xl border border-foreground/10 bg-background/60 px-4 py-3 text-left shadow-sm backdrop-blur-sm">
+          <p className="mb-2 text-sm font-semibold text-foreground/90">
+            Product
+          </p>
+          <Select
+            value={selectedProductId}
+            onValueChange={(val) => {
+              setSelectedProductId(val === "__none__" ? "" : val);
+              const picked = products.find((p) => p.id === val);
+              if (picked) {
+                form.setValue("product_name", picked.name ?? "");
+                form.setValue("product_description", picked.description ?? "");
+                form.setValue(
+                  "product_benefits",
+                  (picked.benefits ?? []).join(", "),
+                );
+                form.setValue("product_urls", (picked.urls ?? []).join(", "));
+                if (picked.defaults?.tone) {
+                  form.setValue("tone", picked.defaults.tone);
+                }
+                if (picked.defaults?.targetAudience) {
+                  form.setValue(
+                    "target_audience",
+                    picked.defaults.targetAudience,
+                  );
+                }
+                if (picked.defaults?.cta) {
+                  form.setValue("cta", picked.defaults.cta);
+                }
+              }
+            }}
+          >
+            <SelectTrigger className="h-9 w-full rounded-lg text-sm">
+              <SelectValue placeholder="Select a product…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">No product selected</SelectItem>
+              {products.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedProduct && (
+            <p className="mt-2 text-xs text-muted-foreground line-clamp-1">
+              {selectedProduct.description ?? "No description"}
+            </p>
+          )}
+        </div>
+      )}
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
