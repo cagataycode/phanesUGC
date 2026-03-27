@@ -1,5 +1,5 @@
-import React from 'react';
-import { AbsoluteFill, Sequence, Video, useCurrentFrame } from 'remotion';
+import React, { useMemo } from 'react';
+import { AbsoluteFill, Sequence, Video, useCurrentFrame, prefetch } from 'remotion';
 import { RenderRequest } from '../constants';
 import {
   getSubtitleTimelineState,
@@ -83,6 +83,8 @@ export const KaraokeSubtitledVideo: React.FC<RenderRequest> = ({
   phrases,
   fps,
 }) => {
+  useMemo(() => prefetch(videoUrl), [videoUrl]);
+
   const frame = useCurrentFrame();
   const renderPhrases = resolveRenderPhrases(segments, phrases);
   const subtitleState = getSubtitleTimelineState({
@@ -98,7 +100,10 @@ export const KaraokeSubtitledVideo: React.FC<RenderRequest> = ({
   return (
     <AbsoluteFill style={{ backgroundColor: 'black' }}>
       <Sequence from={0}>
-        <Video src={videoUrl} style={{ width: '100%', height: '100%' }} />
+        <Video
+          src={videoUrl}
+          style={{ width: '100%', height: '100%' }}
+        />
       </Sequence>
       {captionPresentation ? (
         <div style={containerStyle}>
