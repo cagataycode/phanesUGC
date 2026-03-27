@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { AbsoluteFill, Sequence, Video, useCurrentFrame, prefetch } from 'remotion';
+import { AbsoluteFill, Sequence, Video, useCurrentFrame } from 'remotion';
 import { RenderRequest } from '../constants';
 import {
   getSubtitleTimelineState,
