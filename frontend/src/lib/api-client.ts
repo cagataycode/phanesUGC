@@ -2,7 +2,7 @@ import { auth } from "./firebase";
 import { getIdToken } from "firebase/auth";
 
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
 interface FetchOptions extends RequestInit {
   requireAuth?: boolean;
