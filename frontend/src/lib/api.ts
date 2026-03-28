@@ -1,7 +1,6 @@
 import { fetchWithAuth } from "./api-client";
 
 export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
-const API_BASE_URL = "/api";
 
 // Models based on PRD Section 11.1
 export interface AdPromptInputs {

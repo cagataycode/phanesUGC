@@ -18,10 +18,15 @@ export async function fetchWithAuth(
 ): Promise<Response> {
   const { requireAuth = true, headers = {}, ...rest } = options;
 
+  console.log('[fetchWithAuth] auth:', auth);
+  console.log('[fetchWithAuth] auth.currentUser:', auth?.currentUser);
+  console.log('[fetchWithAuth] requireAuth:', requireAuth);
+
   let authHeader = {};
   if (requireAuth && auth?.currentUser) {
     try {
       const token = await getIdToken(auth.currentUser);
+      console.log('[fetchWithAuth] Got token:', token ? 'YES' : 'NO');
       authHeader = { Authorization: `Bearer ${token}` };
     } catch (error) {
       console.error("Failed to fetch Firebase ID token for request:", error);
@@ -29,6 +34,8 @@ export async function fetchWithAuth(
         throw new Error("Authentication required but token fetch failed");
       }
     }
+  } else {
+    console.log('[fetchWithAuth] Skipping auth - auth or currentUser is null');
   }
 
   const isAbsoluteUrl = /^https?:\/\//i.test(endpoint);
