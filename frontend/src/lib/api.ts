@@ -1,3 +1,5 @@
+import { fetchWithAuth } from "./api-client";
+
 export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 const API_BASE_URL = "/api";
 
@@ -72,9 +74,8 @@ export async function createAdJob(
     });
   }
 
-  const res = await fetch(`${API_BASE_URL}/ads`, {
+  const res = await fetchWithAuth(`/ads`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
 
@@ -116,7 +117,7 @@ export async function getAdJobStatus(
     });
   }
 
-  const res = await fetch(`${API_BASE_URL}/ads/${id}?businessId=${businessId}`);
+  const res = await fetchWithAuth(`/ads/${id}?businessId=${businessId}`);
   if (!res.ok) throw new Error("Failed to fetch ad job status");
   return res.json();
 }
@@ -149,7 +150,7 @@ export async function getAdJobResult(
   const query = businessId
     ? `?businessId=${encodeURIComponent(businessId)}`
     : "";
-  const res = await fetch(`${API_BASE_URL}/ads/${id}/result${query}`);
+  const res = await fetchWithAuth(`/ads/${id}/result${query}`);
   if (!res.ok) throw new Error("Failed to fetch ad job result");
   return res.json();
 }
