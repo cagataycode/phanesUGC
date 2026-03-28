@@ -16,6 +16,11 @@ export const envSchema = z.object({
     .enum(['development', 'test', 'production'])
     .default('development'),
   API_PREFIX: z.string().min(1).default('api'),
+  REMOTION_RENDER_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(5 * 60 * 1000),
 });
 
 export type Env = z.infer<typeof envSchema>;
