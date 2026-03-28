@@ -3,6 +3,7 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -14,6 +15,8 @@ export interface AuthenticatedRequest extends Request {
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
+  private readonly logger = new Logger(FirebaseAuthGuard.name);
+
   constructor(private readonly authService: AuthService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -21,6 +24,7 @@ export class FirebaseAuthGuard implements CanActivate {
     const authorization = request.headers.authorization;
 
     if (!authorization || !authorization.startsWith('Bearer ')) {
+      this.logger.warn('Missing or invalid authorization header');
       throw new UnauthorizedException(
         'Missing or invalid authorization header',
       );
@@ -28,6 +32,7 @@ export class FirebaseAuthGuard implements CanActivate {
 
     const token = authorization.split('Bearer ')[1];
     if (!token) {
+      this.logger.warn('Token not found in authorization header');
       throw new UnauthorizedException(
         'Token not found in authorization header',
       );
@@ -37,7 +42,10 @@ export class FirebaseAuthGuard implements CanActivate {
       const decodedToken = await this.authService.verifyIdToken(token);
       request.user = decodedToken;
       return true;
-    } catch {
+    } catch (error) {
+      this.logger.warn(
+        `Authentication failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
       throw new UnauthorizedException('Unauthorized access');
     }
   }
