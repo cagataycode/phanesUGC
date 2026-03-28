@@ -1,5 +1,6 @@
 import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { AssetsService } from './assets.service';
 import {
@@ -8,7 +9,7 @@ import {
 } from './dto/create-upload-url.dto';
 
 @Controller('v1/businesses/:businessId/assets')
-@UseGuards(FirebaseAuthGuard)
+@UseGuards(FirebaseAuthGuard, RolesGuard)
 export class AssetsController {
   constructor(private readonly assetsService: AssetsService) {}
 

@@ -1,8 +1,18 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { AdsService } from './ads.service';
 import { CreateAdDto } from './dto/create-ad.dto';
+import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
 
 @Controller('ads')
+@UseGuards(FirebaseAuthGuard)
 export class AdsController {
   constructor(private readonly adsService: AdsService) {}
 

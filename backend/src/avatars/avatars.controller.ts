@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
 import { GetUser } from '../auth/get-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { AvatarsService } from './avatars.service';
@@ -25,7 +26,7 @@ import {
 } from './dto/update-avatar.dto';
 
 @Controller('v1/businesses/:businessId/avatars')
-@UseGuards(FirebaseAuthGuard)
+@UseGuards(FirebaseAuthGuard, RolesGuard)
 export class AvatarsController {
   constructor(private readonly avatarsService: AvatarsService) {}
 
