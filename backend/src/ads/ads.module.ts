@@ -7,9 +7,10 @@ import { ScriptGenerationService } from './services/script-generation.service';
 import { VertexAiService } from '../ai/vertex-ai.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
 import { RenderModule } from '../render/render.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [RenderModule],
+  imports: [RenderModule, AuthModule],
   controllers: [AdsController],
   providers: [
     AdsService,
