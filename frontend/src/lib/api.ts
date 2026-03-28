@@ -48,12 +48,27 @@ export interface AdJobStatusResponse {
 }
 
 export interface AdJobResultResponse {
-  video_url: string;
+  video_url?: string;
+  source_video_url?: string;
   thumbnail_url?: string;
-  script: Record<string, unknown>;
+  script: Record<string, unknown> | null;
+  creativeBrief: Record<string, unknown> | null;
   subtitles: unknown[];
   transcript: unknown[];
   metadata: Record<string, unknown>;
+  generationConfig: {
+    platform?: string;
+    aspectRatio?: string;
+    durationSec?: number;
+  };
+  timestamps: {
+    createdAt: string | null;
+    updatedAt: string | null;
+  };
+  pipeline: {
+    status: string;
+    stages: Record<string, string>;
+  };
 }
 
 /**
@@ -87,7 +102,7 @@ export async function createAdJob(
  */
 export async function getAdJobStatus(
   id: string,
-  businessId: string = "test-business-id",
+  businessId: string,
 ): Promise<AdJobStatusResponse> {
   if (USE_MOCK) {
     return new Promise((resolve) => {
@@ -128,24 +143,6 @@ export async function getAdJobResult(
   id: string,
   businessId?: string,
 ): Promise<AdJobResultResponse> {
-  if (USE_MOCK) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          // Mock video (Big Buck Bunny via open storage)
-          video_url:
-            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-          thumbnail_url:
-            "https://images.unsplash.com/photo-1616469829581-73993eb86b02",
-          script: {},
-          subtitles: [],
-          transcript: [],
-          metadata: {},
-        });
-      }, 600);
-    });
-  }
-
   const query = businessId
     ? `?businessId=${encodeURIComponent(businessId)}`
     : "";
