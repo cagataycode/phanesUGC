@@ -1,4 +1,6 @@
-const API_BASE_URL = "/api";
+import { fetchWithAuth } from "./api-client";
+
+export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 // Models based on PRD Section 11.1
 export interface AdPromptInputs {
@@ -75,11 +77,24 @@ export interface AdJobResultResponse {
 export async function createAdJob(
   payload: AdJobRequest,
 ): Promise<AdJobResponse> {
-  const res = await fetch(`${API_BASE_URL}/ads`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  if (USE_MOCK) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          id: `ad_${Math.random().toString(36).substring(7)}`,
+          status: "queued",
+        });
+      }, 800);
+    });
+  }
+
+  const res = await fetchWithAuth(
+    `/ads?businessId=${encodeURIComponent(payload.businessId)}`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 
   if (!res.ok) throw new Error("Failed to create ad job");
   return res.json();
@@ -92,7 +107,36 @@ export async function getAdJobStatus(
   id: string,
   businessId: string,
 ): Promise<AdJobStatusResponse> {
-  const res = await fetch(`${API_BASE_URL}/ads/${id}?businessId=${businessId}`);
+  if (USE_MOCK) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const numericSeed = Number.parseInt(
+          id.replace(/\D/g, "").slice(-2) || "0",
+          10,
+        );
+        const timestampBucket = Math.floor(Date.now() / 1500);
+        const progress = Math.min(
+          ((timestampBucket + numericSeed) % 8) * 15,
+          100,
+        );
+
+        resolve({
+          id,
+          status: progress >= 100 ? "completed" : "processing",
+          ...(progress >= 100
+            ? {
+                video_url:
+                  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+              }
+            : {}),
+        });
+      }, 500);
+    });
+  }
+
+  const res = await fetchWithAuth(
+    `/ads/${id}?businessId=${encodeURIComponent(businessId)}`,
+  );
   if (!res.ok) throw new Error("Failed to fetch ad job status");
   return res.json();
 }
@@ -102,12 +146,10 @@ export async function getAdJobStatus(
  */
 export async function getAdJobResult(
   id: string,
-  businessId?: string,
+  businessId: string,
 ): Promise<AdJobResultResponse> {
-  const query = businessId
-    ? `?businessId=${encodeURIComponent(businessId)}`
-    : "";
-  const res = await fetch(`${API_BASE_URL}/ads/${id}/result${query}`);
+  const query = `?businessId=${encodeURIComponent(businessId)}`;
+  const res = await fetchWithAuth(`/ads/${id}/result${query}`);
   if (!res.ok) throw new Error("Failed to fetch ad job result");
   return res.json();
 }

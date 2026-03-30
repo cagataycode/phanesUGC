@@ -20,6 +20,16 @@ service cloud.firestore {
         allow write: if isMember(bizId);
       }
 
+      match /avatars/{avatarId} {
+        allow read: if isMember(bizId);
+        allow write: if isMember(bizId);
+      }
+
+      match /assets/{assetId} {
+        allow read: if isMember(bizId);
+        allow write: if isMember(bizId);
+      }
+
       match /projects/{projectId} {
         allow read: if isMember(bizId);
         allow create: if isMember(bizId);

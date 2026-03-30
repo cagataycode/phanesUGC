@@ -12,24 +12,12 @@ export class UsersController {
   @Get('me')
   async getMe(@GetUser() user: DecodedIdToken) {
     const userProfile = await this.usersService.getOrCreateUser(user);
+    const platformContext =
+      await this.usersService.getUserPlatformContext(userProfile);
 
-    // We can also compute and return the PlatformContext here as described in the PRD
     return {
       platform_ready: true,
-      platform_context: {
-        user_id: userProfile?.uid,
-        account_id: userProfile?.defaultBusinessId,
-        role: 'owner', // Defaulting for simple onboarding response
-        subscription_tier: 'free',
-        entitlement_source: 'subscription',
-        entitlements: {
-          // placeholder for entitlements
-          can_generate_ads: true,
-          can_render_final: false,
-          can_regenerate_scene: false,
-          max_duration_sec: 30,
-        },
-      },
+      platform_context: platformContext,
       profile: userProfile,
     };
   }

@@ -25,6 +25,11 @@ export async function fetchWithAuth(
       authHeader = { Authorization: `Bearer ${token}` };
     } catch (error) {
       console.error("Failed to fetch Firebase ID token for request:", error);
+      if (requireAuth) {
+        throw new Error("Authentication required but token fetch failed", {
+          cause: error,
+        });
+      }
     }
   }
 

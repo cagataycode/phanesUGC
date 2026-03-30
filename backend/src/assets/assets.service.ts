@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { GcsStorageService } from '../storage/gcs-storage.service';
 import type { CreateUploadUrlDto } from './dto/create-upload-url.dto';
@@ -11,12 +11,20 @@ export class AssetsService {
     return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
   }
 
+  private validateEntityId(entityId: string): void {
+    // Validate entityId is a valid UUID or alphanumeric (allowing - and _)
+    if (!/^[a-zA-Z0-9_-]+$/.test(entityId)) {
+      throw new BadRequestException('Invalid entity ID');
+    }
+  }
+
   buildObjectPath(
     businessId: string,
     entityType: 'product' | 'avatar',
     entityId: string,
     dto: CreateUploadUrlDto,
   ): string {
+    this.validateEntityId(entityId);
     const safeFilename = this.sanitizeFilename(dto.filename);
     const uniqueName = `${Date.now()}-${randomUUID()}-${safeFilename}`;
 

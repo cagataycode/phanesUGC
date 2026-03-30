@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { Env } from './config/env';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -9,10 +10,22 @@ async function bootstrap() {
   const apiPrefix = configService.get('API_PREFIX', { infer: true }) ?? 'api';
   const port = configService.get('PORT', { infer: true }) ?? 3000;
 
+  app.useGlobalFilters(new AllExceptionsFilter());
+
   app.enableCors({
-    origin: ['http://localhost:3001', 'http://127.0.0.1:3001'],
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3001',
+      'https://phanesugc.com',
+    ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Business-Id',
+      'x-business-id',
+    ],
     credentials: true,
   });
 
