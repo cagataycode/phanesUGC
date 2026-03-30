@@ -57,7 +57,7 @@ Before request intake begins, the platform layer must already provide:
 | `cta`                 | string   | Call-to-action text                                         |
 | `visual_style`        | string   | `dynamic`, `minimalist`, `bold`, `cinematic`                |
 | `script_style`        | string   | `professional`, `casual`, `enthusiastic`, `direct`          |
-| `subtitle_style`      | enum     | `standard`, `kinetic`, `karaoke`                            |
+| `subtitle_style`      | enum     | `standard`, `kinetic`                                               |
 | `no_background_music` | boolean  | Disable background music                                    |
 | `no_caption`          | boolean  | Disable subtitles                                           |
 | `no_cta`              | boolean  | Disable CTA overlay                                         |

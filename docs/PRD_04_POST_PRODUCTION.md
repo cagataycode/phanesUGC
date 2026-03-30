@@ -7,7 +7,7 @@
 
 ## 1. Phase Objective
 
-Receive the video and synchronized subtitle data from Veo 3.1 and assemble all media into a deterministic render timeline specification.
+Receive the generated video from Veo 3.1 and the script-derived subtitle track (generated in parallel), then assemble all media into a deterministic render timeline specification.
 
 This phase bridges raw media generation into a complete, renderable video specification.
 
@@ -16,9 +16,10 @@ This phase bridges raw media generation into a complete, renderable video specif
 ## 2. Pipeline Stages in This Phase
 
 ```
-Brief + GlobalParams
-  → Stage 10: Veo 3.1 Generation (Video + Subtitles)
-  → Stage 11: Subtitle Formatting
+AdScript + ScenePlan + GlobalParams
+  → Stage 10: Veo 3.1 Generation (Video only)       ← async
+  → Stage 11: Subtitle Generation (from script)      ← async, parallel with Stage 10
+  → Stage 11.5: Subtitle Scaling Correction           ← after Stage 10 completes
   → Stage 12: Timeline Assembly
   → Output: SubtitleTrack + RenderTimeline
 ```
@@ -29,24 +30,48 @@ Brief + GlobalParams
 
 ### 3.1 Purpose
 
-Generate the core video content along with precisely synchronized word-level subtitle segments in a single API call.
+Generate the core video content with embedded speech in a single API call. Veo does **not** provide subtitle data — subtitles are generated separately from the script.
 
 ### 3.2 Output Verification
 
 The system must verify that the Veo 3.1 output contains:
 - Video storage key
-- Subtitle segments array
-- Word-level timestamps within segments
+- Actual video duration (for subtitle scaling correction)
 
 ---
 
-## 4. Stage 11: Subtitle Formatting
+## 4. Stage 11: Script-Derived Subtitle Generation
 
 ### 4.1 Purpose
 
-Convert the raw word-level timing data from Veo 3.1 into the internal `SubtitleTrack` format used by the Remotion renderer.
+Generate subtitle chunks algorithmically from the `AdScript` and `ScenePlan[]` artifacts. This stage runs **in parallel** with Veo video generation (Stage 10) — no dependency on Veo output.
 
-### 4.2 Subtitle Style Presets
+### 4.2 Generation Algorithm
+
+```
+For each scene in ScenePlan[]:
+  1. Take scene.narration text and scene.duration_sec
+  2. Split narration into chunks of 3-4 words using phrase-aware breaking
+  3. Calculate words-per-second rate: scene word count / scene duration
+  4. Distribute chunk timestamps evenly across scene duration (~2.5 words/sec)
+  5. Assign start_sec and end_sec to each chunk
+  6. Map chunk to parent scene_id
+  7. Apply scene start offset (cumulative from previous scenes)
+```
+
+### 4.3 Chunking Rules
+
+| Rule | Value |
+|---|---|
+| Target words per chunk | 3-4 |
+| Max words per chunk | 5 (only if breaking would create orphan) |
+| Min words per chunk | 2 (avoid single-word orphans) |
+| Max lines on screen | 2 |
+| Min display duration | 0.8 seconds |
+| Prefer break at | Punctuation (`.` `,` `!` `?` `—`) |
+| Avoid | Single-word chunks, mid-phrase breaks |
+
+### 4.4 Subtitle Style Presets
 
 #### Standard Bold Caption
 
@@ -63,7 +88,7 @@ Convert the raw word-level timing data from Veo 3.1 into the internal `SubtitleT
   "position": "bottom",
   "bottom_offset_percent": 15,
   "text_align": "center",
-  "highlight_active_word": false
+  "highlight_active_chunk": false
 }
 ```
 
@@ -76,35 +101,14 @@ Convert the raw word-level timing data from Veo 3.1 into the internal `SubtitleT
   "font_size": 56,
   "font_weight": "extra-bold",
   "color": "#FFFFFF",
-  "active_word_color": "#FFD700",
+  "active_chunk_color": "#FFD700",
   "background": "none",
   "text_shadow": "2px 2px 8px rgba(0,0,0,0.8)",
   "position": "center",
   "bottom_offset_percent": 35,
   "text_align": "center",
-  "highlight_active_word": true,
+  "highlight_active_chunk": true,
   "animation": "scale_pop"
-}
-```
-
-#### Karaoke Word Highlight Caption
-
-```json
-{
-  "style": "karaoke",
-  "font_family": "Poppins",
-  "font_size": 52,
-  "font_weight": "bold",
-  "color": "rgba(255, 255, 255, 0.5)",
-  "active_word_color": "#FFFFFF",
-  "active_word_background": "#FF6B35",
-  "active_word_scale": 1.1,
-  "background": "none",
-  "position": "bottom",
-  "bottom_offset_percent": 18,
-  "text_align": "center",
-  "highlight_active_word": true,
-  "animation": "color_fill"
 }
 ```
 
@@ -119,48 +123,57 @@ Convert the raw word-level timing data from Veo 3.1 into the internal `SubtitleT
     {
       "id": 1,
       "start_sec": 0.42,
-      "end_sec": 2.35,
-      "text": "Still spending hours\nediting ad videos?",
-      "lines": [
-        "Still spending hours",
-        "editing ad videos?"
-      ],
-      "words": [
-        {"word": "Still", "start_sec": 0.42, "end_sec": 0.68, "is_active": false},
-        {"word": "spending", "start_sec": 0.69, "end_sec": 1.12, "is_active": false},
-        {"word": "hours", "start_sec": 1.13, "end_sec": 1.45, "is_active": false},
-        {"word": "editing", "start_sec": 1.46, "end_sec": 1.78, "is_active": false},
-        {"word": "ad", "start_sec": 1.79, "end_sec": 1.92, "is_active": false},
-        {"word": "videos?", "start_sec": 1.93, "end_sec": 2.35, "is_active": false}
-      ],
+      "end_sec": 1.45,
+      "text": "Still spending hours",
       "scene_id": 1
     },
     {
       "id": 2,
+      "start_sec": 1.46,
+      "end_sec": 2.35,
+      "text": "editing ad videos?",
+      "scene_id": 1
+    },
+    {
+      "id": 3,
       "start_sec": 4.70,
+      "end_sec": 5.98,
+      "text": "AdPilot turns your",
+      "scene_id": 2
+    },
+    {
+      "id": 4,
+      "start_sec": 5.99,
+      "end_sec": 7.40,
+      "text": "product info into",
+      "scene_id": 2
+    },
+    {
+      "id": 5,
+      "start_sec": 7.41,
       "end_sec": 8.20,
-      "text": "AdPilot turns your product info\ninto scroll-stopping ads",
-      "lines": [
-        "AdPilot turns your product info",
-        "into scroll-stopping ads"
-      ],
-      "words": [
-        {"word": "AdPilot", "start_sec": 4.70, "end_sec": 5.15, "is_active": false},
-        {"word": "turns", "start_sec": 5.16, "end_sec": 5.42, "is_active": false},
-        {"word": "your", "start_sec": 5.43, "end_sec": 5.60, "is_active": false},
-        {"word": "product", "start_sec": 5.61, "end_sec": 5.98, "is_active": false},
-        {"word": "info", "start_sec": 5.99, "end_sec": 6.30, "is_active": false},
-        {"word": "into", "start_sec": 6.31, "end_sec": 6.52, "is_active": false},
-        {"word": "scroll-stopping", "start_sec": 6.53, "end_sec": 7.40, "is_active": false},
-        {"word": "ads", "start_sec": 7.41, "end_sec": 8.20, "is_active": false}
-      ],
+      "text": "scroll-stopping ads",
       "scene_id": 2
     }
   ],
-  "total_segments": 6,
+  "total_segments": 12,
   "srt_storage_key": "ads/ad-uuid/subtitles/captions.srt"
 }
 ```
+
+### 5.7 Stage 11.5: Subtitle Scaling Correction
+
+After Veo returns the actual video, the system applies a linear scaling correction to all subtitle timestamps:
+
+```
+scaling_factor = actual_video_duration / planned_total_duration
+
+For each segment:
+  segment.start_sec = segment.start_sec × scaling_factor
+  segment.end_sec   = segment.end_sec   × scaling_factor
+```
+
+This ensures subtitle timing matches the actual video even if Veo produces a slightly different duration than planned.
 
 ### 5.7 SRT File Generation
 
@@ -387,9 +400,9 @@ Before transitioning to Phase 5 (Rendering), the agent checks:
 | --------------------------------------- | ------------------------- | ------------------------------ |
 | All scenes have media layers            | Yes                       | Asset resolution retry         |
 | Audio track exists and is playable      | Yes                       | TTS retry                      |
-| Subtitle track has segments             | Yes (unless `no_caption`) | Transcription retry            |
-| Subtitle segments cover speech duration | Yes                       | Re-chunk subtitles             |
-| No subtitle overlap                     | Yes                       | Re-chunk with gap enforcement  |
+| Subtitle track has segments             | Yes (unless `no_caption`) | Re-chunk from script             |
+| Subtitle segments cover narration       | Yes                       | Re-chunk from script             |
+| No subtitle overlap                     | Yes                       | Re-chunk with gap enforcement    |
 | Scene durations match audio boundaries  | Yes                       | Reassemble timeline            |
 | Total duration is within tolerance      | Yes                       | Flag but accept                |
 | All GCS references are valid            | Yes                       | Verify and re-upload if needed |
@@ -399,11 +412,11 @@ Before transitioning to Phase 5 (Rendering), the agent checks:
 
 ## 8. Implementation Services
 
-| Service                         | Responsibility                                 |
-| ------------------------------- | ---------------------------------------------- |
-| `SubtitleGeneratorService`      | Transcription → alignment → chunking → styling |
-| `TimelineAssemblerService`      | Combine all artifacts into render spec         |
-| `SpeechAlignmentAdapter` (impl) | Chirp transcription + forced alignment         |
+| Service                         | Responsibility                                                         |
+| ------------------------------- | ---------------------------------------------------------------------- |
+| `SubtitleGeneratorService`      | Script narration → phrase-aware chunking → WPM-based timing → styling |
+| `SubtitleScalingService`        | Post-Veo duration correction (linear scaling of timestamps)            |
+| `TimelineAssemblerService`      | Combine all artifacts into render spec                                 |
 
 ---
 
@@ -423,7 +436,7 @@ Before transitioning to Phase 5 (Rendering), the agent checks:
 
 | Operation           | Provider                 | Estimated Cost     |
 | ------------------- | ------------------------ | ------------------ |
-| Chirp transcription | Vertex AI Speech-to-Text | ~$0.016 per minute |
-| Forced alignment    | Computed locally         | Compute only       |
+| Subtitle generation | Algorithmic              | Compute only       |
+| Subtitle scaling    | Algorithmic              | Compute only       |
 | Subtitle chunking   | Algorithmic              | Compute only       |
 | Timeline assembly   | Algorithmic              | Compute only       |

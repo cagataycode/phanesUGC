@@ -7,7 +7,7 @@
 
 ## 1. Phase Objective
 
-For each planned scene, resolve the visual asset — selecting from uploaded media, scraped product images, stock footage, AI-generated images, or AI-generated video. Then generate scene video output using Veo, with embedded speech treated as the source-of-truth voice track for downstream subtitle timing.
+For each planned scene, resolve the visual asset — selecting from uploaded media, scraped product images, stock footage, AI-generated images, or AI-generated video. Then generate scene video output using Veo, with embedded speech as the ad voiceover.
 
 This phase converts the abstract scene plan into concrete media files ready for composition.
 
@@ -216,7 +216,7 @@ Used when the scene specifically needs motion, spoken output, or no suitable sto
 - Scene type is `lifestyle` or `abstract` and no stock video found
 - Scene requires custom motion that can't be achieved with Ken Burns on a still image
 - The agent determines that a static image would not serve the scene purpose
-- Scene requires generated spoken output that should later drive subtitle timing
+- Scene requires generated spoken output
 
 **Veo is NOT used for:**
 
@@ -324,7 +324,7 @@ The canonical production path uses Veo scene/video generation with embedded spee
 
 ### 4.1 Purpose
 
-Convert the complete script narration into a voiceover audio track. The voice track is the temporal backbone of the ad — subtitle timing and scene timing are derived from it.
+Convert the complete script narration into a voiceover audio track. The voice track is the temporal backbone of the ad — scene timing is derived from it. Subtitle timing is derived from the script's planned durations.
 
 ### 4.2 Voice Generation Strategy
 
@@ -420,7 +420,7 @@ Google Cloud TTS can return timing data via `enableTimePointing`. If available, 
 - Start time of each SSML `<mark>` tag
 - This gives scene boundary timestamps
 
-If word-level timing is not available from TTS, it will be recovered in Phase 4 via transcription and forced alignment.
+Subtitle timing is derived from the script's planned durations, not from TTS timing data.
 
 ### 4.6 Speaking Rate Adjustment
 

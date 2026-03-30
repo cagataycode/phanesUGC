@@ -425,11 +425,11 @@ The agent retries the **smallest failing unit** rather than restarting the full 
 | Asset resolution    | Stock search returns nothing  | Fall to Imagen generation                                      |
 | Asset resolution    | Imagen fails                  | Fall to gradient placeholder                                   |
 | Video generation    | Veo error                     | Retry generation                                               |
-| Subtitle generation | Formatting error              | Re-format with relaxed rules                                   |
+| Subtitle generation | Chunking error              | Re-chunk from script with relaxed rules                        |
 | Timeline assembly   | Validation error              | Reassemble from artifacts                                      |
 | Render              | Timeout                       | Retry with lower quality settings                              |
 | Output validation   | Black frames detected         | Re-render                                                      |
-| Output validation   | Missing audio                 | Re-generate via Veo and re-render              |
+| Output validation   | Missing audio                 | Re-generate via Veo and re-render                              |
 
 ### 7.3 Fallback Chain
 
@@ -490,7 +490,7 @@ POST /api/v1/ads/{id}/scenes/{scene_id}/regenerate
 1. Keep all other scenes and artifacts intact
 2. Re-run scene planning for the target scene only
 3. Re-resolve asset for the target scene
-4. If narration changed: re-generate via Veo, re-format subtitles
+4. If narration changed: re-generate via Veo, re-derive subtitles from updated script
 5. Reassemble timeline with updated scene
 6. Re-render
 
@@ -666,7 +666,8 @@ Stage progress bar:
   ✓ Script written
   ✓ Scenes planned
   ✓ Assets resolved
-  ✓ Video + Subtitles generated via Veo 3.1
+  ✓ Video generated via Veo 3.1
+  ✓ Subtitles generated from script
   ✓ Timeline assembled
   ⏳ Rendering... (72%)
   ○ Validating
@@ -711,8 +712,8 @@ The MVP is considered complete and ready for launch when:
 7. ✅ Scenes are planned with visual instructions
 8. ✅ Assets are resolved per scene (upload > scraped > stock > generated)
 9. ✅ Video is generated via Veo 3.1
-10. Subtitles are provided directly by Veo 3.1 with word-level timing
-11. ✅ Subtitles support 3 style presets (standard, kinetic, karaoke)
+10. Subtitles are generated algorithmically from the script with phrase-level timing
+11. ✅ Subtitles support 2 style presets (standard, kinetic)
 12. ✅ Timeline is assembled from all artifacts
 13. ✅ Preview can be generated before full render
 14. ✅ Final video renders at 1080×1920 (9:16)
@@ -764,7 +765,7 @@ The MVP is considered complete and ready for launch when:
 | ------------------------------------------------- | ------------------ |
 | Gemini LLM calls (brief + script + scenes + eval) | ~$0.01             |
 | Stock media search                                | Free (API tier)    |
-| Veo 3.1 generation (video + subtitles) | Vertex AI           | ~$0.50             |
+| Veo 3.1 generation (video)                        | Vertex AI           | ~$0.50             |
 | Remotion render (Cloud Run compute)               | ~$0.05             |
 | GCS storage                                       | ~$0.001            |
 | **Total estimated cost**                          | **~$0.10 - $0.45** |
