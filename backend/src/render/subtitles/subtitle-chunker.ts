@@ -7,6 +7,41 @@ import {
 const HARD_BREAK_PUNCTUATION_REGEX = /[.!?]/u;
 const SOFT_BREAK_PUNCTUATION_REGEX = /[,;:]/u;
 
+// Placeholder for the actual ScenePlan type
+export interface SimpleScene {
+  narration: string;
+  duration_sec: number;
+}
+
+export const generateSubtitlesFromScenes = (
+  scenes: SimpleScene[],
+  options: Partial<SubtitleChunkingOptions> = {},
+): SubtitlePhrase[] => {
+  let globalTimeOffset = 0;
+  const allPhrases: SubtitlePhrase[] = [];
+
+  scenes.forEach((scene) => {
+    const scenePhrases = generateScriptSubtitles(
+      scene.narration,
+      scene.duration_sec,
+      options,
+    );
+
+    scenePhrases.forEach((phrase) => {
+      allPhrases.push({
+        ...phrase,
+        id: `phrase-${allPhrases.length}`,
+        start: phrase.start + globalTimeOffset,
+        end: phrase.end + globalTimeOffset,
+      });
+    });
+
+    globalTimeOffset += scene.duration_sec;
+  });
+
+  return allPhrases;
+};
+
 export const generateScriptSubtitles = (
   text: string,
   durationSec: number,

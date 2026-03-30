@@ -9,8 +9,9 @@ import { GcsStorageService } from '../storage/gcs-storage.service';
 import { RenderService } from '../render/render.service';
 
 import {
-  generateScriptSubtitles,
+  generateSubtitlesFromScenes,
   scaleSubtitleTimestamps,
+  SimpleScene,
 } from '../render/subtitles/subtitle-chunker';
 import { GeneratedScript } from './types/generated-script';
 import { VideoUtilsService } from '../common/video-utils.service';
@@ -258,6 +259,25 @@ ${script.full_text}`);
     return sections.join('\n\n');
   }
 
+  private simulateScenes(
+    script: GeneratedScript,
+    totalDuration: number,
+  ): SimpleScene[] {
+    const sentences =
+      script.full_text.match(/[^.!?]+[.!?]*/g)?.map((s) => s.trim()) ?? [];
+    if (sentences.length === 0) {
+      return [{ narration: script.full_text, duration_sec: totalDuration }];
+    }
+
+    const totalLength = sentences.reduce((sum, s) => sum + s.length, 0);
+    const scenes: SimpleScene[] = sentences.map((sentence) => ({
+      narration: sentence,
+      duration_sec: (sentence.length / totalLength) * totalDuration,
+    }));
+
+    return scenes;
+  }
+
   private async processJob(
     businessId: string,
     projectId: string,
@@ -377,10 +397,9 @@ ${script.full_text}`);
           `[${projectId}] Video duration check: Planned=${plannedDurationSec}s, Actual=${actualDurationSec}s`,
         );
 
-        const subtitleSegments = generateScriptSubtitles(
-          script.full_text,
-          plannedDurationSec,
-        );
+        const simulatedScenes = this.simulateScenes(script, plannedDurationSec);
+        const subtitleSegments =
+          generateSubtitlesFromScenes(simulatedScenes);
 
         const scalingFactor = actualDurationSec / plannedDurationSec;
         const correctedSubtitleSegments = scaleSubtitleTimestamps(
@@ -456,6 +475,7 @@ ${script.full_text}`);
               actualDurationSec,
               scalingFactor,
             },
+            simulatedScenes,
           } as never,
           stages: {
             scrape: 'done',
