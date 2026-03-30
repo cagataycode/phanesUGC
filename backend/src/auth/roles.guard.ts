@@ -23,11 +23,6 @@ export class RolesGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    // If no roles are required, allow access
-    if (!requiredRoles) {
-      return true;
-    }
-
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const user = request.user;
 
@@ -60,6 +55,11 @@ export class RolesGuard implements CanActivate {
 
     if (!membershipSnap.exists) {
       throw new ForbiddenException('You are not a member of this business');
+    }
+
+    // If no roles are required, allow access now that membership is confirmed
+    if (!requiredRoles) {
+      return true;
     }
 
     const membershipData = membershipSnap.data();

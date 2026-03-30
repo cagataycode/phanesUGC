@@ -12,8 +12,8 @@ export class AssetsService {
   }
 
   private validateEntityId(entityId: string): void {
-    // Validate entityId is a valid UUID or alphanumeric
-    if (!/^[a-zA-Z0-9-]+$/.test(entityId)) {
+    // Validate entityId is a valid UUID or alphanumeric (allowing - and _)
+    if (!/^[a-zA-Z0-9_-]+$/.test(entityId)) {
       throw new BadRequestException('Invalid entity ID');
     }
   }

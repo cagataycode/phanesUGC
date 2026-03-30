@@ -96,8 +96,9 @@ export class RenderService {
       },
     });
 
+    let timeoutHandle: NodeJS.Timeout | undefined;
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => {
+      timeoutHandle = setTimeout(() => {
         reject(
           new Error(
             `Remotion render timed out after ${this.renderTimeoutMs}ms`,
@@ -113,6 +114,10 @@ export class RenderService {
         `Render failed or timed out: ${error instanceof Error ? error.message : String(error)}`,
       );
       throw error;
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
     }
 
     const duration = Date.now() - startTime;
