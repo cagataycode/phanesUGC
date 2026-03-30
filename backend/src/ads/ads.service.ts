@@ -415,6 +415,7 @@ ${script.full_text}`);
           durationInFrames: Math.round(actualDurationSec * 30),
           width: createAdDto.veo_config.aspect_ratio === '9:16' ? 1080 : 1920,
           height: createAdDto.veo_config.aspect_ratio === '9:16' ? 1920 : 1080,
+          subtitleStyle: createAdDto.prompt_inputs.subtitle_style ?? 'kinetic',
         });
 
         // 4. Storage & Finalization

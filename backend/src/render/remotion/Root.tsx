@@ -4,6 +4,7 @@ import {
   RenderRequest,
 } from './constants';
 import { KineticSubtitledVideo } from './compositions/KineticSubtitledVideo';
+import { StandardSubtitledVideo } from './compositions/StandardSubtitledVideo';
 
 const defaultProps: RenderRequest = {
   videoUrl: '',
@@ -12,13 +13,24 @@ const defaultProps: RenderRequest = {
   durationInFrames: 1,
   width: 1080,
   height: 1920,
+  subtitleStyle: 'kinetic',
+};
+
+const SubtitleComponent: React.FC<RenderRequest> = (props) => {
+  switch (props.subtitleStyle) {
+    case 'standard':
+      return <StandardSubtitledVideo {...props} />;
+    case 'kinetic':
+    default:
+      return <KineticSubtitledVideo {...props} />;
+  }
 };
 
 export const RemotionRoot = () => {
   return (
     <Composition
       id={REMOTION_COMPOSITION_ID}
-      component={KineticSubtitledVideo}
+      component={SubtitleComponent}
       calculateMetadata={({ props }) => {
         return {
           durationInFrames: props.durationInFrames || 1,
