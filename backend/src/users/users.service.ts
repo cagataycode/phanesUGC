@@ -20,6 +20,22 @@ export interface UserProfile {
     | admin.firestore.FieldValue;
 }
 
+export interface Entitlements {
+  can_generate_ads: boolean;
+  can_render_final: boolean;
+  can_regenerate_scene: boolean;
+  max_duration_sec: number;
+}
+
+export interface PlatformContext {
+  user_id: string;
+  account_id: string;
+  role: string;
+  subscription_tier: string;
+  entitlement_source: 'subscription';
+  entitlements: Entitlements;
+}
+
 @Injectable()
 export class UsersService {
   constructor(private readonly firestore: FirestoreService) {}
@@ -91,5 +107,60 @@ export class UsersService {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+  }
+
+  async getUserPlatformContext(
+    userProfile: UserProfile,
+  ): Promise<PlatformContext> {
+    const db = this.firestore.getFirestore();
+    const memberRef = db.doc(
+      `businesses/${userProfile.defaultBusinessId}/members/${userProfile.uid}`,
+    );
+    const memberSnap = await memberRef.get();
+
+    let role = 'member'; // Default to least-privileged
+    let subscriptionTier = 'free';
+
+    if (memberSnap.exists) {
+      const memberData = memberSnap.data() as {
+        role?: string;
+        subscriptionTier?: string;
+      };
+      role = memberData?.role || 'member';
+      subscriptionTier = memberData?.subscriptionTier || 'free';
+    }
+
+    const entitlements = this.calculateEntitlements(subscriptionTier);
+
+    return {
+      user_id: userProfile?.uid,
+      account_id: userProfile?.defaultBusinessId,
+      role,
+      subscription_tier: subscriptionTier,
+      entitlement_source: 'subscription',
+      entitlements,
+    };
+  }
+
+  private calculateEntitlements(subscriptionTier: string): Entitlements {
+    const baseEntitlements = {
+      can_generate_ads: true,
+      can_render_final: false,
+      can_regenerate_scene: false,
+      max_duration_sec: 30,
+    };
+
+    switch (subscriptionTier) {
+      case 'pro':
+        return {
+          ...baseEntitlements,
+          can_render_final: true,
+          can_regenerate_scene: true,
+          max_duration_sec: 60,
+        };
+      case 'free':
+      default:
+        return baseEntitlements;
+    }
   }
 }
