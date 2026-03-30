@@ -398,8 +398,7 @@ ${script.full_text}`);
         );
 
         const simulatedScenes = this.simulateScenes(script, plannedDurationSec);
-        const subtitleSegments =
-          generateSubtitlesFromScenes(simulatedScenes);
+        const subtitleSegments = generateSubtitlesFromScenes(simulatedScenes);
 
         const scalingFactor = actualDurationSec / plannedDurationSec;
         const correctedSubtitleSegments = scaleSubtitleTimestamps(
