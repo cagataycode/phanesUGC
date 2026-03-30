@@ -8,8 +8,12 @@ import { VertexAiService } from '../ai/vertex-ai.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
 import { RenderService } from '../render/render.service';
 
-import { generateScriptSubtitles } from '../render/subtitles/subtitle-chunker';
+import {
+  generateScriptSubtitles,
+  scaleSubtitleTimestamps,
+} from '../render/subtitles/subtitle-chunker';
 import { GeneratedScript } from './types/generated-script';
+import { VideoUtilsService } from '../common/video-utils.service';
 
 @Injectable()
 export class AdsService {
@@ -22,6 +26,7 @@ export class AdsService {
     private readonly vertexAiService: VertexAiService,
     private readonly gcsStorageService: GcsStorageService,
     private readonly renderService: RenderService,
+    private readonly videoUtilsService: VideoUtilsService,
   ) {}
 
   private parseAndFlattenPrompt(createAdDto: CreateAdDto): void {
@@ -343,14 +348,6 @@ ${script.full_text}`);
         sourceVideoStorageKey,
       );
 
-      this.logger.debug(
-        `[${projectId}] Preparing subtitles and render request`,
-      );
-      const subtitleSegments = generateScriptSubtitles(
-        script.full_text,
-        createAdDto.veo_config.duration_sec,
-      );
-
       // Ensure public dir exists (will silently succeed if it does)
       const publicDir = path.resolve(
         process.cwd(),
@@ -372,14 +369,31 @@ ${script.full_text}`);
           localSourcePath,
         );
 
-        // Remotion automatically exposes everything in the public/ folder at the root path during render
-        const videoUrlForRemotion = fileName;
+        const actualDurationSec =
+          await this.videoUtilsService.getVideoDuration(localSourcePath);
+        const plannedDurationSec = createAdDto.veo_config.duration_sec;
 
+        this.logger.log(
+          `[${projectId}] Video duration check: Planned=${plannedDurationSec}s, Actual=${actualDurationSec}s`,
+        );
+
+        const subtitleSegments = generateScriptSubtitles(
+          script.full_text,
+          plannedDurationSec,
+        );
+
+        const scalingFactor = actualDurationSec / plannedDurationSec;
+        const correctedSubtitleSegments = scaleSubtitleTimestamps(
+          subtitleSegments,
+          scalingFactor,
+        );
+
+        const videoUrlForRemotion = fileName;
         const preparedRenderRequest = this.renderService.prepareRenderRequest({
           videoUrl: videoUrlForRemotion,
-          segments: subtitleSegments,
+          segments: correctedSubtitleSegments,
           fps: 30,
-          durationInFrames: createAdDto.veo_config.duration_sec * 30,
+          durationInFrames: Math.round(actualDurationSec * 30),
           width: createAdDto.veo_config.aspect_ratio === '9:16' ? 1080 : 1920,
           height: createAdDto.veo_config.aspect_ratio === '9:16' ? 1920 : 1080,
         });
@@ -388,7 +402,7 @@ ${script.full_text}`);
         this.logger.debug(`[${projectId}] Stage 4: Subtitle rendering`);
         await this.jobStoreService.update(businessId, projectId, {
           progress: 80,
-          subtitleSegments,
+          subtitleSegments: correctedSubtitleSegments,
           stages: {
             scrape: 'done',
             brief: 'done',
@@ -407,7 +421,7 @@ ${script.full_text}`);
         );
         const renderedOutput = await this.renderService.renderToTempFile({
           ...preparedRenderRequest,
-          phrases: subtitleSegments,
+          phrases: correctedSubtitleSegments,
         });
 
         try {
@@ -426,7 +440,7 @@ ${script.full_text}`);
         await this.jobStoreService.update(businessId, projectId, {
           status: 'completed',
           progress: 100,
-          subtitleSegments,
+          subtitleSegments: correctedSubtitleSegments,
           output: {
             videoStorageKey: storageKey,
             sourceVideoStorageKey,
@@ -436,6 +450,11 @@ ${script.full_text}`);
               fps: preparedRenderRequest.fps,
               durationInFrames: preparedRenderRequest.durationInFrames,
               phraseCount: preparedRenderRequest.phrases?.length ?? 0,
+            },
+            subtitleScaling: {
+              plannedDurationSec,
+              actualDurationSec,
+              scalingFactor,
             },
           } as never,
           stages: {

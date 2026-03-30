@@ -68,6 +68,17 @@ export const generateScriptSubtitles = (
   return phrases;
 };
 
+export const scaleSubtitleTimestamps = (
+  phrases: SubtitlePhrase[],
+  scalingFactor: number,
+): SubtitlePhrase[] => {
+  return phrases.map((phrase) => ({
+    ...phrase,
+    start: Number((phrase.start * scalingFactor).toFixed(3)),
+    end: Number((phrase.end * scalingFactor).toFixed(3)),
+  }));
+};
+
 const balanceLines = (words: string[], maxLines: number): string[] => {
   if (words.length === 0) {
     return [];
@@ -90,6 +101,5 @@ const balanceLines = (words: string[], maxLines: number): string[] => {
       bestLines = [firstLine, secondLine];
     }
   }
-
   return bestLines;
 };

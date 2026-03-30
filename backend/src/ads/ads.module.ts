@@ -8,6 +8,7 @@ import { VertexAiService } from '../ai/vertex-ai.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
 import { RenderModule } from '../render/render.module';
 import { AuthModule } from '../auth/auth.module';
+import { VideoUtilsService } from '../common/video-utils.service';
 
 @Module({
   imports: [RenderModule, AuthModule],
@@ -19,6 +20,7 @@ import { AuthModule } from '../auth/auth.module';
     ScriptGenerationService,
     VertexAiService,
     GcsStorageService,
+    VideoUtilsService,
   ],
   exports: [AdsService, JobStoreService],
 })
