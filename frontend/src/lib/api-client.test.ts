@@ -112,6 +112,25 @@ describe("fetchWithAuth", () => {
     expect(calledOptions.headers.Authorization).toBeUndefined();
   });
 
+  it("throws Error with cause when getIdToken fails and requireAuth is true", async () => {
+    (auth as unknown as MutableAuth).currentUser = { uid: "user-123" };
+    const mockError = new Error("Firebase token error");
+    vi.mocked(getIdToken).mockRejectedValueOnce(mockError);
+
+    try {
+      await fetchWithAuth('/v1/test');
+      expect.fail('fetchWithAuth should have thrown an error');
+    } catch (e: unknown) {
+      expect(e).toBeInstanceOf(Error);
+      if (e instanceof Error) {
+        expect(e.message).toBe(
+          'Authentication required but token fetch failed',
+        );
+        expect(e.cause).toBe(mockError);
+      }
+    }
+  });
+
   // ── Request passthrough ────────────────────────────────────
 
   it("passes through method and body", async () => {

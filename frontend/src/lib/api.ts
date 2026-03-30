@@ -88,10 +88,13 @@ export async function createAdJob(
     });
   }
 
-  const res = await fetchWithAuth(`/ads`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const res = await fetchWithAuth(
+    `/ads?businessId=${encodeURIComponent(payload.businessId)}`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 
   if (!res.ok) throw new Error("Failed to create ad job");
   return res.json();
@@ -123,7 +126,7 @@ export async function getAdJobStatus(
           ...(progress >= 100
             ? {
                 video_url:
-                  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+                  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
               }
             : {}),
         });
@@ -131,7 +134,9 @@ export async function getAdJobStatus(
     });
   }
 
-  const res = await fetchWithAuth(`/ads/${id}?businessId=${businessId}`);
+  const res = await fetchWithAuth(
+    `/ads/${id}?businessId=${encodeURIComponent(businessId)}`,
+  );
   if (!res.ok) throw new Error("Failed to fetch ad job status");
   return res.json();
 }
