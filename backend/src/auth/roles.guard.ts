@@ -48,6 +48,9 @@ export class RolesGuard implements CanActivate {
 
     // Fetch membership to check role
     const db = this.firestore.getFirestore();
+    console.log(
+      `[RolesGuard] Checking membership for businessId: "${businessId}", user: "${user.uid}"`,
+    );
     const membershipRef = db.doc(
       `businesses/${businessId}/members/${user.uid}`,
     );

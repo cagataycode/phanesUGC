@@ -4,7 +4,16 @@ const BACKEND_API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001/api';
 
 export async function POST(request: NextRequest) {
-  const body = await request.text();
+  const bodyText = await request.text();
+  let bodyJson: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(bodyText) as unknown;
+    if (typeof parsed === 'object' && parsed !== null) {
+      bodyJson = parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Ignore invalid JSON
+  }
 
   const authHeader = request.headers.get('authorization');
   const headers: Record<string, string> = {
@@ -13,11 +22,14 @@ export async function POST(request: NextRequest) {
   if (authHeader) {
     headers['Authorization'] = authHeader;
   }
+  if (typeof bodyJson.businessId === 'string' && bodyJson.businessId) {
+    headers['x-business-id'] = bodyJson.businessId;
+  }
 
   const response = await fetch(`${BACKEND_API_BASE_URL}/ads`, {
     method: 'POST',
     headers,
-    body,
+    body: bodyText,
     cache: 'no-store',
   });
 
