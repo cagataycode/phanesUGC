@@ -6,11 +6,17 @@ const BACKEND_API_BASE_URL =
 export async function POST(request: NextRequest) {
   const body = await request.text();
 
+  const authHeader = request.headers.get('authorization');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (authHeader) {
+    headers['Authorization'] = authHeader;
+  }
+
   const response = await fetch(`${BACKEND_API_BASE_URL}/ads`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body,
     cache: 'no-store',
   });

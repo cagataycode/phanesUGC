@@ -12,8 +12,15 @@ export async function GET(
   const searchParams = url.searchParams.toString();
   const query = searchParams ? `?${searchParams}` : '';
 
+  const authHeader = request.headers.get('authorization');
+  const headers: Record<string, string> = {};
+  if (authHeader) {
+    headers['Authorization'] = authHeader;
+  }
+
   const response = await fetch(`${BACKEND_API_BASE_URL}/ads/${id}/result${query}`, {
     method: 'GET',
+    headers,
     cache: 'no-store',
   });
 
