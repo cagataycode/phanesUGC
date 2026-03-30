@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "@/i18n/routing";
 
@@ -30,8 +29,6 @@ export default function ResultsHistoryPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background bg-mesh-blur font-sans">
-      <Navbar />
-
       <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 pb-12 pt-28 sm:px-6 lg:px-8">
         <section className="rounded-xl border border-border bg-card/80 p-6 shadow-sm backdrop-blur-sm sm:p-8">
           <div className="space-y-3">

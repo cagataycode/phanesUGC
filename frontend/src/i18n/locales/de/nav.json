@@ -2,7 +2,11 @@
   "brand": "Phanes",
   "links": {
     "pricing": "Preise",
-    "security": "Sicherheit"
+    "security": "Sicherheit",
+    "home": "Erstellen",
+    "library": "Bibliothek",
+    "results": "Generationen",
+    "profile": "Profil"
   },
   "credits": {
     "remaining": "Noch {count} Credits"
@@ -14,6 +18,10 @@
     "profile": "Profil",
     "profileWorkspace": "Profil & Workspace",
     "library": "Bibliothek",
-    "results": "Bisherige Generationen"
+    "results": "Bisherige Generationen",
+    "collapseSidebar": "Seitenleiste einklappen",
+    "expandSidebar": "Seitenleiste ausklappen",
+    "openMenu": "Menü öffnen",
+    "closeMenu": "Menü schließen"
   }
 }
