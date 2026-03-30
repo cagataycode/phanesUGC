@@ -24,7 +24,7 @@ export class UsersController {
     );
     const memberSnap = await memberRef.get();
 
-    let role = 'owner'; // Default
+    let role = 'member'; // Default to least-privileged
     let subscriptionTier = 'free';
 
     if (memberSnap.exists) {
@@ -32,7 +32,7 @@ export class UsersController {
         role?: string;
         subscriptionTier?: string;
       };
-      role = memberData?.role || 'owner';
+      role = memberData?.role || 'member';
       subscriptionTier = memberData?.subscriptionTier || 'free';
     }
 

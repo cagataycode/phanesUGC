@@ -146,11 +146,9 @@ export async function getAdJobStatus(
  */
 export async function getAdJobResult(
   id: string,
-  businessId?: string,
+  businessId: string,
 ): Promise<AdJobResultResponse> {
-  const query = businessId
-    ? `?businessId=${encodeURIComponent(businessId)}`
-    : "";
+  const query = `?businessId=${encodeURIComponent(businessId)}`;
   const res = await fetchWithAuth(`/ads/${id}/result${query}`);
   if (!res.ok) throw new Error("Failed to fetch ad job result");
   return res.json();

@@ -17,7 +17,12 @@ async function bootstrap() {
       'https://phanesugc.com',
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Business-Id',
+      'x-business-id',
+    ],
     credentials: true,
   });
 
