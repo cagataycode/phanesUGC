@@ -3,7 +3,7 @@ import {
   SubtitlePhrase,
 } from '../subtitles/subtitle-types';
 
-export const REMOTION_COMPOSITION_ID = 'KaraokeSubtitledVideo';
+export const REMOTION_COMPOSITION_ID = 'KineticSubtitledVideo';
 
 export type RenderRequest = {
   videoUrl: string;

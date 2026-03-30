@@ -1,117 +1,61 @@
-import {
-  chunkSubtitleSegments,
-  normalizeSubtitleWords,
-} from './subtitle-chunker';
-import { RawSubtitleSegment } from './subtitle-types';
-
-const buildSegment = (
-  words: Array<{ word: string; start: number; end: number }>,
-): RawSubtitleSegment => ({
-  start: words[0]?.start ?? 0,
-  end: words[words.length - 1]?.end ?? 0,
-  text: words.map((word) => word.word).join(' '),
-  words,
-});
+import { generateScriptSubtitles } from './subtitle-chunker';
 
 describe('subtitle-chunker', () => {
-  it('normalizes raw subtitle words into a flat ordered timeline', () => {
-    const words = normalizeSubtitleWords([
-      buildSegment([
-        { word: 'Hello,', start: 0, end: 0.2 },
-        { word: 'world!', start: 0.2, end: 0.5 },
-      ]),
-    ]);
-
-    expect(words).toHaveLength(2);
-    expect(words[0]).toMatchObject({
-      text: 'Hello,',
-      normalized: 'hello',
-      trailingPunctuation: ',',
+  it('chunks words into phrase-level intervals using WPM generation', () => {
+    const text = 'This is a great product for creators.';
+    const duration = 2.0;
+    const phrases = generateScriptSubtitles(text, duration, {
+      maxWordsPerPhrase: 4,
+      minWordsPerPhrase: 3,
     });
-    expect(words[1]).toMatchObject({
-      text: 'world!',
-      normalized: 'world',
-      trailingPunctuation: '!',
-    });
-  });
 
-  it('chunks words into readable karaoke phrases', () => {
-    const phrases = chunkSubtitleSegments([
-      buildSegment([
-        { word: 'This', start: 0, end: 0.2 },
-        { word: 'is', start: 0.2, end: 0.4 },
-        { word: 'a', start: 0.4, end: 0.5 },
-        { word: 'great', start: 0.5, end: 0.8 },
-        { word: 'product', start: 0.8, end: 1.1 },
-        { word: 'for', start: 1.1, end: 1.25 },
-        { word: 'creators.', start: 1.25, end: 1.6 },
-      ]),
-    ]);
+    // 7 words total. secondsPerWord = 2 / 7 = 0.2857.
+    // Chunk 1: 'This is a great' (4 words -> should break at maxWords)
+    // Chunk 2: 'product for creators.'
+    expect(phrases).toHaveLength(2);
 
-    expect(phrases).toHaveLength(1);
     expect(phrases[0]).toMatchObject({
+      text: 'This is a great',
       start: 0,
-      end: 1.6,
-      text: 'This is a great product for creators.',
+      end: 1.143,
     });
-    expect(phrases[0].lines).toHaveLength(2);
+
+    expect(phrases[1]).toMatchObject({
+      text: 'product for creators.',
+      start: 1.143,
+      end: 2.0,
+    });
+
+    expect(phrases[0].lines).toHaveLength(2); // 'This is' \n 'a great'
+    expect(phrases[1].lines).toHaveLength(2); // 'product for' \n 'creators.'
   });
 
-  it('splits on strong punctuation after the minimum phrase size', () => {
-    const phrases = chunkSubtitleSegments([
-      buildSegment([
-        { word: 'Stop.', start: 0, end: 0.2 },
-        { word: 'You', start: 0.2, end: 0.35 },
-        { word: 'need', start: 0.35, end: 0.5 },
-        { word: 'this', start: 0.5, end: 0.7 },
-        { word: 'now.', start: 0.7, end: 0.9 },
-        { word: 'It', start: 1.0, end: 1.1 },
-        { word: 'saves', start: 1.1, end: 1.35 },
-        { word: 'hours.', start: 1.35, end: 1.6 },
-      ]),
-    ]);
+  it('splits on strong punctuation early if min threshold met', () => {
+    const text = 'Stop. You need this now. It saves hours.';
+    const duration = 3.0;
+    // 8 words, 3.0 sec => 0.375 per word
+    const phrases = generateScriptSubtitles(text, duration, {
+      maxWordsPerPhrase: 5,
+      minWordsPerPhrase: 3,
+    });
 
+    // "Stop. You need" (3 w) vs wait for "now." (5 w)
+    // Wait, let's see:
+    // i=0 "Stop." (hard=T, len=1, min=F) -> no break
+    // i=1 "You"
+    // i=2 "need" (len=3, min=T, hard=F) -> no break
+    // i=3 "this"
+    // i=4 "now." (hard=T, len=5, max=T, min=T) -> break. "Stop. You need this now."
+    // i=5 "It"
+    // i=6 "saves"
+    // i=7 "hours." (last) -> break. "It saves hours."
     expect(phrases).toHaveLength(2);
     expect(phrases[0].text).toBe('Stop. You need this now.');
     expect(phrases[1].text).toBe('It saves hours.');
   });
 
-  it('splits on long silence gaps', () => {
-    const phrases = chunkSubtitleSegments([
-      buildSegment([
-        { word: 'Make', start: 0, end: 0.2 },
-        { word: 'content', start: 0.2, end: 0.4 },
-        { word: 'faster', start: 0.4, end: 0.7 },
-        { word: 'with', start: 1.3, end: 1.45 },
-        { word: 'AI', start: 1.45, end: 1.7 },
-        { word: 'today', start: 1.7, end: 2.0 },
-      ]),
-    ]);
-
-    expect(phrases).toHaveLength(2);
-    expect(phrases[0].text).toBe('Make content faster');
-    expect(phrases[1].text).toBe('with AI today');
-  });
-
-  it('pulls a leading orphan word into the previous phrase when possible', () => {
-    const phrases = chunkSubtitleSegments(
-      [
-        buildSegment([
-          { word: 'Built', start: 0, end: 0.2 },
-          { word: 'for', start: 0.2, end: 0.35 },
-          { word: 'small', start: 0.35, end: 0.6 },
-          { word: 'teams,', start: 0.6, end: 0.8 },
-          { word: 'and', start: 0.8, end: 0.9 },
-          { word: 'ready', start: 0.9, end: 1.15 },
-          { word: 'to', start: 1.15, end: 1.3 },
-          { word: 'scale.', start: 1.3, end: 1.6 },
-        ]),
-      ],
-      { maxWordsPerPhrase: 5 },
-    );
-
-    expect(phrases).toHaveLength(2);
-    expect(phrases[0].text).toBe('Built for small teams, and');
-    expect(phrases[1].text).toBe('ready to scale.');
+  it('returns empty array when text is empty', () => {
+    const phrases = generateScriptSubtitles('   ', 5.0);
+    expect(phrases).toEqual([]);
   });
 });

@@ -16,7 +16,7 @@ export class CreateAdDto {
       benefits?: string[];
     };
     urls?: string[];
-    subtitle_style?: string;
+    subtitle_style?: 'standard' | 'kinetic';
   };
   veo_config!: {
     aspect_ratio: '16:9' | '9:16' | '1:1';

@@ -3,7 +3,7 @@ import {
   REMOTION_COMPOSITION_ID,
   RenderRequest,
 } from './constants';
-import { KaraokeSubtitledVideo } from './compositions/KaraokeSubtitledVideo';
+import { KineticSubtitledVideo } from './compositions/KineticSubtitledVideo';
 
 const defaultProps: RenderRequest = {
   videoUrl: '',
@@ -18,7 +18,7 @@ export const RemotionRoot = () => {
   return (
     <Composition
       id={REMOTION_COMPOSITION_ID}
-      component={KaraokeSubtitledVideo}
+      component={KineticSubtitledVideo}
       calculateMetadata={({ props }) => {
         return {
           durationInFrames: props.durationInFrames || 1,

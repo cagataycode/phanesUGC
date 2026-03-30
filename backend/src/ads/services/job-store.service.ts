@@ -38,11 +38,6 @@ export interface AdJob {
     start: number;
     end: number;
     text: string;
-    words: Array<{
-      word: string;
-      start: number;
-      end: number;
-    }>;
   }>;
   output?: {
     videoStorageKey: string;

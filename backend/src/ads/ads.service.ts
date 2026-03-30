@@ -7,7 +7,8 @@ import { ScriptGenerationService } from './services/script-generation.service';
 import { VertexAiService } from '../ai/vertex-ai.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
 import { RenderService } from '../render/render.service';
-import { RawSubtitleSegment } from '../render/subtitles/subtitle-types';
+
+import { generateScriptSubtitles } from '../render/subtitles/subtitle-chunker';
 import { GeneratedScript } from './types/generated-script';
 
 @Injectable()
@@ -22,46 +23,6 @@ export class AdsService {
     private readonly gcsStorageService: GcsStorageService,
     private readonly renderService: RenderService,
   ) {}
-
-  private buildFallbackSubtitleSegments(
-    script: {
-      title?: string;
-      hook?: string;
-      body?: string;
-      cta?: string;
-      full_text: string;
-    },
-    durationSec: number,
-  ): RawSubtitleSegment[] {
-    const words = script.full_text
-      .split(/\s+/)
-      .map((word) => word.trim())
-      .filter(Boolean);
-
-    if (words.length === 0) {
-      return [];
-    }
-
-    const secondsPerWord = durationSec / words.length;
-
-    return words.map((word, index) => {
-      const start = Number((index * secondsPerWord).toFixed(3));
-      const end = Number(((index + 1) * secondsPerWord).toFixed(3));
-
-      return {
-        start,
-        end,
-        text: word,
-        words: [
-          {
-            word,
-            start,
-            end,
-          },
-        ],
-      } satisfies RawSubtitleSegment;
-    });
-  }
 
   private parseAndFlattenPrompt(createAdDto: CreateAdDto): void {
     let promptData: string | Record<string, unknown> =
@@ -385,8 +346,8 @@ ${script.full_text}`);
       this.logger.debug(
         `[${projectId}] Preparing subtitles and render request`,
       );
-      const subtitleSegments = this.buildFallbackSubtitleSegments(
-        script,
+      const subtitleSegments = generateScriptSubtitles(
+        script.full_text,
         createAdDto.veo_config.duration_sec,
       );
 
@@ -446,7 +407,7 @@ ${script.full_text}`);
         );
         const renderedOutput = await this.renderService.renderToTempFile({
           ...preparedRenderRequest,
-          phrases: preparedRenderRequest.phrases,
+          phrases: subtitleSegments,
         });
 
         try {
