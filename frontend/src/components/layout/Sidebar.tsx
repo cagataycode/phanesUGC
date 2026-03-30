@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import {
   Home01Icon,
@@ -13,6 +13,12 @@ import {
 import { AuthForm } from "@/components/forms/AuthForm";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -33,9 +39,25 @@ import { cn } from "@/lib/utils";
 
 const SIDEBAR_KEY = "sidebar-collapsed";
 
-function getInitialCollapsed(): boolean {
-  if (typeof window === "undefined") return false;
+// useSyncExternalStore avoids hydration mismatch and React 19 setState-in-effect lint
+const sidebarListeners: Set<() => void> = new Set();
+
+function subscribeSidebar(listener: () => void) {
+  sidebarListeners.add(listener);
+  return () => sidebarListeners.delete(listener);
+}
+
+function getSidebarSnapshot(): boolean {
   return localStorage.getItem(SIDEBAR_KEY) === "true";
+}
+
+function getSidebarServerSnapshot(): boolean {
+  return false;
+}
+
+function setSidebarCollapsed(collapsed: boolean) {
+  localStorage.setItem(SIDEBAR_KEY, String(collapsed));
+  sidebarListeners.forEach((l) => l());
 }
 
 function SidebarPanelIcon({ className }: { className?: string }) {
@@ -57,7 +79,11 @@ export function Sidebar() {
   const pathname = usePathname();
   const isAuthenticated = !!user;
 
-  const [isCollapsed, setIsCollapsed] = useState(getInitialCollapsed);
+  const isCollapsed = useSyncExternalStore(
+    subscribeSidebar,
+    getSidebarSnapshot,
+    getSidebarServerSnapshot,
+  );
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
@@ -74,12 +100,8 @@ export function Sidebar() {
     user?.displayName?.trim().charAt(0) || user?.email?.trim().charAt(0) || "P";
 
   const toggleCollapse = useCallback(() => {
-    setIsCollapsed((prev) => {
-      const next = !prev;
-      localStorage.setItem(SIDEBAR_KEY, String(next));
-      return next;
-    });
-  }, []);
+    setSidebarCollapsed(!isCollapsed);
+  }, [isCollapsed]);
 
   useEffect(() => {
     if (isMobileOpen) {
@@ -159,39 +181,54 @@ export function Sidebar() {
   );
 
   // ── Navigation link (works in both expanded and collapsed) ──
-  const renderNavItem = (item: (typeof filteredNavItems)[number]) => (
-    <Link
-      href={item.href}
-      className={cn(
-        "group/nav flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-        "hover:bg-foreground/5",
-        isActive(item.href)
-          ? "bg-foreground/5 text-foreground"
-          : "text-foreground/60 hover:text-foreground/90",
-        isCollapsed && "md:justify-center md:px-0",
-      )}
-      title={isCollapsed ? t(item.labelKey) : undefined}
-    >
-      <HugeiconsIcon
-        icon={item.icon as IconSvgElement}
-        strokeWidth={1.8}
+  const renderNavItem = (item: (typeof filteredNavItems)[number]) => {
+    const navLink = (
+      <Link
+        href={item.href}
         className={cn(
-          "size-5 shrink-0",
+          "group/nav flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors cursor-pointer",
+          "hover:bg-foreground/5",
           isActive(item.href)
-            ? "text-foreground"
-            : "text-foreground/50 group-hover/nav:text-foreground/70",
-        )}
-      />
-      <span
-        className={cn(
-          "truncate transition-opacity duration-200",
-          isCollapsed && "md:hidden",
+            ? "bg-foreground/5 text-foreground"
+            : "text-foreground/60 hover:text-foreground/90",
+          isCollapsed && "md:justify-center md:px-0",
         )}
       >
-        {t(item.labelKey)}
-      </span>
-    </Link>
-  );
+        <HugeiconsIcon
+          icon={item.icon as IconSvgElement}
+          strokeWidth={1.8}
+          className={cn(
+            "size-5 shrink-0",
+            isActive(item.href)
+              ? "text-foreground"
+              : "text-foreground/50 group-hover/nav:text-foreground/70",
+          )}
+        />
+        <span
+          className={cn(
+            "truncate transition-opacity duration-200",
+            isCollapsed && "md:hidden",
+          )}
+        >
+          {t(item.labelKey)}
+        </span>
+      </Link>
+    );
+
+    // Show styled tooltip only when sidebar is collapsed
+    if (isCollapsed) {
+      return (
+        <Tooltip key={item.href}>
+          <TooltipTrigger asChild>{navLink}</TooltipTrigger>
+          <TooltipContent side="right" sideOffset={12}>
+            {t(item.labelKey)}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return navLink;
+  };
 
   // ── Sidebar content ──
   const sidebarContent = (
@@ -266,7 +303,7 @@ export function Sidebar() {
                 <button
                   type="button"
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-foreground/5 outline-none",
+                    "flex w-full items-center gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-foreground/5 outline-none cursor-pointer",
                     isCollapsed && "md:justify-center md:px-0",
                   )}
                 >
@@ -391,7 +428,7 @@ export function Sidebar() {
   );
 
   return (
-    <>
+    <TooltipProvider>
       {/* ── Mobile Hamburger Button ── */}
       <button
         type="button"
@@ -459,6 +496,6 @@ export function Sidebar() {
         defaultMode={authMode}
         onClose={() => setIsAuthModalOpen(false)}
       />
-    </>
+    </TooltipProvider>
   );
 }
