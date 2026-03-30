@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { AuthProvider } from "@/lib/firebase/auth-provider";
+import { Sidebar } from "@/components/layout/Sidebar";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { locales, type Locale } from "@/i18n/config";
@@ -62,7 +63,10 @@ export default async function LocaleLayout({
               enableSystem
               disableTransitionOnChange
             >
-              {children}
+              <div className="flex min-h-screen">
+                <Sidebar />
+                <main className="flex-1 min-w-0">{children}</main>
+              </div>
               <ToastProvider />
             </ThemeProvider>
           </AuthProvider>
