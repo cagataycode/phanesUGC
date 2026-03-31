@@ -3,22 +3,34 @@ import {
   REMOTION_COMPOSITION_ID,
   RenderRequest,
 } from './constants';
-import { KaraokeSubtitledVideo } from './compositions/KaraokeSubtitledVideo';
+import { KineticSubtitledVideo } from './compositions/KineticSubtitledVideo';
+import { StandardSubtitledVideo } from './compositions/StandardSubtitledVideo';
 
 const defaultProps: RenderRequest = {
   videoUrl: '',
-  segments: [],
+  phrases: [],
   fps: 30,
   durationInFrames: 1,
   width: 1080,
   height: 1920,
+  subtitleStyle: 'kinetic',
+};
+
+const SubtitleComponent: React.FC<RenderRequest> = (props) => {
+  switch (props.subtitleStyle) {
+    case 'standard':
+      return <StandardSubtitledVideo {...props} />;
+    case 'kinetic':
+    default:
+      return <KineticSubtitledVideo {...props} />;
+  }
 };
 
 export const RemotionRoot = () => {
   return (
     <Composition
       id={REMOTION_COMPOSITION_ID}
-      component={KaraokeSubtitledVideo}
+      component={SubtitleComponent}
       calculateMetadata={({ props }) => {
         return {
           durationInFrames: props.durationInFrames || 1,

@@ -157,7 +157,7 @@ A single ad generation job. This is the core document — replaces the current f
 | `tone` | `string` | no | `direct` \| `playful` \| `professional` \| etc. |
 | `targetAudience` | `string` | no | Target audience description |
 | `cta` | `string` | no | Call-to-action text |
-| `subtitleStyle` | `string` | no | `standard` \| `kinetic` \| `karaoke` |
+| `subtitleStyle` | `string` | no | `standard` \| `kinetic` |
 | `voiceId` | `string` | no | Voice selection for generation |
 | **— Scrape Result —** | | | |
 | `scrapeResult` | `map` | no | Populated if URLs were scraped |
@@ -220,21 +220,18 @@ A single ad generation job. This is the core document — replaces the current f
 | `audioTrack.sampleRateHz` | `number` | no | e.g., 16000 |
 | `audioTrack.channels` | `number` | no | e.g., 1 |
 | **— Subtitles —** | | | |
-| `subtitleSegments` | `array<map>` | no | Chunked subtitle segments with word-level timing |
+| `subtitleSegments` | `array<map>` | no | Chunked subtitle segments (3-4 words per chunk, phrase-level timing) |
 | `subtitleSegments[].start` | `number` | yes | Segment start time (seconds) |
 | `subtitleSegments[].end` | `number` | yes | Segment end time (seconds) |
-| `subtitleSegments[].text` | `string` | yes | Display text for this segment |
-| `subtitleSegments[].words` | `array<map>` | yes | Per-word timing for highlighting |
-| `subtitleSegments[].words[].word` | `string` | yes | Individual word |
-| `subtitleSegments[].words[].start` | `number` | yes | Word start time (seconds) |
-| `subtitleSegments[].words[].end` | `number` | yes | Word end time (seconds) |
+| `subtitleSegments[].text` | `string` | yes | Display text for this segment (3-4 words) |
+| `subtitleSegments[].sceneId` | `number` | yes | Parent scene number |
 | **— Timestamps —** | | | |
 | `createdAt` | `timestamp` | yes | Creation timestamp |
 | `updatedAt` | `timestamp` | yes | Last update |
 | `deletedAt` | `timestamp` | no | Soft delete marker |
 
 ### Notes on Project Document
-- `subtitleSegments` holds the chunked, phrase-aware segments (not raw per-word dumps). Each segment contains its own `words` array for karaoke/per-word highlighting during Remotion rendering.
+- `subtitleSegments` holds chunked, phrase-aware segments derived algorithmically from the script (not from audio transcription). Each segment contains a text chunk of 3-4 words with start/end timing. Timing is initially based on WPM estimation, then scaled to match actual Veo video duration.
 - `audioTrack` stores the GCS path to extracted audio. The backend generates signed URLs on-demand.
 - `output.videoStorageKey` and `output.thumbnailStorageKey` store GCS paths, never signed URLs (which expire).
 - The `script.voiceoverLines` array maps 1:1 with scenes by scene number.
@@ -334,8 +331,8 @@ The existing `ads` collection maps to the new schema as follows:
 | `script` | `projects/{projectId}.script` |
 | `scenes[]` | `projects/{projectId}/scenes/{sceneId}` (subcollection) |
 | `audio_track.audio_url` | `projects/{projectId}.audioTrack.storageKey` |
-| `audio_track.segments` | `projects/{projectId}.subtitleSegments` |
-| `subtitles[]` | `projects/{projectId}.subtitleSegments` (merged with audio segments) |
+| `audio_track.segments` | `projects/{projectId}.subtitleSegments` (script-derived, not audio-based) |
+| `subtitles[]` | `projects/{projectId}.subtitleSegments` (script-derived chunk-level segments) |
 | `video_url` | `projects/{projectId}.output.videoStorageKey` |
 | `thumbnail_url` | `projects/{projectId}.output.thumbnailStorageKey` |
 | `status`, `progress`, `stages` | `projects/{projectId}.status`, `.progress`, `.stages` |
@@ -344,7 +341,7 @@ The existing `ads` collection maps to the new schema as follows:
 ### Key Migration Notes
 1. **Store GCS paths, not signed URLs.** Current `ads` stores full signed URLs with expiring signatures. New schema stores GCS paths (e.g., `generated_assets/videos/veo_video_1.mp4`). Backend generates signed URLs on-demand.
 2. **Scenes move to subcollection.** Current `scenes[]` array becomes individual documents in `projects/{projectId}/scenes/{sceneId}`.
-3. **`audio_track.segments` and `subtitles` merge.** Current schema has both `audio_track.segments` (with word-level timing) and a flat `subtitles` array. New schema unifies these into `subtitleSegments` with nested `words[]` for per-word highlighting.
+3. **`audio_track.segments` and `subtitles` merge.** Current schema has both `audio_track.segments` (with word-level timing) and a flat `subtitles` array. New schema unifies these into `subtitleSegments` with chunk-level (3-4 words) phrase timing derived from the script. Word-level timing is no longer stored.
 4. **Product data gets extracted.** Current `product_info` map becomes a standalone product document. Projects reference the product by ID.
 
 ---

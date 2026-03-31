@@ -4,11 +4,19 @@ import { CreateAdDto } from './dto/create-ad.dto';
 import { JobStoreService } from './services/job-store.service';
 import { BriefGenerationService } from './services/brief-generation.service';
 import { ScriptGenerationService } from './services/script-generation.service';
+import { SceneStructuringService } from './services/scene-structuring.service';
+import { VeoPromptBuilderService } from './services/veo-prompt-builder.service';
 import { VertexAiService } from '../ai/vertex-ai.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
 import { RenderService } from '../render/render.service';
-import { RawSubtitleSegment } from '../render/subtitles/subtitle-types';
+
+import {
+  generateSubtitlesFromScenes,
+  scaleSubtitleTimestamps,
+  SimpleScene,
+} from '../render/subtitles/subtitle-chunker';
 import { GeneratedScript } from './types/generated-script';
+import { VideoUtilsService } from '../common/video-utils.service';
 
 @Injectable()
 export class AdsService {
@@ -17,51 +25,14 @@ export class AdsService {
   constructor(
     private readonly briefGenerationService: BriefGenerationService,
     private readonly scriptGenerationService: ScriptGenerationService,
+    private readonly sceneStructuringService: SceneStructuringService,
+    private readonly veoPromptBuilderService: VeoPromptBuilderService,
     private readonly jobStoreService: JobStoreService,
     private readonly vertexAiService: VertexAiService,
     private readonly gcsStorageService: GcsStorageService,
     private readonly renderService: RenderService,
+    private readonly videoUtilsService: VideoUtilsService,
   ) {}
-
-  private buildFallbackSubtitleSegments(
-    script: {
-      title?: string;
-      hook?: string;
-      body?: string;
-      cta?: string;
-      full_text: string;
-    },
-    durationSec: number,
-  ): RawSubtitleSegment[] {
-    const words = script.full_text
-      .split(/\s+/)
-      .map((word) => word.trim())
-      .filter(Boolean);
-
-    if (words.length === 0) {
-      return [];
-    }
-
-    const secondsPerWord = durationSec / words.length;
-
-    return words.map((word, index) => {
-      const start = Number((index * secondsPerWord).toFixed(3));
-      const end = Number(((index + 1) * secondsPerWord).toFixed(3));
-
-      return {
-        start,
-        end,
-        text: word,
-        words: [
-          {
-            word,
-            start,
-            end,
-          },
-        ],
-      } satisfies RawSubtitleSegment;
-    });
-  }
 
   private parseAndFlattenPrompt(createAdDto: CreateAdDto): void {
     let promptData: string | Record<string, unknown> =
@@ -298,7 +269,7 @@ ${script.full_text}`);
     createAdDto: CreateAdDto,
   ): Promise<void> {
     this.logger.log(
-      `Starting job processing for project ${projectId} (business: ${businessId})`,
+      `Starting SINGLE-SCENE structured prompt pipeline for project ${projectId} (business: ${businessId})`,
     );
     try {
       // 1. Brief generation stage
@@ -323,7 +294,7 @@ ${script.full_text}`);
       // 2. Script generation stage
       this.logger.debug(`[${projectId}] Stage 2: Script generation`);
       await this.jobStoreService.update(businessId, projectId, {
-        progress: 30,
+        progress: 25,
         creativeBrief: brief,
         stages: {
           scrape: 'done',
@@ -337,33 +308,77 @@ ${script.full_text}`);
         },
       });
 
-      const script = this.scriptGenerationService.generate(brief);
+      const script = await this.scriptGenerationService.generate(brief);
 
-      // 3. Asset generation stage (Vertex AI)
-      this.logger.debug(`[${projectId}] Stage 3: Asset generation (Vertex AI)`);
+      // 3. Scene structuring stage (NEW - Gemini creates structured prompt)
+      this.logger.debug(
+        `[${projectId}] Stage 3: Scene structuring (Gemini 2.5 Pro)`,
+      );
       await this.jobStoreService.update(businessId, projectId, {
-        progress: 50,
+        progress: 40,
         script: script,
         stages: {
           scrape: 'done',
           brief: 'done',
           script: 'done',
           scenes: 'running',
-          assets: 'running',
+          assets: 'pending',
           audio: 'pending',
           subtitles: 'pending',
           render: 'pending',
         },
       });
 
-      const composedPrompt = this.buildPromptFromScript(createAdDto, script);
-      this.logger.log(`[${projectId}] Requesting Vertex AI video generation`);
+      const scenePrompt =
+        await this.sceneStructuringService.structureSingleScene(
+          createAdDto,
+          brief,
+          script,
+        );
+
+      this.logger.log(
+        `[${projectId}] Scene structured: ${scenePrompt.duration_seconds}s, speech: "${scenePrompt.prompt.audio.speech_text.substring(0, 50)}..."`,
+      );
+
+      // 4. Veo generation stage (using structured prompt)
+      this.logger.debug(
+        `[${projectId}] Stage 4: Veo 3.1 generation with structured prompt`,
+      );
+      await this.jobStoreService.update(businessId, projectId, {
+        progress: 50,
+        stages: {
+          scrape: 'done',
+          brief: 'done',
+          script: 'done',
+          scenes: 'done',
+          assets: 'running',
+          audio: 'pending',
+          subtitles: 'pending',
+          render: 'pending',
+        },
+        metadata: {
+          scenePrompt: {
+            intent: scenePrompt.prompt.intent,
+            visualStyle: scenePrompt.prompt.style.visual_style,
+            cameraMotion: scenePrompt.prompt.shot.camera_motion,
+          },
+        },
+      });
+
+      // Build the Veo prompt string from structured prompt
+      const veoPromptString =
+        this.veoPromptBuilderService.buildVeoPromptString(scenePrompt);
+
+      this.logger.log(
+        `[${projectId}] Veo prompt (${veoPromptString.length} chars): ${veoPromptString.substring(0, 100)}...`,
+      );
+
       const generatedAsset = await this.vertexAiService.generateVideoFromPrompt(
-        composedPrompt,
+        veoPromptString,
         {
-          aspectRatio: createAdDto.veo_config.aspect_ratio,
-          durationSeconds: createAdDto.veo_config.duration_sec,
-          negativePrompt: createAdDto.veo_config.negative_prompt,
+          aspectRatio: scenePrompt.aspect_ratio,
+          durationSeconds: scenePrompt.duration_seconds as 8,
+          negativePrompt: scenePrompt.negative_prompt,
           personGeneration: createAdDto.veo_config.person_generation,
           enhancePrompt: createAdDto.veo_config.enhance_prompt,
         },
@@ -380,14 +395,6 @@ ${script.full_text}`);
       await this.gcsStorageService.importGeneratedVideo(
         generatedAsset.downloadUrl,
         sourceVideoStorageKey,
-      );
-
-      this.logger.debug(
-        `[${projectId}] Preparing subtitles and render request`,
-      );
-      const subtitleSegments = this.buildFallbackSubtitleSegments(
-        script,
-        createAdDto.veo_config.duration_sec,
       );
 
       // Ensure public dir exists (will silently succeed if it does)
@@ -411,23 +418,65 @@ ${script.full_text}`);
           localSourcePath,
         );
 
-        // Remotion automatically exposes everything in the public/ folder at the root path during render
-        const videoUrlForRemotion = fileName;
+        let actualDurationSec: number = scenePrompt.duration_seconds;
+        try {
+          actualDurationSec =
+            await this.videoUtilsService.getVideoDuration(localSourcePath);
+        } catch (error) {
+          this.logger.warn(
+            `[${projectId}] Failed to extract video duration, falling back to planned duration: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+        const plannedDurationSec = scenePrompt.duration_seconds;
 
-        const preparedRenderRequest = this.renderService.prepareRenderRequest({
-          videoUrl: videoUrlForRemotion,
-          segments: subtitleSegments,
-          fps: 30,
-          durationInFrames: createAdDto.veo_config.duration_sec * 30,
-          width: createAdDto.veo_config.aspect_ratio === '9:16' ? 1080 : 1920,
-          height: createAdDto.veo_config.aspect_ratio === '9:16' ? 1920 : 1080,
+        this.logger.log(
+          `[${projectId}] Video duration check: Planned=${plannedDurationSec}s, Actual=${actualDurationSec}s`,
+        );
+
+        // 5. Generate subtitles from script (using structured prompt's speech text)
+        this.logger.debug(`[${projectId}] Stage 5: Subtitle generation`);
+        await this.jobStoreService.update(businessId, projectId, {
+          progress: 75,
+          stages: {
+            scrape: 'done',
+            brief: 'done',
+            script: 'done',
+            scenes: 'done',
+            assets: 'done',
+            audio: 'done',
+            subtitles: 'running',
+            render: 'pending',
+          },
         });
 
-        // 4. Storage & Finalization
-        this.logger.debug(`[${projectId}] Stage 4: Subtitle rendering`);
+        const simulatedScenes: SimpleScene[] = [
+          {
+            narration: scenePrompt.prompt.audio.speech_text,
+            duration_sec: plannedDurationSec,
+          },
+        ];
+
+        const subtitleSegments = generateSubtitlesFromScenes(simulatedScenes);
+
+        const scalingFactor =
+          plannedDurationSec > 0 && Number.isFinite(plannedDurationSec)
+            ? actualDurationSec / plannedDurationSec
+            : 1;
+
+        const correctedSubtitleSegments =
+          scalingFactor !== 1
+            ? scaleSubtitleTimestamps(subtitleSegments, scalingFactor)
+            : subtitleSegments;
+
+        this.logger.log(
+          `[${projectId}] Generated ${correctedSubtitleSegments.length} subtitle segments (scaling factor: ${scalingFactor.toFixed(3)})`,
+        );
+
+        // 6. Render with subtitles
+        this.logger.debug(`[${projectId}] Stage 6: Subtitle rendering`);
         await this.jobStoreService.update(businessId, projectId, {
-          progress: 80,
-          subtitleSegments,
+          progress: 85,
+          subtitleSegments: correctedSubtitleSegments,
           stages: {
             scrape: 'done',
             brief: 'done',
@@ -440,13 +489,32 @@ ${script.full_text}`);
           },
         });
 
+        const videoUrlForRemotion = fileName;
+        const preparedRenderRequest = this.renderService.prepareRenderRequest({
+          videoUrl: videoUrlForRemotion,
+          phrases: correctedSubtitleSegments,
+          fps: 30,
+          durationInFrames: Math.round(actualDurationSec * 30),
+          width:
+            createAdDto.veo_config.aspect_ratio === '9:16' ||
+            createAdDto.veo_config.aspect_ratio === '1:1'
+              ? 1080
+              : 1920,
+          height:
+            createAdDto.veo_config.aspect_ratio === '16:9' ||
+            createAdDto.veo_config.aspect_ratio === '1:1'
+              ? 1080
+              : 1920,
+          subtitleStyle: createAdDto.prompt_inputs.subtitle_style ?? 'kinetic',
+        });
+
         const storageKey = `businesses/${businessId}/projects/${projectId}/output/final.mp4`;
         this.logger.log(
           `[${projectId}] Starting Remotion subtitled video render`,
         );
         const renderedOutput = await this.renderService.renderToTempFile({
           ...preparedRenderRequest,
-          phrases: preparedRenderRequest.phrases,
+          phrases: correctedSubtitleSegments,
         });
 
         try {
@@ -465,18 +533,31 @@ ${script.full_text}`);
         await this.jobStoreService.update(businessId, projectId, {
           status: 'completed',
           progress: 100,
-          subtitleSegments,
+          subtitleSegments: correctedSubtitleSegments,
           output: {
             videoStorageKey: storageKey,
             sourceVideoStorageKey,
           },
           metadata: {
+            scenePrompt: {
+              intent: scenePrompt.prompt.intent,
+              visualStyle: scenePrompt.prompt.style.visual_style,
+              cameraMotion: scenePrompt.prompt.shot.camera_motion,
+              fullPrompt: veoPromptString,
+              negativePrompt: scenePrompt.negative_prompt,
+            },
             renderRequest: {
               fps: preparedRenderRequest.fps,
               durationInFrames: preparedRenderRequest.durationInFrames,
-              phraseCount: preparedRenderRequest.phrases?.length ?? 0,
+              phraseCount: correctedSubtitleSegments.length,
             },
-          } as never,
+            subtitleScaling: {
+              plannedDurationSec,
+              actualDurationSec,
+              scalingFactor,
+            },
+            simulatedScenes,
+          },
           stages: {
             scrape: 'done',
             brief: 'done',
@@ -506,14 +587,16 @@ ${script.full_text}`);
         failedStage = 'brief';
       } else if (message.includes('script')) {
         failedStage = 'script';
+      } else if (message.includes('scene') || message.includes('Gemini')) {
+        failedStage = 'scenes';
       } else if (
         message.includes('asset') ||
         message.includes('Veo') ||
-        message.includes('Imagen')
+        message.includes('Vertex')
       ) {
         failedStage = 'assets';
-      } else if (message.includes('voice') || message.includes('TTS')) {
-        failedStage = 'audio';
+      } else if (message.includes('subtitle')) {
+        failedStage = 'subtitles';
       } else if (message.includes('render')) {
         failedStage = 'render';
       }

@@ -1,228 +1,155 @@
 import {
   DEFAULT_SUBTITLE_CHUNKING_OPTIONS,
-  RawSubtitleSegment,
   SubtitleChunkingOptions,
   SubtitlePhrase,
-  SubtitleWord,
 } from './subtitle-types';
 
-const STRIP_EDGE_PUNCTUATION_REGEX = /^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu;
-const TRAILING_PUNCTUATION_REGEX = /[.,!?;:]+$/u;
 const HARD_BREAK_PUNCTUATION_REGEX = /[.!?]/u;
 const SOFT_BREAK_PUNCTUATION_REGEX = /[,;:]/u;
-const ORPHAN_WORDS = new Set([
-  'a',
-  'an',
-  'and',
-  'as',
-  'at',
-  'but',
-  'by',
-  'for',
-  'if',
-  'in',
-  'of',
-  'on',
-  'or',
-  'so',
-  'the',
-  'to',
-  'up',
-  'yet',
-]);
 
-export const normalizeSubtitleWords = (
-  segments: RawSubtitleSegment[],
-): SubtitleWord[] => {
-  return segments.flatMap((segment, segmentIndex) => {
-    return segment.words
-      .filter(
-        (word) => Number.isFinite(word.start) && Number.isFinite(word.end),
-      )
-      .map((word, wordIndex) => {
-        const text = word.word.trim();
-        const normalized = text
-          .toLowerCase()
-          .replace(STRIP_EDGE_PUNCTUATION_REGEX, '');
-        const trailingPunctuation =
-          text.match(TRAILING_PUNCTUATION_REGEX)?.[0] ?? '';
+// Placeholder for the actual ScenePlan type
+export interface SimpleScene {
+  narration: string;
+  duration_sec: number;
+}
 
-        return {
-          id: `${segmentIndex}-${wordIndex}`,
-          text,
-          start: word.start,
-          end: Math.max(word.end, word.start),
-          sourceSegmentIndex: segmentIndex,
-          sourceWordIndex: wordIndex,
-          normalized,
-          trailingPunctuation,
-        } satisfies SubtitleWord;
-      })
-      .filter((word) => word.text.length > 0);
+export const generateSubtitlesFromScenes = (
+  scenes: SimpleScene[],
+  options: Partial<SubtitleChunkingOptions> = {},
+): SubtitlePhrase[] => {
+  let globalTimeOffset = 0;
+  const allPhrases: SubtitlePhrase[] = [];
+
+  scenes.forEach((scene) => {
+    const scenePhrases = generateScriptSubtitles(
+      scene.narration,
+      scene.duration_sec,
+      options,
+    );
+
+    scenePhrases.forEach((phrase) => {
+      allPhrases.push({
+        ...phrase,
+        id: `phrase-${allPhrases.length}`,
+        start: Number((phrase.start + globalTimeOffset).toFixed(3)),
+        end: Number((phrase.end + globalTimeOffset).toFixed(3)),
+      });
+    });
+
+    globalTimeOffset += scene.duration_sec;
   });
+
+  return allPhrases;
 };
 
-export const chunkSubtitleSegments = (
-  segments: RawSubtitleSegment[],
+export const generateScriptSubtitles = (
+  text: string,
+  durationSec: number,
   options: Partial<SubtitleChunkingOptions> = {},
 ): SubtitlePhrase[] => {
   const settings = { ...DEFAULT_SUBTITLE_CHUNKING_OPTIONS, ...options };
-  const words = normalizeSubtitleWords(segments);
+  const allWords = text.split(/\s+/).filter(Boolean);
 
-  if (words.length === 0) {
+  if (allWords.length === 0) {
     return [];
   }
 
+  if (!Number.isFinite(durationSec) || durationSec <= 0) {
+    return [];
+  }
+
+  const secondsPerWord = durationSec / allWords.length;
   const phrases: SubtitlePhrase[] = [];
-  let currentPhraseWords: SubtitleWord[] = [];
 
-  const flushCurrentPhrase = () => {
-    if (currentPhraseWords.length === 0) {
-      return;
+  let currentWords: string[] = [];
+  let currentStartIndex = 0;
+
+  for (let i = 0; i < allWords.length; i++) {
+    const word = allWords[i];
+    currentWords.push(word);
+
+    const isLastWord = i === allWords.length - 1;
+    const isHardBreak = HARD_BREAK_PUNCTUATION_REGEX.test(word);
+    const isSoftBreak = SOFT_BREAK_PUNCTUATION_REGEX.test(word);
+
+    let shouldBreak = false;
+
+    if (isLastWord) {
+      shouldBreak = true;
+    } else if (currentWords.length >= settings.maxWordsPerPhrase) {
+      shouldBreak = true;
+    } else if (currentWords.length >= settings.minWordsPerPhrase) {
+      if (isHardBreak || isSoftBreak) {
+        shouldBreak = true;
+      }
     }
-
-    phrases.push(createPhrase(currentPhraseWords, phrases.length, settings));
-    currentPhraseWords = [];
-  };
-
-  words.forEach((word, index) => {
-    currentPhraseWords.push(word);
-
-    const nextWord = words[index + 1];
-    const shouldBreak = shouldBreakPhrase(
-      currentPhraseWords,
-      word,
-      nextWord,
-      settings,
-    );
 
     if (shouldBreak) {
-      flushCurrentPhrase();
+      const phraseText = currentWords.join(' ');
+      const start = currentStartIndex * secondsPerWord;
+      const end = (i + 1) * secondsPerWord;
+
+      const lines = balanceLines(
+        currentWords,
+        settings.maxLines,
+        settings.maxCharsPerLine,
+      );
+
+      phrases.push({
+        id: `phrase-${phrases.length}`,
+        start: Number(start.toFixed(3)),
+        end: Number(end.toFixed(3)),
+        text: phraseText,
+        lines,
+      });
+
+      currentWords = [];
+      currentStartIndex = i + 1;
     }
-  });
+  }
 
-  flushCurrentPhrase();
-
-  rebalanceTrailingOrphans(phrases, settings);
-
-  return phrases.map((phrase, index) =>
-    createPhrase(phrase.words, index, settings),
-  );
+  // Merge orphan phrases (too short trailing phrases)
+  return mergeOrphanPhrases(phrases, settings);
 };
 
-const shouldBreakPhrase = (
-  phraseWords: SubtitleWord[],
-  currentWord: SubtitleWord,
-  nextWord: SubtitleWord | undefined,
-  options: SubtitleChunkingOptions,
-) => {
-  if (!nextWord) {
-    return true;
-  }
-
-  if (phraseWords.length >= options.maxWordsPerPhrase) {
-    return true;
-  }
-
-  const gapToNextWord = nextWord.start - currentWord.end;
-  if (
-    phraseWords.length >= options.minWordsPerPhrase &&
-    gapToNextWord >= options.silenceGapThresholdSec
-  ) {
-    return true;
-  }
-
-  if (
-    phraseWords.length >= options.minWordsPerPhrase &&
-    HARD_BREAK_PUNCTUATION_REGEX.test(currentWord.trailingPunctuation)
-  ) {
-    return true;
-  }
-
-  if (
-    phraseWords.length >= options.minWordsPerPhrase + 1 &&
-    SOFT_BREAK_PUNCTUATION_REGEX.test(currentWord.trailingPunctuation)
-  ) {
-    return true;
-  }
-
-  const projectedWords = [...phraseWords, nextWord];
-  const projectedLines = balanceLines(projectedWords, options.maxLines);
-  if (projectedLines.some((line) => line.length > options.maxCharsPerLine)) {
-    return phraseWords.length >= options.minWordsPerPhrase;
-  }
-
-  return false;
-};
-
-const rebalanceTrailingOrphans = (
+export const scaleSubtitleTimestamps = (
   phrases: SubtitlePhrase[],
-  options: SubtitleChunkingOptions,
-) => {
-  for (let index = 1; index < phrases.length; index += 1) {
-    const previous = phrases[index - 1];
-    const current = phrases[index];
-
-    if (
-      current.words.length === 1 &&
-      previous.words.length < options.maxWordsPerPhrase
-    ) {
-      previous.words.push(current.words[0]);
-      phrases.splice(index, 1);
-      index -= 1;
-      continue;
-    }
-
-    const firstWord = current.words[0];
-    if (
-      current.words.length >= 2 &&
-      previous.words.length < options.maxWordsPerPhrase &&
-      ORPHAN_WORDS.has(firstWord.normalized)
-    ) {
-      previous.words.push(firstWord);
-      current.words.shift();
-    }
-  }
+  scalingFactor: number,
+): SubtitlePhrase[] => {
+  return phrases.map((phrase) => ({
+    ...phrase,
+    start: Number((phrase.start * scalingFactor).toFixed(3)),
+    end: Number((phrase.end * scalingFactor).toFixed(3)),
+  }));
 };
 
-const createPhrase = (
-  words: SubtitleWord[],
-  index: number,
-  options: SubtitleChunkingOptions,
-): SubtitlePhrase => {
-  const lines = balanceLines(words, options.maxLines);
-
-  return {
-    id: `phrase-${index}`,
-    start: words[0].start,
-    end: words[words.length - 1].end,
-    text: words.map((word) => word.text).join(' '),
-    words: [...words],
-    lines,
-  };
-};
-
-const balanceLines = (words: SubtitleWord[], maxLines: number): string[] => {
+const balanceLines = (
+  words: string[],
+  maxLines: number,
+  maxCharsPerLine: number,
+): string[] => {
   if (words.length === 0) {
     return [];
   }
 
   if (maxLines <= 1 || words.length <= 2) {
-    return [words.map((word) => word.text).join(' ')];
+    return [words.join(' ')];
   }
 
-  let bestLines = [words.map((word) => word.text).join(' ')];
+  let bestLines = [words.join(' ')];
   let bestScore = Number.POSITIVE_INFINITY;
 
   for (let breakIndex = 1; breakIndex < words.length; breakIndex += 1) {
-    const firstLine = words
-      .slice(0, breakIndex)
-      .map((word) => word.text)
-      .join(' ');
-    const secondLine = words
-      .slice(breakIndex)
-      .map((word) => word.text)
-      .join(' ');
+    const firstLine = words.slice(0, breakIndex).join(' ');
+    const secondLine = words.slice(breakIndex).join(' ');
+
+    // Skip if either line exceeds maxCharsPerLine
+    if (
+      firstLine.length > maxCharsPerLine ||
+      secondLine.length > maxCharsPerLine
+    ) {
+      continue;
+    }
 
     const score = Math.abs(firstLine.length - secondLine.length);
     if (score < bestScore) {
@@ -232,4 +159,52 @@ const balanceLines = (words: SubtitleWord[], maxLines: number): string[] => {
   }
 
   return bestLines;
+};
+
+const mergeOrphanPhrases = (
+  phrases: SubtitlePhrase[],
+  settings: SubtitleChunkingOptions,
+): SubtitlePhrase[] => {
+  if (phrases.length <= 1) {
+    return phrases;
+  }
+
+  const result: SubtitlePhrase[] = [];
+
+  for (let i = 0; i < phrases.length; i++) {
+    const current = phrases[i];
+    const wordCount = current.text.split(/\s+/).length;
+
+    // If this is a too-short phrase and not the first one
+    if (wordCount < settings.minWordsPerPhrase && result.length > 0) {
+      // Merge with previous phrase
+      const previous = result[result.length - 1];
+      const mergedWords = [
+        ...previous.text.split(/\s+/),
+        ...current.text.split(/\s+/),
+      ];
+
+      // Check if merged phrase would exceed max
+      if (mergedWords.length <= settings.maxWordsPerPhrase) {
+        previous.text = mergedWords.join(' ');
+        previous.end = current.end;
+        previous.lines = balanceLines(
+          mergedWords,
+          settings.maxLines,
+          settings.maxCharsPerLine,
+        );
+      } else {
+        // Can't merge, keep as is
+        result.push(current);
+      }
+    } else {
+      result.push(current);
+    }
+  }
+
+  // Re-index IDs
+  return result.map((phrase, index) => ({
+    ...phrase,
+    id: `phrase-${index}`,
+  }));
 };

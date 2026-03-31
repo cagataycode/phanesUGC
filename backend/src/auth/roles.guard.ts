@@ -3,6 +3,7 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from './roles.decorator';
@@ -12,6 +13,8 @@ import { AuthenticatedRequest } from './firebase-auth.guard';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
+  private readonly logger = new Logger(RolesGuard.name);
+
   constructor(
     private reflector: Reflector,
     private firestore: FirestoreService,
@@ -48,6 +51,7 @@ export class RolesGuard implements CanActivate {
 
     // Fetch membership to check role
     const db = this.firestore.getFirestore();
+    this.logger.debug(`Checking membership for businessId: "${businessId}"`);
     const membershipRef = db.doc(
       `businesses/${businessId}/members/${user.uid}`,
     );

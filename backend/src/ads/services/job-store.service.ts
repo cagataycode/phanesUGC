@@ -10,6 +10,30 @@ export interface ProjectStage {
   status: 'pending' | 'running' | 'done' | 'failed' | 'skipped';
 }
 
+export interface AdJobMetadata {
+  scenePrompt?: {
+    intent: string;
+    visualStyle: string;
+    cameraMotion: string;
+    fullPrompt?: string;
+    negativePrompt?: string;
+  };
+  renderRequest?: {
+    fps: number;
+    durationInFrames: number;
+    phraseCount: number;
+  };
+  subtitleScaling?: {
+    plannedDurationSec: number;
+    actualDurationSec: number;
+    scalingFactor: number;
+  };
+  simulatedScenes?: Array<{
+    narration: string;
+    duration_sec: number;
+  }>;
+}
+
 export interface AdJob {
   id: string;
   businessId: string;
@@ -33,16 +57,13 @@ export interface AdJob {
   };
   creativeBrief?: CreativeBrief;
   script?: GeneratedScript;
-  metadata?: Record<string, unknown>;
+  metadata?: AdJobMetadata;
   subtitleSegments?: Array<{
+    id: string;
     start: number;
     end: number;
     text: string;
-    words: Array<{
-      word: string;
-      start: number;
-      end: number;
-    }>;
+    lines: string[];
   }>;
   output?: {
     videoStorageKey: string;

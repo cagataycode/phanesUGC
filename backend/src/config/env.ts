@@ -11,6 +11,7 @@ export const envSchema = z.object({
   VERTEX_AI_MODEL_ID: z.string().min(1).default('veo-3.1-fast-generate-001'),
   VERTEX_OUTPUT_GCS_URI: z.string().min(1).optional(),
   VERTEX_AI_API_KEY: z.string().min(1).optional(),
+  GEMINI_API_KEY: z.string().min(1), // Required for brief/script/scene generation
   PORT: z.coerce.number().int().positive().default(3000),
   NODE_ENV: z
     .enum(['development', 'test', 'production'])

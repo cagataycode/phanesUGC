@@ -2,10 +2,9 @@ import React, { useMemo } from 'react';
 import { AbsoluteFill, Sequence, Video, useCurrentFrame, staticFile } from 'remotion';
 import { RenderRequest } from '../constants';
 import {
-  getSubtitleTimelineState,
-  resolveRenderPhrases,
+  getSubtitleTimelineState
 } from '../../subtitles/subtitle-timeline';
-import { buildKaraokeCaptionPresentation } from './karaoke-presenter';
+import { buildKineticCaptionPresentation } from './kinetic-presenter';
 
 const containerStyle: React.CSSProperties = {
   position: 'absolute',
@@ -38,48 +37,24 @@ const lineStyle: React.CSSProperties = {
   gap: '0.24em',
 };
 
-const baseWordStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '0.08em 0.18em',
-  borderRadius: '0.28em',
-  color: '#ffffff',
-  transform: 'scale(1)',
-  textShadow: wordShadow,
+const getChunkStyle = (): React.CSSProperties => {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0.08em 0.18em',
+    borderRadius: '0.28em',
+    color: '#0f172a',
+    backgroundColor: '#facc15',
+    border: '1px solid rgba(255,255,255,0.32)',
+    transform: 'scale(1.06)',
+    boxShadow: '0 8px 24px rgba(250, 204, 21, 0.35)',
+    textShadow: 'none',
+  };
 };
 
-const getWordStyle = (
-  isActive: boolean,
-  isSpoken: boolean,
-): React.CSSProperties => {
-  if (isActive) {
-    return {
-      ...baseWordStyle,
-      color: '#0f172a',
-      backgroundColor: '#facc15',
-      border: '1px solid rgba(255,255,255,0.32)',
-      transform: 'scale(1.06)',
-      boxShadow: '0 8px 24px rgba(250, 204, 21, 0.35)',
-      textShadow: 'none',
-    };
-  }
-
-  if (isSpoken) {
-    return {
-      ...baseWordStyle,
-      color: '#ffffff',
-      backgroundColor: 'rgba(147, 197, 253, 0.28)',
-      border: '1px solid rgba(191,219,254,0.24)',
-    };
-  }
-
-  return baseWordStyle;
-};
-
-export const KaraokeSubtitledVideo: React.FC<RenderRequest> = ({
+export const KineticSubtitledVideo: React.FC<RenderRequest> = ({
   videoUrl,
-  segments,
   phrases,
   fps,
 }) => {
@@ -91,7 +66,7 @@ export const KaraokeSubtitledVideo: React.FC<RenderRequest> = ({
   }, [videoUrl]);
 
   const frame = useCurrentFrame();
-  const renderPhrases = resolveRenderPhrases(segments, phrases);
+  const renderPhrases = phrases ?? [];
   const subtitleState = getSubtitleTimelineState({
     frame,
     fps,
@@ -99,7 +74,7 @@ export const KaraokeSubtitledVideo: React.FC<RenderRequest> = ({
   });
   const visiblePhrase = subtitleState.activePhrase;
   const captionPresentation = visiblePhrase
-    ? buildKaraokeCaptionPresentation(visiblePhrase, subtitleState)
+    ? buildKineticCaptionPresentation(visiblePhrase)
     : null;
 
   return (
@@ -115,11 +90,9 @@ export const KaraokeSubtitledVideo: React.FC<RenderRequest> = ({
           <div style={captionStyle}>
             {captionPresentation.lines.map((line, lineIndex) => (
               <div key={`${visiblePhrase?.id ?? 'line'}-${lineIndex}`} style={lineStyle}>
-                {line.words.map((word) => (
-                  <span key={word.id} style={getWordStyle(word.isActive, word.isSpoken)}>
-                    {word.text}
+                  <span style={getChunkStyle()}>
+                    {line.text}
                   </span>
-                ))}
               </div>
             ))}
           </div>

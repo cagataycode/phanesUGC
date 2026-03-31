@@ -16,11 +16,11 @@ export class CreateAdDto {
       benefits?: string[];
     };
     urls?: string[];
-    subtitle_style?: string;
+    subtitle_style?: 'standard' | 'kinetic';
   };
   veo_config!: {
     aspect_ratio: '16:9' | '9:16' | '1:1';
-    duration_sec: 8 | 15 | 30 | 60;
+    duration_sec: 8; // MVP: Only 8 seconds supported
     negative_prompt?: string;
     person_generation?: 'allow_all' | 'allow_adult';
     enhance_prompt?: boolean;

@@ -6,8 +6,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { RenderRequest, REMOTION_COMPOSITION_ID } from './remotion/constants';
-import { chunkSubtitleSegments } from './subtitles/subtitle-chunker';
-import { RawSubtitleSegment, SubtitlePhrase } from './subtitles/subtitle-types';
+import { SubtitlePhrase } from './subtitles/subtitle-types';
 import { Env } from '../config/env';
 
 export type PrepareRenderRequestInput = Omit<RenderRequest, 'phrases'> & {
@@ -38,15 +37,8 @@ export class RenderService {
   prepareRenderRequest(request: PrepareRenderRequestInput): RenderRequest {
     return {
       ...request,
-      phrases:
-        request.phrases && request.phrases.length > 0
-          ? request.phrases
-          : this.prepareSubtitlePhrases(request.segments),
+      phrases: request.phrases || [],
     };
-  }
-
-  prepareSubtitlePhrases(segments: RawSubtitleSegment[]): SubtitlePhrase[] {
-    return chunkSubtitleSegments(segments);
   }
 
   async prepareRender(request: PrepareRenderRequestInput) {

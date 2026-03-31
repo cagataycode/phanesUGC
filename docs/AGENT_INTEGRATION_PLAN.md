@@ -20,8 +20,8 @@
 | **Script Generation**               | AI (LLM)         | Writing ad copy, hooks, CTAs — generative task                                                      |
 | **Scene Planning**                  | AI (LLM)         | Deciding what visual goes where, durations, transitions — creative reasoning                        |
 | **Asset Strategy / Selection**      | Algorithm + AI   | Priority rules are algorithmic; deciding "is this image suitable?" could use AI                     |
-| **Scene Video + Speech Generation** | AI               | Veo generates motion, embedded speech, and subtitles                |
-| **Subtitle Integration**           | AI + Algorithm   | Veo provides timestamps (AI); formatting = algorithm                |
+| **Scene Video + Speech Generation** | AI               | Veo generates motion and embedded speech                            |
+| **Subtitle Generation**            | Algorithm        | Script provides text + planned timing; chunking + formatting = algorithm |
 | **Quality Evaluation**              | Algorithm + AI   | Some checks are rule-based (file exists, duration match); others need LLM (is the hook compelling?) |
 | **Retry / Fallback Decisions**      | Algorithm        | Bounded policy logic — pure code                                                                    |
 | **Video Composition / Rendering**   | Algorithm        | Building a deterministic render spec and calling Remotion           |
@@ -134,7 +134,7 @@ LLMAdapter          — for Gemini text generation (brief, script, scene plannin
 ScraperAdapter      — for Crawlee-based URL scraping and extraction
 StockMediaAdapter   — for stock media search
 ImageGenAdapter     — for image generation
-VideoGenAdapter     — for video and subtitle generation (Veo 3.1)
+VideoGenAdapter     — for video generation (Veo 3.1)
 RendererAdapter     — for final video rendering
 ```
 
@@ -166,7 +166,7 @@ backend/src/
 │   │   ├── scraper.adapter.ts               # Interface for Crawlee scraping
 │   │   ├── stock-media.adapter.ts           # Interface for stock media
 │   │   ├── image-generation.adapter.ts      # Interface for image gen
-│   │   ├── video-generation.adapter.ts      # Interface for video & subtitles (Veo)
+│   │   ├── video-generation.adapter.ts      # Interface for video generation (Veo)
 │   │   └── renderer.adapter.ts              # Interface for rendering
 │   │
 │   ├── stages/
@@ -176,8 +176,8 @@ backend/src/
 │   │   ├── script-generator.service.ts      # Stage 5-6: Generate & evaluate script (LLM)
 │   │   ├── scene-planner.service.ts         # Stage 7: Plan scenes (LLM)
 │   │   ├── asset-resolver.service.ts        # Stage 8: Select/generate assets
-│   │   ├── scene-video-generator.service.ts # Stage 9: Veo generation with subtitles
-│   │   ├── veo-output-processor.service.ts   # Stage 10: Format Veo subtitles
+│   │   ├── scene-video-generator.service.ts # Stage 9: Veo video generation
+│   │   ├── subtitle-generator.service.ts     # Stage 10-11: Script-derived subtitle generation + post-Veo scaling
 │   │   ├── timeline-assembler.service.ts    # Stage 13: Build render spec
 │   │   ├── render-executor.service.ts       # Stage 14-15: Trigger render
 │   │   └── output-validator.service.ts      # Stage 16: Quality checks
@@ -232,7 +232,7 @@ backend/src/
 | script_ready      | `AdScript` — hook, narration lines, CTA, overlay text       |
 | scenes_ready      | `ScenePlan[]` — per-scene instructions                      |
 | assets_ready      | `ResolvedAsset[]` — media URLs/keys per scene               |
-| veo_output_ready   | `VeoOutput` — generated video and subtitle segments        |
+| veo_output_ready   | `VeoOutput` — generated video; subtitles derived from script in parallel |
 | composition_ready | `RenderTimeline` — deterministic render specification       |
 | rendering         | (render in progress)                                        |
 | validation        | `QualityReport` — pass/revise/fail per check                |
@@ -260,7 +260,7 @@ Quality gates are checkpoints between stages where the agent evaluates output be
 
 ### Subtitle Gate
 
-- captions are synchronized (from Veo)
+- captions are synchronized (from script-derived timing, scaled to actual video duration)
 - line breaks are readable
 - captions remain within safe area
 
@@ -303,7 +303,7 @@ You don't need to build all 14 stages at once. The natural build order:
 | --------------------- | -------------------------------------------------------------- | ----------------------------------------- |
 | **Phase 0 (current)** | prompt → Veo → GCS                                             | Already done                              |
 | **Phase 1**           | + Input normalization + LLM brief + LLM script                 | Agent starts "thinking" before generating |
-| **Phase 3**           | + Veo video and subtitle generation           | Video + Subtitles work                    |
+| **Phase 3**           | + Veo video generation + script-derived subtitles (parallel) | Video + Subtitles work                    |
 | **Phase 4**           | + Remotion render composition                           | Full render pipeline                      |
 | **Phase 5**           | + Quality gates + Retry logic                                  | Agent becomes truly agentic               |
 
@@ -334,8 +334,8 @@ AdsController
       → QualityGatesService.evaluateScript()  ← LLM + rules
       → ScenePlannerService.plan()            ← LLM call
       → AssetResolverService.resolve()
-      → VoiceGeneratorService.generate()      ← Veo 3.1 call (Video + Subtitles)
-      → SubtitleFormattingService.format()
+      → VoiceGeneratorService.generate()      ← Veo 3.1 call (Video only)
+      → SubtitleGeneratorService.generate()   ← runs in parallel with Veo, then scales to actual duration
       → TimelineAssemblerService.assemble()
       → RenderExecutorService.render()        ← Remotion
       → OutputValidatorService.validate()     ← rules + LLM
@@ -366,7 +366,7 @@ export class CreateAdDto {
   product_benefits?: string[];
   product_urls?: string[];
   brand_assets?: string[]; // uploaded asset references
-  subtitle_style?: "standard" | "kinetic" | "karaoke";
+  subtitle_style?: "standard" | "kinetic";
   voice_id?: string;
 }
 ```
@@ -389,7 +389,7 @@ export class CreateAdDto {
 ## 13. Open Questions
 
 1. **Which Gemini model for text generation?** (e.g., `gemini-2.0-flash`, `gemini-2.5-pro`)
-2. **Subtitles for MVP?** (Use direct Veo 3.1 output)
+2. **Subtitles for MVP?** (Script-derived, algorithmic — decided)
 3. **Stock media provider?** (Pexels, Shutterstock, none for MVP?)
 4. **Render engine?** (Remotion)
 5. **Should Phase 1 start immediately or do we need to resolve open questions first?**

@@ -11,7 +11,7 @@
 
 Phanes is an **AI Ad Agent** — a bounded, multi-stage ad production system that converts a user prompt and optional product context into a ready-to-post short-form social video ad.
 
-The agent accepts a prompt, interprets the advertising objective, gathers product context, writes the script, plans scenes, selects or generates visual assets, generates video with integrated subtitles via Veo 3.1, renders the final video, evaluates quality, and delivers a social-ready MP4.
+The agent accepts a prompt, interprets the advertising objective, gathers product context, writes the script, plans scenes, selects or generates visual assets, generates video via Veo 3.1, derives subtitles algorithmically from the script, renders the final video, evaluates quality, and delivers a social-ready MP4.
 
 ---
 
@@ -76,7 +76,7 @@ Frontend (Next.js)
         → Scene Planner (Gemini LLM)
         → Asset Resolver (Uploads / Scraped Media / Stock / Imagen / Veo)
         → Scene Video Generator (Veo with built-in speech)
-        | Veo Output Processor (subtitle formatting)
+        → Subtitle Generator (script-derived, parallel with Veo)
         | Timeline Assembler (Remotion inputs)
         | Render Executor (Remotion)
         → Output Validator
@@ -93,7 +93,7 @@ Frontend (Next.js)
 | Service                                     | Purpose                                                                          |
 | ------------------------------------------- | -------------------------------------------------------------------------------- |
 | **Gemini (Vertex AI)**                      | LLM for brief, script, scene planning, extraction enrichment, quality evaluation |
-| **Veo (Vertex AI)**                         | AI scene/video generation with embedded speech and subtitles                     |
+| **Veo (Vertex AI)**                         | AI video generation with embedded speech                                                     |
 | **Imagen (Vertex AI)**                      | AI image generation for scene visuals                                            |
 | **Google Cloud Storage / Firebase Storage** | Asset and output storage                                                         |
 | **Firebase Auth**                           | User authentication                                                              |
@@ -350,12 +350,12 @@ GET /api/v1/ads/{id}/result
     {
       "start": 0.42,
       "end": 1.95,
-      "text": "Still spending hours",
-      "words": [
-        { "word": "Still", "start": 0.42, "end": 0.68 },
-        { "word": "spending", "start": 0.69, "end": 1.12 },
-        { "word": "hours", "start": 1.13, "end": 1.95 }
-      ]
+      "text": "Still spending hours"
+    },
+    {
+      "start": 1.96,
+      "end": 3.10,
+      "text": "editing ad videos?"
     }
   ],
   "transcript": "Still spending hours editing ad videos? ...",
@@ -650,8 +650,8 @@ All endpoints supporting `webhook_url` will POST when a job completes:
 - AI script generation with quality evaluation
 - Scene planning
 - Asset selection (uploaded, scraped, stock, generated)
-- Video generation via Veo 3.1 with integrated subtitles
-- Subtitle formatting with style presets
+- Video generation via Veo 3.1
+- Script-derived subtitle generation with style presets (standard, kinetic)
 - Social-safe video rendering
 - Quality gates between stages
 - Targeted retry and fallback
@@ -685,7 +685,7 @@ The MVP is complete when:
 3. The user can review and edit extracted product data before generation
 4. A complete short-form script is generated with hook, body, and CTA
 5. Scenes are planned and visuals assembled
-6. Video and subtitles are generated via Veo 3.1
+6. Video is generated via Veo 3.1; subtitles are derived algorithmically from the script
 7. Subtitles are formatted and burned into the video
 8. A preview can be generated before committing to full render
 9. A final MP4 is rendered in 9:16 format

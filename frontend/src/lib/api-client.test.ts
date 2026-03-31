@@ -7,12 +7,19 @@ vi.mock("./firebase", () => ({
   },
 }));
 
+import { auth } from "./firebase";
+
 vi.mock("firebase/auth", () => ({
   getIdToken: vi.fn().mockResolvedValue("mock-firebase-token"),
 }));
 
+vi.mock("./firebase/auth", () => ({
+  getCurrentUser: vi.fn().mockImplementation(() => {
+    return Promise.resolve((auth as unknown as MutableAuth).currentUser);
+  }),
+}));
+
 import { fetchWithAuth, API_BASE_URL } from "./api-client";
-import { auth } from "./firebase";
 import { getIdToken } from "firebase/auth";
 
 interface MutableAuth {

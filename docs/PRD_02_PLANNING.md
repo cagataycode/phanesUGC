@@ -513,6 +513,6 @@ Before transitioning to Phase 3, the agent verifies:
 | Artifact | Stored As | Used By |
 |---|---|---|
 | `CreativeBrief` | `creative_briefs.brief_json` | Script generator, scene planner |
-| `AdScript` | `scripts.script_json` | Scene planner, voice generator, subtitle generator |
+| `AdScript` | `scripts.script_json` | Scene planner, voice generator, subtitle generator (script-derived) |
 | `ScriptEvaluation` | Internal (job metadata) | Retry policy, quality reporting |
 | `ScenePlan[]` | `scenes` table (one row per scene) | Asset resolver, timeline assembler, renderer |

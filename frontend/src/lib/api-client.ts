@@ -1,8 +1,10 @@
-import { auth } from "./firebase";
 import { getIdToken } from "firebase/auth";
+import { getCurrentUser } from "./firebase/auth";
 
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "/api";
 
 interface FetchOptions extends RequestInit {
   requireAuth?: boolean;
@@ -14,22 +16,23 @@ interface FetchOptions extends RequestInit {
  */
 export async function fetchWithAuth(
   endpoint: string,
-  options: FetchOptions = {}
+  options: FetchOptions = {},
 ): Promise<Response> {
   const { requireAuth = true, headers = {}, ...rest } = options;
 
   let authHeader = {};
-  if (requireAuth && auth?.currentUser) {
+  if (requireAuth) {
     try {
-      const token = await getIdToken(auth.currentUser);
-      authHeader = { Authorization: `Bearer ${token}` };
+      const user = await getCurrentUser();
+      if (user) {
+        const token = await getIdToken(user);
+        authHeader = { Authorization: `Bearer ${token}` };
+      }
     } catch (error) {
       console.error("Failed to fetch Firebase ID token for request:", error);
-      if (requireAuth) {
-        throw new Error("Authentication required but token fetch failed", {
-          cause: error,
-        });
-      }
+      throw new Error("Authentication required but token fetch failed", {
+        cause: error,
+      });
     }
   }
 
