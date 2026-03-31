@@ -19,14 +19,22 @@ export async function POST(request: NextRequest) {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
+  
+  const { searchParams } = new URL(request.url);
+
   if (authHeader) {
     headers['Authorization'] = authHeader;
   }
   if (typeof bodyJson.businessId === 'string' && bodyJson.businessId) {
     headers['x-business-id'] = bodyJson.businessId;
+  } else if (searchParams.has('businessId')) {
+    headers['x-business-id'] = searchParams.get('businessId') as string;
   }
 
-  const response = await fetch(`${BACKEND_API_BASE_URL}/ads`, {
+  const searchString = searchParams.toString();
+  const urlSuffix = searchString ? `?${searchString}` : '';
+
+  const response = await fetch(`${BACKEND_API_BASE_URL}/ads${urlSuffix}`, {
     method: 'POST',
     headers,
     body: bodyText,

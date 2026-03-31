@@ -37,34 +37,19 @@ const lineStyle: React.CSSProperties = {
   gap: '0.24em',
 };
 
-const getChunkStyle = (
-  isActive: boolean,
-): React.CSSProperties => {
-  const baseStyle: React.CSSProperties = {
+const getChunkStyle = (): React.CSSProperties => {
+  return {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     padding: '0.08em 0.18em',
     borderRadius: '0.28em',
-    transform: 'scale(1)',
-  };
-
-  if (isActive) {
-    return {
-      ...baseStyle,
-      color: '#0f172a',
-      backgroundColor: '#facc15',
-      border: '1px solid rgba(255,255,255,0.32)',
-      transform: 'scale(1.06)',
-      boxShadow: '0 8px 24px rgba(250, 204, 21, 0.35)',
-      textShadow: 'none',
-    };
-  }
-
-  return {
-    ...baseStyle,
-    color: '#ffffff',
-    textShadow: wordShadow,
+    color: '#0f172a',
+    backgroundColor: '#facc15',
+    border: '1px solid rgba(255,255,255,0.32)',
+    transform: 'scale(1.06)',
+    boxShadow: '0 8px 24px rgba(250, 204, 21, 0.35)',
+    textShadow: 'none',
   };
 };
 
@@ -89,7 +74,7 @@ export const KineticSubtitledVideo: React.FC<RenderRequest> = ({
   });
   const visiblePhrase = subtitleState.activePhrase;
   const captionPresentation = visiblePhrase
-    ? buildKineticCaptionPresentation(visiblePhrase, subtitleState)
+    ? buildKineticCaptionPresentation(visiblePhrase)
     : null;
 
   return (
@@ -105,7 +90,7 @@ export const KineticSubtitledVideo: React.FC<RenderRequest> = ({
           <div style={captionStyle}>
             {captionPresentation.lines.map((line, lineIndex) => (
               <div key={`${visiblePhrase?.id ?? 'line'}-${lineIndex}`} style={lineStyle}>
-                  <span style={getChunkStyle(captionPresentation.isActive)}>
+                  <span style={getChunkStyle()}>
                     {line.text}
                   </span>
               </div>

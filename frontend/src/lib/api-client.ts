@@ -1,10 +1,10 @@
-import { getIdToken } from 'firebase/auth';
-import { getCurrentUser } from './firebase/auth';
+import { getIdToken } from "firebase/auth";
+import { getCurrentUser } from "./firebase/auth";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  '/api';
+  "/api";
 
 interface FetchOptions extends RequestInit {
   requireAuth?: boolean;
@@ -29,8 +29,8 @@ export async function fetchWithAuth(
         authHeader = { Authorization: `Bearer ${token}` };
       }
     } catch (error) {
-      console.error('Failed to fetch Firebase ID token for request:', error);
-      throw new Error('Authentication required but token fetch failed', {
+      console.error("Failed to fetch Firebase ID token for request:", error);
+      throw new Error("Authentication required but token fetch failed", {
         cause: error,
       });
     }
@@ -41,8 +41,8 @@ export async function fetchWithAuth(
   if (isAbsoluteUrl) {
     url = endpoint;
   } else {
-    const normalizedBase = API_BASE_URL.replace(/\/+$/, '');
-    const normalizedEndpoint = endpoint.startsWith('/')
+    const normalizedBase = API_BASE_URL.replace(/\/+$/, "");
+    const normalizedEndpoint = endpoint.startsWith("/")
       ? endpoint
       : `/${endpoint}`;
     url = `${normalizedBase}${normalizedEndpoint}`;
@@ -51,7 +51,7 @@ export async function fetchWithAuth(
   return fetch(url, {
     ...rest,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...authHeader,
       ...headers,
     },
