@@ -26,17 +26,25 @@ export class VideoUtilsService {
       this.logger.log(`Extracted duration for ${filePath}: ${duration}s`);
       return duration;
     } catch (error: unknown) {
-      this.logger.error(
-        `Failed to get video duration for ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
-      );
       if (
         error instanceof Error &&
         'code' in error &&
         (error as NodeJS.ErrnoException).code === 'ENOENT'
       ) {
-        throw new Error('ffprobe is not installed or not found in PATH.');
+        this.logger.warn(
+          `ffprobe not found when getting video duration for ${filePath}: ${error.message}`,
+        );
+        throw new Error('ffprobe is not installed or not found in PATH.', {
+          cause: error,
+        });
       }
-      throw new Error(`Could not get video duration for ${filePath}.`);
+
+      this.logger.error(
+        `Failed to get video duration for ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new Error(`Could not get video duration for ${filePath}.`, {
+        cause: error instanceof Error ? error : new Error(String(error)),
+      });
     }
   }
 }

@@ -31,8 +31,8 @@ export const generateSubtitlesFromScenes = (
       allPhrases.push({
         ...phrase,
         id: `phrase-${allPhrases.length}`,
-        start: phrase.start + globalTimeOffset,
-        end: phrase.end + globalTimeOffset,
+        start: Number((phrase.start + globalTimeOffset).toFixed(3)),
+        end: Number((phrase.end + globalTimeOffset).toFixed(3)),
       });
     });
 
