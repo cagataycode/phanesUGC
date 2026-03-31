@@ -1,5 +1,11 @@
 import React, { useMemo } from 'react';
-import { AbsoluteFill, Sequence, Video, useCurrentFrame, staticFile } from 'remotion';
+import {
+  AbsoluteFill,
+  Sequence,
+  Video,
+  useCurrentFrame,
+  staticFile,
+} from 'remotion';
 import { RenderRequest } from '../constants';
 import {
   getSubtitleTimelineState,
@@ -108,15 +114,24 @@ export const KaraokeSubtitledVideo: React.FC<RenderRequest> = ({
         <Video
           src={resolvedVideoUrl}
           style={{ width: '100%', height: '100%' }}
+          onError={(e) => {
+            console.error('Video playback error in Remotion:', e);
+          }}
         />
       </Sequence>
       {captionPresentation ? (
         <div style={containerStyle}>
           <div style={captionStyle}>
             {captionPresentation.lines.map((line, lineIndex) => (
-              <div key={`${visiblePhrase?.id ?? 'line'}-${lineIndex}`} style={lineStyle}>
+              <div
+                key={`${visiblePhrase?.id ?? 'line'}-${lineIndex}`}
+                style={lineStyle}
+              >
                 {line.words.map((word) => (
-                  <span key={word.id} style={getWordStyle(word.isActive, word.isSpoken)}>
+                  <span
+                    key={word.id}
+                    style={getWordStyle(word.isActive, word.isSpoken)}
+                  >
                     {word.text}
                   </span>
                 ))}
