@@ -16,6 +16,10 @@ export interface CreateUploadUrlPayload {
   role?: "profile" | "reference" | "demo" | "voice_sample" | "brand";
 }
 
+export interface CreateUploadFromUrlPayload extends CreateUploadUrlPayload {
+  sourceUrl: string;
+}
+
 export interface RawUploadAssetDescriptor {
   storageKey: string;
   type: "image" | "video" | "audio" | "logo";
@@ -67,6 +71,33 @@ export async function createUploadUrl(
   return res.json() as Promise<{
     uploadUrl: string;
     method: "PUT";
+    objectPath: string;
+    asset: RawUploadAssetDescriptor;
+  }>;
+}
+
+export async function createUploadFromUrl(
+  businessId: string,
+  entityId: string,
+  payload: CreateUploadFromUrlPayload,
+): Promise<{
+  objectPath: string;
+  asset: RawUploadAssetDescriptor;
+}> {
+  const res = await fetchWithAuth(
+    `/v1/businesses/${encodeURIComponent(businessId)}/assets/${encodeURIComponent(entityId)}/upload-from-url`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to upload asset from URL: ${text}`);
+  }
+
+  return res.json() as Promise<{
     objectPath: string;
     asset: RawUploadAssetDescriptor;
   }>;
