@@ -50,13 +50,16 @@ export class GcsStorageService {
     });
   }
 
-  async createSignedVideoUrl(objectPath: string): Promise<string> {
+  async createSignedVideoUrl(
+    objectPath: string,
+    expiresInMinutes = 15,
+  ): Promise<string> {
     const [signedUrl] = await this.storage
       .bucket(this.bucketName)
       .file(objectPath)
       .getSignedUrl({
         action: 'read',
-        expires: Date.now() + 1000 * 60 * 15,
+        expires: Date.now() + 1000 * 60 * expiresInMinutes,
         version: 'v4',
       });
 
