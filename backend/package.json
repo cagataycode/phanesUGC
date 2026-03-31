@@ -68,7 +68,8 @@
   },
   "overrides": {
     "loader-utils": "^3.3.1",
-    "path-to-regexp": "^8.4.1"
+    "path-to-regexp": "^8.4.1",
+    "picomatch": "^4.0.4"
   },
   "jest": {
     "moduleFileExtensions": [
