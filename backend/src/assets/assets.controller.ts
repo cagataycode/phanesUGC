@@ -1,4 +1,12 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
@@ -20,5 +28,16 @@ export class AssetsController {
     @Body(new ZodValidationPipe(createUploadUrlSchema)) dto: CreateUploadUrlDto,
   ) {
     return this.assetsService.createUploadUrl(businessId, entityId, dto);
+  }
+
+  @Get('download-url')
+  async createDownloadUrl(
+    @Param('businessId') _businessId: string,
+    @Query('storageKey') storageKey: string,
+  ) {
+    if (!storageKey) {
+      return { downloadUrl: null };
+    }
+    return this.assetsService.createDownloadUrl(storageKey);
   }
 }
