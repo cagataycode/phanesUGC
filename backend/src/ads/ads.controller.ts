@@ -22,6 +22,11 @@ export class AdsController {
     return this.adsService.createJob(createAdDto);
   }
 
+  @Get()
+  async listJobs(@Query('businessId') businessId: string) {
+    return this.adsService.listJobs(businessId);
+  }
+
   @Get(':id')
   async getJob(
     @Param('id') id: string,
