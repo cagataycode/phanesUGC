@@ -63,6 +63,19 @@ export class GcsStorageService {
     return signedUrl;
   }
 
+  async createSignedDownloadUrl(objectPath: string): Promise<string> {
+    const [signedUrl] = await this.storage
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 1000 * 60 * 60, // 1 hour
+        version: 'v4',
+      });
+
+    return signedUrl;
+  }
+
   async createSignedUploadUrl(
     objectPath: string,
     contentType: string,
