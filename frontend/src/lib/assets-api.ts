@@ -89,3 +89,23 @@ export async function uploadFileToSignedUrl(
     throw new Error(`Failed to upload file: ${text}`);
   }
 }
+
+export async function getAssetDownloadUrl(
+  businessId: string,
+  storageKey: string,
+): Promise<string | null> {
+  try {
+    const res = await fetchWithAuth(
+      `/v1/businesses/${encodeURIComponent(businessId)}/assets/download-url?storageKey=${encodeURIComponent(storageKey)}`,
+    );
+
+    if (!res.ok) {
+      return null;
+    }
+
+    const data = (await res.json()) as { downloadUrl: string | null };
+    return data.downloadUrl;
+  } catch {
+    return null;
+  }
+}
