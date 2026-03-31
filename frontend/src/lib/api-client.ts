@@ -25,8 +25,6 @@ export async function fetchWithAuth(
       if (user) {
         const token = await getIdToken(user);
         authHeader = { Authorization: `Bearer ${token}` };
-      } else {
-        throw new Error('Authentication required but user is not logged in.');
       }
     } catch (error) {
       console.error('Failed to fetch Firebase ID token for request:', error);

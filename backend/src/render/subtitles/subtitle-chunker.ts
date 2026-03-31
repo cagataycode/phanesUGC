@@ -54,6 +54,10 @@ export const generateScriptSubtitles = (
     return [];
   }
 
+  if (!Number.isFinite(durationSec) || durationSec <= 0) {
+    return [];
+  }
+
   const secondsPerWord = durationSec / allWords.length;
   const phrases: SubtitlePhrase[] = [];
 

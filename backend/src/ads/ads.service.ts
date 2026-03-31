@@ -389,8 +389,15 @@ ${script.full_text}`);
           localSourcePath,
         );
 
-        const actualDurationSec =
-          await this.videoUtilsService.getVideoDuration(localSourcePath);
+        let actualDurationSec = createAdDto.veo_config.duration_sec;
+        try {
+          actualDurationSec =
+            await this.videoUtilsService.getVideoDuration(localSourcePath);
+        } catch (error) {
+          this.logger.warn(
+            `[${projectId}] Failed to extract video duration, falling back to planned duration: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
         const plannedDurationSec = createAdDto.veo_config.duration_sec;
 
         this.logger.log(
@@ -413,11 +420,19 @@ ${script.full_text}`);
         const videoUrlForRemotion = fileName;
         const preparedRenderRequest = this.renderService.prepareRenderRequest({
           videoUrl: videoUrlForRemotion,
-          segments: correctedSubtitleSegments,
+          phrases: correctedSubtitleSegments,
           fps: 30,
           durationInFrames: Math.round(actualDurationSec * 30),
-          width: createAdDto.veo_config.aspect_ratio === '9:16' ? 1080 : 1920,
-          height: createAdDto.veo_config.aspect_ratio === '9:16' ? 1920 : 1080,
+          width:
+            createAdDto.veo_config.aspect_ratio === '9:16' ||
+            createAdDto.veo_config.aspect_ratio === '1:1'
+              ? 1080
+              : 1920,
+          height:
+            createAdDto.veo_config.aspect_ratio === '16:9' ||
+            createAdDto.veo_config.aspect_ratio === '1:1'
+              ? 1080
+              : 1920,
           subtitleStyle: createAdDto.prompt_inputs.subtitle_style ?? 'kinetic',
         });
 

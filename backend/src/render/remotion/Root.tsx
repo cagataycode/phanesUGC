@@ -8,7 +8,7 @@ import { StandardSubtitledVideo } from './compositions/StandardSubtitledVideo';
 
 const defaultProps: RenderRequest = {
   videoUrl: '',
-  segments: [],
+  phrases: [],
   fps: 30,
   durationInFrames: 1,
   width: 1080,
