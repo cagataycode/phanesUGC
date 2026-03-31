@@ -172,19 +172,6 @@ ONE scene prompt object with ALL fields filled with real, descriptive values.
 ## Output Format
 Return ONLY a valid JSON object. No markdown, no explanation, no wrapping.
 ALL fields must have real values - NO "undefined" strings!`;
-    }
-  },
-  "transition_in": "cut",
-  "transition_out": "fade",
-  "negative_prompt": "...",
-  "generation_config": {
-    "model": "veo-3.1-generate-001",
-    "seed": null,
-    "safety_filter": "standard",
-    "retry_count": 0,
-    "priority": "normal"
-  }
-}`;
 
 @Injectable()
 export class SceneStructuringService {
