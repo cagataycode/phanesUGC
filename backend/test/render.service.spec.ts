@@ -1,8 +1,31 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { RenderService } from '../src/render/render.service';
 import { SubtitlePhrase } from '../src/render/subtitles/subtitle-types';
 
 describe('RenderService', () => {
-  const renderService = new RenderService();
+  let renderService: RenderService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        RenderService,
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockImplementation((key: string) => {
+              if (key === 'REMOTION_RENDER_TIMEOUT_MS') {
+                return 300000;
+              }
+              return undefined;
+            }),
+          },
+        },
+      ],
+    }).compile();
+
+    renderService = module.get<RenderService>(RenderService);
+  });
 
   it('prepares an empty phrases array when phrases are not supplied', () => {
     const request = renderService.prepareRenderRequest({

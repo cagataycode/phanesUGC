@@ -263,25 +263,6 @@ ${script.full_text}`);
     return sections.join('\n\n');
   }
 
-  private simulateScenes(
-    script: GeneratedScript,
-    totalDuration: number,
-  ): SimpleScene[] {
-    const sentences =
-      script.full_text.match(/[^.!?]+[.!?]*/g)?.map((s) => s.trim()) ?? [];
-    if (sentences.length === 0) {
-      return [{ narration: script.full_text, duration_sec: totalDuration }];
-    }
-
-    const totalLength = sentences.reduce((sum, s) => sum + s.length, 0);
-    const scenes: SimpleScene[] = sentences.map((sentence) => ({
-      narration: sentence,
-      duration_sec: (sentence.length / totalLength) * totalDuration,
-    }));
-
-    return scenes;
-  }
-
   private async processJob(
     businessId: string,
     projectId: string,
@@ -331,7 +312,7 @@ ${script.full_text}`);
 
       // 3. Scene structuring stage (NEW - Gemini creates structured prompt)
       this.logger.debug(
-        `[${projectId}] Stage 3: Scene structuring (Gemini 2.0 Flash)`,
+        `[${projectId}] Stage 3: Scene structuring (Gemini 2.5 Pro)`,
       );
       await this.jobStoreService.update(businessId, projectId, {
         progress: 40,

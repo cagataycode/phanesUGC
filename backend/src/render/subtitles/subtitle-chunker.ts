@@ -89,7 +89,11 @@ export const generateScriptSubtitles = (
       const start = currentStartIndex * secondsPerWord;
       const end = (i + 1) * secondsPerWord;
 
-      const lines = balanceLines(currentWords, settings.maxLines);
+      const lines = balanceLines(
+        currentWords,
+        settings.maxLines,
+        settings.maxCharsPerLine,
+      );
 
       phrases.push({
         id: `phrase-${phrases.length}`,
@@ -104,7 +108,8 @@ export const generateScriptSubtitles = (
     }
   }
 
-  return phrases;
+  // Merge orphan phrases (too short trailing phrases)
+  return mergeOrphanPhrases(phrases, settings);
 };
 
 export const scaleSubtitleTimestamps = (
@@ -118,7 +123,11 @@ export const scaleSubtitleTimestamps = (
   }));
 };
 
-const balanceLines = (words: string[], maxLines: number): string[] => {
+const balanceLines = (
+  words: string[],
+  maxLines: number,
+  maxCharsPerLine: number,
+): string[] => {
   if (words.length === 0) {
     return [];
   }
@@ -134,11 +143,68 @@ const balanceLines = (words: string[], maxLines: number): string[] => {
     const firstLine = words.slice(0, breakIndex).join(' ');
     const secondLine = words.slice(breakIndex).join(' ');
 
+    // Skip if either line exceeds maxCharsPerLine
+    if (
+      firstLine.length > maxCharsPerLine ||
+      secondLine.length > maxCharsPerLine
+    ) {
+      continue;
+    }
+
     const score = Math.abs(firstLine.length - secondLine.length);
     if (score < bestScore) {
       bestScore = score;
       bestLines = [firstLine, secondLine];
     }
   }
+
   return bestLines;
+};
+
+const mergeOrphanPhrases = (
+  phrases: SubtitlePhrase[],
+  settings: SubtitleChunkingOptions,
+): SubtitlePhrase[] => {
+  if (phrases.length <= 1) {
+    return phrases;
+  }
+
+  const result: SubtitlePhrase[] = [];
+
+  for (let i = 0; i < phrases.length; i++) {
+    const current = phrases[i];
+    const wordCount = current.text.split(/\s+/).length;
+
+    // If this is a too-short phrase and not the first one
+    if (wordCount < settings.minWordsPerPhrase && result.length > 0) {
+      // Merge with previous phrase
+      const previous = result[result.length - 1];
+      const mergedWords = [
+        ...previous.text.split(/\s+/),
+        ...current.text.split(/\s+/),
+      ];
+
+      // Check if merged phrase would exceed max
+      if (mergedWords.length <= settings.maxWordsPerPhrase) {
+        previous.text = mergedWords.join(' ');
+        previous.end = current.end;
+        previous.lines = balanceLines(
+          mergedWords,
+          settings.maxLines,
+          settings.maxCharsPerLine,
+        );
+      } else {
+        // Can't merge, keep as is
+        result.push(current);
+      }
+    } else {
+      result.push(current);
+    }
+  }
+
+  // Re-index IDs
+  return result.map((phrase, index) => ({
+    ...phrase,
+    id: `phrase-${index}`,
+  }));
 };

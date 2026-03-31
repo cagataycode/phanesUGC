@@ -10,16 +10,19 @@ import { Env } from '../config/env';
 @Injectable()
 export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
-  private readonly genAI: GoogleGenerativeAI;
-  private readonly model: GenerativeModel;
+  private readonly genAI: GoogleGenerativeAI | null;
+  private readonly model: GenerativeModel | null;
 
   constructor(private readonly configService: ConfigService<Env>) {
     const apiKey = this.configService.get('GEMINI_API_KEY', { infer: true });
 
     if (!apiKey) {
-      throw new Error(
-        'GEMINI_API_KEY is required for Gemini service. Add it to your .env file.',
+      this.logger.warn(
+        'GEMINI_API_KEY not configured. Gemini service will not be available.',
       );
+      this.genAI = null;
+      this.model = null;
+      return;
     }
 
     this.genAI = new GoogleGenerativeAI(apiKey);
@@ -38,6 +41,12 @@ export class GeminiService {
     systemPrompt: string,
     userPrompt: string,
   ): Promise<unknown> {
+    if (!this.model) {
+      throw new Error(
+        'GEMINI_API_KEY is required for Gemini service. Add it to your .env file.',
+      );
+    }
+
     try {
       this.logger.debug('Generating content with Gemini');
 
