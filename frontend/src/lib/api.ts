@@ -153,3 +153,26 @@ export async function getAdJobResult(
   if (!res.ok) throw new Error("Failed to fetch ad job result");
   return res.json();
 }
+
+export interface AdJobListItem {
+  id: string;
+  prompt: string;
+  platform: string;
+  status: string;
+  createdAt: { _seconds: number; _nanoseconds: number };
+  output?: {
+    videoStorageKey: string;
+    thumbnailStorageKey?: string;
+  };
+}
+
+/**
+ * Lists all ad jobs for a business
+ */
+export async function listAdJobs(businessId: string): Promise<AdJobListItem[]> {
+  const res = await fetchWithAuth(
+    `/ads?businessId=${encodeURIComponent(businessId)}`,
+  );
+  if (!res.ok) throw new Error("Failed to list ad jobs");
+  return res.json();
+}
