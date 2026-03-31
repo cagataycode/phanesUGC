@@ -24,14 +24,14 @@ export class GeminiService {
 
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.model = this.genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-exp', // Using flash for speed, can upgrade to pro later
+      model: 'gemini-2.5-pro', // Gemini 2.5 Pro for best quality
       generationConfig: {
         responseMimeType: 'application/json',
         temperature: 0.7,
       },
     });
 
-    this.logger.log('Gemini service initialized with gemini-2.0-flash-exp');
+    this.logger.log('Gemini service initialized with gemini-2.5-pro');
   }
 
   async generateContent(
