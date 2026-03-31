@@ -644,7 +644,7 @@ interface NormalizedRequest {
   // Creative Preferences
   tone: 'direct' | 'professional' | 'casual' | 'enthusiastic';
   visualStyle: 'dynamic' | 'minimalist' | 'bold' | 'cinematic';
-  subtitleStyle: 'standard' | 'kinetic' | 'karaoke';
+  subtitleStyle: 'standard' | 'kinetic';
   targetAudience?: string;
   cta?: string;
   brandAssets?: { storageKey: string; type: string; filename: string }[];

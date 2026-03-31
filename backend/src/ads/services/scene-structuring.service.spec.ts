@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { SceneStructuringService } from '../src/ads/services/scene-structuring.service';
-import { GeminiService } from '../src/ai/gemini.service';
-import { CreateAdDto } from '../src/ads/dto/create-ad.dto';
-import { CreativeBrief } from '../src/ads/types/creative-brief';
-import { GeneratedScript } from '../src/ads/types/generated-script';
-import { VeoScenePrompt } from '../src/ads/types/veo-scene-prompt';
+import { SceneStructuringService } from './scene-structuring.service';
+import { GeminiService } from '../../ai/gemini.service';
+import { CreateAdDto } from '../dto/create-ad.dto';
+import { CreativeBrief } from '../types/creative-brief';
+import { GeneratedScript } from '../types/generated-script';
+import { VeoScenePrompt } from '../types/veo-scene-prompt';
 
 describe('SceneStructuringService', () => {
   let service: SceneStructuringService;

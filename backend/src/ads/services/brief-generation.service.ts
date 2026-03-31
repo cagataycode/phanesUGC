@@ -48,7 +48,10 @@ Return ONLY a valid JSON object with this exact structure:
   "visual_style": "cinematic",
   "aspect_ratio": "9:16",
   "key_message": "Premium sound quality that lasts all day"
-}`;
+}
+
+## CRITICAL: Duration is ALWAYS 8 seconds
+The system currently only supports 8-second ads. Always set duration_sec to 8.`;
 
 @Injectable()
 export class BriefGenerationService {
@@ -78,7 +81,7 @@ export class BriefGenerationService {
       }
 
       // Ensure required fields from input are preserved
-      brief.duration_sec = veo_config.duration_sec;
+      brief.duration_sec = 8; // MVP: Always 8 seconds
       brief.platform = prompt_inputs.platform;
       brief.aspect_ratio = veo_config.aspect_ratio;
       brief.language = prompt_inputs.language;
@@ -104,7 +107,7 @@ export class BriefGenerationService {
     const parts: string[] = [];
 
     parts.push(
-      `Create a creative brief for a ${veo_config.duration_sec}-second ${prompt_inputs.platform} ad.\n`,
+      `Create a creative brief for an 8-second ${prompt_inputs.platform} ad.\n`,
     );
 
     parts.push('## User Input');
@@ -143,7 +146,7 @@ export class BriefGenerationService {
 
     parts.push('\n## Technical Constraints');
     parts.push(`Platform: ${prompt_inputs.platform}`);
-    parts.push(`Duration: ${veo_config.duration_sec} seconds`);
+    parts.push(`Duration: 8 seconds (FIXED)`);
     parts.push(`Aspect Ratio: ${veo_config.aspect_ratio}`);
     parts.push(`Language: ${prompt_inputs.language}`);
 

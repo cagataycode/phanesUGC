@@ -10,6 +10,7 @@ describe('Environment Configuration Validation (env.ts)', () => {
     GCS_LOCATION: 'us-central1',
     GCP_PROJECT_ID: 'test-gcp-project',
     VERTEX_AI_LOCATION: 'us-central1',
+    GEMINI_API_KEY: 'test-gemini-key',
   };
 
   it('should validate and return a valid configuration object', () => {
@@ -35,9 +36,9 @@ describe('Environment Configuration Validation (env.ts)', () => {
 
   it('should throw an error if a required field is missing', () => {
     const invalidConfig: Record<string, unknown> = { ...validConfig };
-    delete invalidConfig.FIREBASE_PROJECT_ID;
+    delete invalidConfig.GEMINI_API_KEY;
 
-    expect(() => validateEnv(invalidConfig)).toThrow(/FIREBASE_PROJECT_ID/);
+    expect(() => validateEnv(invalidConfig)).toThrow(/GEMINI_API_KEY/);
   });
 
   it('should throw an error if an email is invalid', () => {
