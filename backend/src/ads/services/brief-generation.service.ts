@@ -1,90 +1,156 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { GeminiService } from '../../ai/gemini.service';
 import { CreateAdDto } from '../dto/create-ad.dto';
 import { CreativeBrief } from '../types/creative-brief';
-import { VertexAiService } from '../../ai/vertex-ai.service';
+
+const BRIEF_GENERATION_SYSTEM_PROMPT = `You are an expert advertising strategist specializing in short-form social video ads.
+
+## Your Role
+Create a structured creative brief that will guide script and scene generation for an 8-second social media ad.
+
+## Brief Requirements
+- Translate user's creative vision into actionable direction
+- Infer missing information from context
+- Be specific and concrete
+- Focus on ONE key message
+- Match platform and audience expectations
+
+## Output Format
+Return ONLY a valid JSON object with this exact structure:
+{
+  "product_name": "Product name or 'Not specified'",
+  "offer": "Main value proposition or offer",
+  "audience": "Target audience description",
+  "pain_points": ["pain point 1", "pain point 2"],
+  "benefits": ["benefit 1", "benefit 2", "benefit 3"],
+  "tone": "direct|professional|casual|enthusiastic",
+  "language": "en",
+  "duration_sec": 8,
+  "platform": "tiktok|instagram|youtube",
+  "cta": "Call to action text",
+  "visual_style": "cinematic|minimalist|bold|dynamic",
+  "aspect_ratio": "9:16",
+  "key_message": "The ONE thing viewers should remember"
+}
+
+## Example Output
+{
+  "product_name": "SoundPro Wireless Earbuds",
+  "offer": "Premium wireless earbuds with active noise cancellation",
+  "audience": "Young professionals who value quality audio",
+  "pain_points": ["Uncomfortable earbuds", "Poor sound quality", "Short battery life"],
+  "benefits": ["Crystal clear sound", "All-day comfort", "24-hour battery"],
+  "tone": "casual",
+  "language": "en",
+  "duration_sec": 8,
+  "platform": "tiktok",
+  "cta": "Shop now",
+  "visual_style": "cinematic",
+  "aspect_ratio": "9:16",
+  "key_message": "Premium sound quality that lasts all day"
+}`;
 
 @Injectable()
 export class BriefGenerationService {
-  constructor(private readonly vertexAiService: VertexAiService) {}
+  private readonly logger = new Logger(BriefGenerationService.name);
+
+  constructor(private readonly geminiService: GeminiService) {}
 
   async generate(createAdDto: CreateAdDto): Promise<CreativeBrief> {
     const { prompt_inputs, veo_config } = createAdDto;
 
-    // If we have product info, use LLM to generate a creative brief
-    if (
-      prompt_inputs.product_info?.name ||
-      prompt_inputs.product_info?.description
-    ) {
-      const prompt = `
-        You are an expert advertising strategist specializing in short-form social video ads.
-        
-        Given the following inputs, create a structured creative brief for a ${veo_config.duration_sec}-second ${prompt_inputs.platform} ad.
-        
-        **High-Priority User Prompt**: ${typeof prompt_inputs.prompt === 'string' ? prompt_inputs.prompt : JSON.stringify(prompt_inputs.prompt)}
-        Product name: ${prompt_inputs.product_info?.name || 'Not provided'}
-        Product description: ${prompt_inputs.product_info?.description || 'Not provided'}
-        Product benefits: ${prompt_inputs.product_info?.benefits?.join(', ') || 'Not provided'}
-        Target audience: ${prompt_inputs.target_audience || 'Infer from product context'}
-        Tone: ${prompt_inputs.tone || 'direct'}
-        Language: ${prompt_inputs.language || 'en'}
-        CTA: ${prompt_inputs.cta || 'Suggest an appropriate CTA'}
-        
-        Requirements:
-        - The brief must be specific enough to produce a coherent ad script
-        - **Your primary goal is to translate the "High-Priority User Prompt" into a clear, actionable "visual_style" and "key_message".**
-        - Infer any missing fields from context
-        - The visual style should match the tone and platform
-        - The ad must fit within ${veo_config.duration_sec} seconds when spoken aloud
-        
-        Respond with a JSON object matching this exact schema:
-        {
-          "product_name": "string",
-          "offer": "string",
-          "audience": "string",
-          "pain_points": ["string"],
-          "benefits": ["string"],
-          "tone": "string",
-          "language": "string",
-          "duration_sec": number,
-          "platform": "string",
-          "cta": "string",
-          "visual_style": "string",
-          "aspect_ratio": "string",
-          "key_message": "string",
-          "proof_points": ["string"]
-        }
-      `;
+    const userPrompt = this.buildUserPrompt(createAdDto);
 
-      try {
-        const result = await this.vertexAiService.generateContent(prompt);
-        if (result && typeof result === 'object') {
-          return result as CreativeBrief;
-        }
-      } catch (error) {
-        // If LLM fails, fall back to the simple implementation
-        console.warn(
-          'LLM brief generation failed, using fallback implementation:',
-          error,
+    this.logger.log('Generating creative brief with Gemini');
+
+    try {
+      const brief = (await this.geminiService.generateContent(
+        BRIEF_GENERATION_SYSTEM_PROMPT,
+        userPrompt,
+      )) as CreativeBrief;
+
+      // Validate response
+      if (!brief || typeof brief !== 'object') {
+        this.logger.error(
+          `Gemini returned invalid brief: ${JSON.stringify(brief)}`,
+        );
+        throw new Error('Gemini returned invalid brief structure');
+      }
+
+      // Ensure required fields from input are preserved
+      brief.duration_sec = veo_config.duration_sec;
+      brief.platform = prompt_inputs.platform;
+      brief.aspect_ratio = veo_config.aspect_ratio;
+      brief.language = prompt_inputs.language;
+
+      this.logger.log(
+        `Brief generated: product="${brief.product_name}", tone="${brief.tone}", key_message="${brief.key_message}"`,
+      );
+
+      return brief;
+    } catch (error) {
+      this.logger.error(
+        `Gemini brief generation failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      // Re-throw to fail the job rather than use bad fallback
+      throw new Error(
+        `Failed to generate brief with Gemini: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private buildUserPrompt(createAdDto: CreateAdDto): string {
+    const { prompt_inputs, veo_config } = createAdDto;
+    const parts: string[] = [];
+
+    parts.push(
+      `Create a creative brief for a ${veo_config.duration_sec}-second ${prompt_inputs.platform} ad.\n`,
+    );
+
+    parts.push('## User Input');
+    parts.push(
+      `Creative Direction: ${typeof prompt_inputs.prompt === 'string' ? prompt_inputs.prompt : JSON.stringify(prompt_inputs.prompt)}`,
+    );
+
+    if (prompt_inputs.product_info?.name) {
+      parts.push(`\n## Product Information`);
+      parts.push(`Name: ${prompt_inputs.product_info.name}`);
+
+      if (prompt_inputs.product_info.description) {
+        parts.push(`Description: ${prompt_inputs.product_info.description}`);
+      }
+
+      if (
+        prompt_inputs.product_info.benefits &&
+        prompt_inputs.product_info.benefits.length > 0
+      ) {
+        parts.push(
+          `Benefits: ${prompt_inputs.product_info.benefits.join(', ')}`,
         );
       }
     }
 
-    // Fallback implementation for when LLM is not available or fails
-    const benefits = prompt_inputs.product_info?.benefits?.filter(Boolean);
+    parts.push('\n## Preferences');
+    if (prompt_inputs.target_audience) {
+      parts.push(`Target Audience: ${prompt_inputs.target_audience}`);
+    }
+    if (prompt_inputs.tone) {
+      parts.push(`Tone: ${prompt_inputs.tone}`);
+    }
+    if (prompt_inputs.cta) {
+      parts.push(`CTA: ${prompt_inputs.cta}`);
+    }
 
-    return {
-      product_name: prompt_inputs.product_info?.name || undefined,
-      offer: prompt_inputs.product_info?.description || undefined,
-      audience: prompt_inputs.target_audience || undefined,
-      pain_points: undefined,
-      benefits: benefits?.length ? benefits : undefined,
-      tone: prompt_inputs.tone || undefined,
-      language: prompt_inputs.language || undefined,
-      duration_sec: veo_config.duration_sec || undefined,
-      platform: prompt_inputs.platform || undefined,
-      cta: prompt_inputs.cta || undefined,
-      visual_style: prompt_inputs.subtitle_style || undefined,
-      aspect_ratio: veo_config.aspect_ratio || undefined,
-    };
+    parts.push('\n## Technical Constraints');
+    parts.push(`Platform: ${prompt_inputs.platform}`);
+    parts.push(`Duration: ${veo_config.duration_sec} seconds`);
+    parts.push(`Aspect Ratio: ${veo_config.aspect_ratio}`);
+    parts.push(`Language: ${prompt_inputs.language}`);
+
+    parts.push(
+      '\n## Task\nGenerate a complete creative brief that captures the essence of this ad and provides clear direction for script and scene generation.',
+    );
+
+    return parts.join('\n');
   }
 }

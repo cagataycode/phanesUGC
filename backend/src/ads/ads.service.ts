@@ -327,7 +327,7 @@ ${script.full_text}`);
         },
       });
 
-      const script = this.scriptGenerationService.generate(brief);
+      const script = await this.scriptGenerationService.generate(brief);
 
       // 3. Scene structuring stage (NEW - Gemini creates structured prompt)
       this.logger.debug(
