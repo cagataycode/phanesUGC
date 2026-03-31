@@ -18,7 +18,7 @@ export const getSubtitleTimelineState = ({
   const currentTimeSec = Math.max(frame, 0) / fps;
 
   const activePhraseIndex = phrases.findIndex(
-    (phrase) => currentTimeSec >= phrase.start && currentTimeSec <= phrase.end,
+    (phrase) => currentTimeSec >= phrase.start && currentTimeSec < phrase.end,
   );
 
   if (activePhraseIndex === -1) {

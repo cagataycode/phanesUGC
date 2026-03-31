@@ -3,6 +3,7 @@ import { auth } from '.';
 
 let currentUser: User | null = null;
 let authInitialized = false;
+let initialAuthPromise: Promise<User | null> | null = null;
 
 if (auth) {
   onAuthStateChanged(auth, (user) => {
@@ -16,16 +17,20 @@ if (auth) {
  * This function waits for the initial auth state to be resolved before returning.
  */
 export function getCurrentUser(): Promise<User | null> {
-  return new Promise((resolve) => {
-    if (!auth) {
-      return resolve(null);
-    }
-    if (authInitialized) {
-      return resolve(currentUser);
-    }
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      unsubscribe();
-      resolve(user);
+  const currentAuth = auth;
+  if (!currentAuth) {
+    return Promise.resolve(null);
+  }
+  if (authInitialized) {
+    return Promise.resolve(currentUser);
+  }
+  if (!initialAuthPromise) {
+    initialAuthPromise = new Promise((resolve) => {
+      const unsubscribe = onAuthStateChanged(currentAuth, (user) => {
+        unsubscribe();
+        resolve(user);
+      });
     });
-  });
+  }
+  return initialAuthPromise;
 }

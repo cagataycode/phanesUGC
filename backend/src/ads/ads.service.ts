@@ -495,7 +495,7 @@ ${script.full_text}`);
               scalingFactor,
             },
             simulatedScenes,
-          } as never,
+          },
           stages: {
             scrape: 'done',
             brief: 'done',
