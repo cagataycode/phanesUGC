@@ -1,7 +1,16 @@
 import { NextResponse } from 'next/server';
 
+// Use server-only env var to prevent recursive calls
+// BACKEND_API_URL should be an absolute URL like http://backend:3001/api
 const BACKEND_API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001/api';
+  process.env.BACKEND_API_URL ?? 'http://localhost:3001/api';
+
+// Validate that we have an absolute URL to prevent recursion
+if (!BACKEND_API_BASE_URL.startsWith('http://') && !BACKEND_API_BASE_URL.startsWith('https://')) {
+  throw new Error(
+    'BACKEND_API_URL must be an absolute URL (http:// or https://). Got: ' + BACKEND_API_BASE_URL
+  );
+}
 
 export async function GET(
   request: Request,

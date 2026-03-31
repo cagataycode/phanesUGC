@@ -266,11 +266,12 @@ Return a JSON object only (not an array).`;
     scene.scene_id = 1;
     scene.aspect_ratio = createAdDto.veo_config.aspect_ratio;
 
-    // Ensure speech_text contains full script
-    if (
-      !scene.prompt.audio.speech_text ||
-      scene.prompt.audio.speech_text.length < 10
-    ) {
+    // Ensure speech_text exactly matches full script for determinism
+    // This guarantees Veo generates the exact narration we expect and subtitles match
+    if (scene.prompt.audio.speech_text !== script.full_text) {
+      this.logger.debug(
+        `Overriding scene speech_text to match script exactly (was: "${scene.prompt.audio.speech_text?.substring(0, 50)}...")`,
+      );
       scene.prompt.audio.speech_text = script.full_text;
     }
 

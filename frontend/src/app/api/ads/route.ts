@@ -34,10 +34,14 @@ export async function POST(request: NextRequest) {
   if (authHeader) {
     headers['Authorization'] = authHeader;
   }
-  if (typeof bodyJson.businessId === 'string' && bodyJson.businessId) {
-    headers['x-business-id'] = bodyJson.businessId;
-  } else if (searchParams.has('businessId')) {
-    headers['x-business-id'] = searchParams.get('businessId') as string;
+  
+  // Extract and validate businessId
+  const bizIdFromBody = typeof bodyJson.businessId === 'string' ? bodyJson.businessId.trim() : '';
+  const bizIdFromQuery = searchParams.get('businessId')?.trim() || '';
+  const businessId = bizIdFromBody || bizIdFromQuery;
+  
+  if (businessId) {
+    headers['x-business-id'] = businessId;
   }
 
   const searchString = searchParams.toString();
