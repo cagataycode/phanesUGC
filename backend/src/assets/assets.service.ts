@@ -72,4 +72,12 @@ export class AssetsService {
       },
     };
   }
+
+  async createDownloadUrl(
+    objectPath: string,
+  ): Promise<{ downloadUrl: string }> {
+    const downloadUrl =
+      await this.gcsStorageService.createSignedDownloadUrl(objectPath);
+    return { downloadUrl };
+  }
 }
