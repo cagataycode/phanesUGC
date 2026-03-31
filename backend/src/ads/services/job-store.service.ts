@@ -11,6 +11,13 @@ export interface ProjectStage {
 }
 
 export interface AdJobMetadata {
+  scenePrompt?: {
+    intent: string;
+    visualStyle: string;
+    cameraMotion: string;
+    fullPrompt?: string;
+    negativePrompt?: string;
+  };
   renderRequest?: {
     fps: number;
     durationInFrames: number;

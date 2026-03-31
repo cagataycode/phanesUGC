@@ -127,10 +127,30 @@ export class SceneStructuringService {
 
     this.logger.log('Structuring single 8-second scene with Gemini');
 
-    const scene = (await this.geminiService.generateContent(
-      SINGLE_SCENE_STRUCTURING_SYSTEM_PROMPT,
-      userPrompt,
-    )) as VeoScenePrompt;
+    let scene: VeoScenePrompt;
+    try {
+      scene = (await this.geminiService.generateContent(
+        SINGLE_SCENE_STRUCTURING_SYSTEM_PROMPT,
+        userPrompt,
+      )) as VeoScenePrompt;
+    } catch (error) {
+      this.logger.error(
+        `Gemini scene structuring failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new Error(
+        `Failed to structure scene with Gemini: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
+    // Validate that we got a proper response
+    if (!scene || !scene.prompt) {
+      this.logger.error(
+        `Gemini returned invalid scene structure: ${JSON.stringify(scene)}`,
+      );
+      throw new Error(
+        'Gemini returned invalid scene structure - missing prompt field',
+      );
+    }
 
     return this.validateAndEnrich(scene, createAdDto, script);
   }

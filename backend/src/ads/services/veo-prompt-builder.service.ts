@@ -17,7 +17,7 @@ export class VeoPromptBuilderService {
     // Shot details
     parts.push(`${p.shot.framing}.`);
     parts.push(`Camera angle: ${p.shot.camera_angle}.`);
-    if (p.shot.camera_motion !== 'static') {
+    if (p.shot.camera_motion && p.shot.camera_motion !== 'static') {
       parts.push(`Camera motion: ${p.shot.camera_motion.replace(/_/g, ' ')}.`);
     }
     parts.push(`${p.shot.lens_feel}.`);
@@ -34,7 +34,7 @@ export class VeoPromptBuilderService {
 
     // Environment
     parts.push(`Setting: ${p.environment.location}.`);
-    if (p.environment.props.length > 0) {
+    if (p.environment.props && p.environment.props.length > 0) {
       parts.push(`Props: ${p.environment.props.join(', ')}.`);
     }
     parts.push(`Atmosphere: ${p.environment.atmosphere}.`);
