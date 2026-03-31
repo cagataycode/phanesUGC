@@ -389,7 +389,7 @@ ${script.full_text}`);
           localSourcePath,
         );
 
-        let actualDurationSec = createAdDto.veo_config.duration_sec;
+        let actualDurationSec: number = createAdDto.veo_config.duration_sec;
         try {
           actualDurationSec =
             await this.videoUtilsService.getVideoDuration(localSourcePath);

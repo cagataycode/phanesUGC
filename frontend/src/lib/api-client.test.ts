@@ -15,7 +15,7 @@ vi.mock("firebase/auth", () => ({
 
 vi.mock("./firebase/auth", () => ({
   getCurrentUser: vi.fn().mockImplementation(() => {
-    return Promise.resolve((auth as any).currentUser);
+    return Promise.resolve((auth as unknown as MutableAuth).currentUser);
   }),
 }));
 
