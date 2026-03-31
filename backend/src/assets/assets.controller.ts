@@ -15,6 +15,10 @@ import {
   createUploadUrlSchema,
   type CreateUploadUrlDto,
 } from './dto/create-upload-url.dto';
+import {
+  createUploadFromUrlSchema,
+  type CreateUploadFromUrlDto,
+} from './dto/create-upload-from-url.dto';
 
 @Controller('v1/businesses/:businessId/assets')
 @UseGuards(FirebaseAuthGuard, RolesGuard)
@@ -28,6 +32,15 @@ export class AssetsController {
     @Body(new ZodValidationPipe(createUploadUrlSchema)) dto: CreateUploadUrlDto,
   ) {
     return this.assetsService.createUploadUrl(businessId, entityId, dto);
+  }
+
+  @Post(':entityId/upload-from-url')
+  async uploadFromUrl(
+    @Param('businessId') businessId: string,
+    @Param('entityId') entityId: string,
+    @Body(new ZodValidationPipe(createUploadFromUrlSchema)) dto: CreateUploadFromUrlDto,
+  ) {
+    return this.assetsService.importFromUrl(businessId, entityId, dto);
   }
 
   @Get('download-url')
