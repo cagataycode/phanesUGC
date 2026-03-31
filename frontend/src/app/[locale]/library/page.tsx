@@ -31,6 +31,7 @@ import {
   type UpdateProductPayload,
 } from "@/lib/products-api";
 import { deleteAvatar } from "@/lib/avatars-api";
+import { useStorageImageUrl } from "@/lib/useStorageImageUrl";
 import {
   buildProductTextDataUpdate,
   productToTextDataValues,
@@ -38,6 +39,104 @@ import {
 
 type LibrarySectionKey = "products" | "text" | "avatars" | "assets";
 type LibraryView = "list" | "create" | "edit";
+
+function AvatarCard({
+  avatar,
+  firstImageStorageKey,
+  isSelected,
+  isDeleting,
+  onEdit,
+  onDelete,
+  businessId,
+}: {
+  avatar: AvatarData;
+  firstImageStorageKey: string | undefined;
+  isSelected: boolean;
+  isDeleting: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  businessId: string;
+}) {
+  const imageUrl = useStorageImageUrl(businessId, firstImageStorageKey);
+  const [imgError, setImgError] = useState(false);
+
+  return (
+    <Card
+      className={`overflow-hidden rounded-xl border bg-card shadow-sm transition-colors ${
+        isSelected ? "border-primary/40" : "border-border"
+      }`}
+    >
+      {/* Avatar image at the top of the card */}
+      <div className="flex max-h-48 items-center justify-center overflow-hidden bg-muted/50">
+        {imageUrl && !imgError ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageUrl}
+            alt={avatar.name}
+            className="max-h-48 w-full object-contain"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-muted-foreground/40"
+          >
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        )}
+      </div>
+      <CardHeader className="px-4 pb-3 pt-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <CardTitle className="truncate text-sm font-medium text-foreground">
+              {avatar.name}
+            </CardTitle>
+            <CardDescription className="mt-1 uppercase">
+              {avatar.type.replaceAll("_", " ")}
+            </CardDescription>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={onEdit}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+              disabled={isDeleting}
+              onClick={onDelete}
+            >
+              {isDeleting ? "…" : "Delete"}
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <Separator />
+      <CardContent className="px-4 pt-3 pb-4">
+        <p className="text-xs text-muted-foreground">
+          {avatar.assets?.length
+            ? `${avatar.assets.length} image${avatar.assets.length !== 1 ? "s" : ""}`
+            : "No avatar images"}
+          {avatar.isDefault ? " \u2022 Default" : ""}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function LibraryPage() {
   const { platformContext } = useAuth();
@@ -693,62 +792,26 @@ export default function LibraryPage() {
                   </div>
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {avatars.map((a) => (
-                      <Card
-                        key={a.id}
-                        className={`rounded-xl border bg-card p-5 shadow-sm transition-colors ${
-                          selectedAvatar?.id === a.id
-                            ? "border-primary/40"
-                            : "border-border"
-                        }`}
-                      >
-                        <CardHeader className="px-0 pb-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <CardTitle className="truncate text-sm font-medium text-foreground">
-                                {a.name}
-                              </CardTitle>
-                              <CardDescription className="mt-1 uppercase">
-                                {a.type.replaceAll("_", " ")}
-                              </CardDescription>
-                            </div>
-                            <div className="flex shrink-0 gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-xs"
-                                onClick={() => {
-                                  setSelectedAvatarId(a.id);
-                                  setView("edit");
-                                }}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-                                disabled={deletingId === a.id}
-                                onClick={() => handleAvatarDelete(a.id)}
-                              >
-                                {deletingId === a.id ? "…" : "Delete"}
-                              </Button>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <Separator />
-                        <CardContent className="px-0 pt-3">
-                          <div className="min-w-0">
-                            <p className="text-xs text-muted-foreground">
-                              {a.assets?.length
-                                ? `${a.assets.length} image${a.assets.length !== 1 ? "s" : ""}`
-                                : "No avatar images"}
-                              {a.isDefault ? " • Default" : ""}
-                            </p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                    {avatars.map((a) => {
+                      const firstImageKey = a.assets?.find(
+                        (ast) => ast.type === "image",
+                      )?.storageKey;
+                      return (
+                        <AvatarCard
+                          key={a.id}
+                          avatar={a}
+                          firstImageStorageKey={firstImageKey}
+                          isSelected={selectedAvatar?.id === a.id}
+                          isDeleting={deletingId === a.id}
+                          businessId={businessId}
+                          onEdit={() => {
+                            setSelectedAvatarId(a.id);
+                            setView("edit");
+                          }}
+                          onDelete={() => handleAvatarDelete(a.id)}
+                        />
+                      );
+                    })}
                   </div>
                 )}
               </section>
