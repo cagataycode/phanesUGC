@@ -129,9 +129,7 @@ export class ScriptGenerationService {
     parts.push('- Strong hook that grabs attention immediately');
     parts.push('- Focus on ONE key benefit');
     parts.push('- Clear, actionable CTA');
-    parts.push(
-      `- Match ${brief.tone || 'direct'} tone throughout`,
-    );
+    parts.push(`- Match ${brief.tone || 'direct'} tone throughout`);
 
     return parts.join('\n');
   }
