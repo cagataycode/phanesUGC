@@ -7,6 +7,7 @@ import { ScriptGenerationService } from './services/script-generation.service';
 import { VertexAiService } from '../ai/vertex-ai.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
 import { RenderService } from '../render/render.service';
+import { transcodeForRemotion } from '../render/ffmpeg-utils';
 import { RawSubtitleSegment } from '../render/subtitles/subtitle-types';
 import { GeneratedScript } from './types/generated-script';
 
@@ -390,29 +391,44 @@ ${script.full_text}`);
         createAdDto.veo_config.duration_sec,
       );
 
-      // Ensure public dir exists (will silently succeed if it does)
-      const publicDir = path.resolve(
-        process.cwd(),
-        'src/render/remotion/public',
+      // Transcode the source video to a Remotion-compatible format using FFmpeg.
+      // We fetch the source via a GCS signed URL, transcode to a temp file,
+      // upload the transcoded video back to GCS, and serve it via another signed URL.
+      const transcodedStorageKey = `businesses/${businessId}/projects/${projectId}/output/source-cfr.mp4`;
+      const tmpDir = await import('node:os').then((os) =>
+        import('node:fs/promises').then((fs) =>
+          fs.mkdtemp(path.join(os.tmpdir(), 'phanes-transcode-')),
+        ),
       );
-      await import('node:fs/promises').then((fs) =>
-        fs.mkdir(publicDir, { recursive: true }),
-      );
-
-      const fileName = `source-${projectId}.mp4`;
-      const localSourcePath = path.join(publicDir, fileName);
+      const transcodedLocalPath = path.join(tmpDir, 'source-cfr.mp4');
 
       try {
+        const sourceSignedUrl =
+          await this.gcsStorageService.createSignedVideoUrl(
+            sourceVideoStorageKey,
+          );
         this.logger.log(
-          `[${projectId}] Downloading source video for local rendering: ${localSourcePath}`,
+          `[${projectId}] Transcoding source video for Remotion compatibility (from GCS signed URL)...`,
         );
-        await this.gcsStorageService.downloadFile(
-          sourceVideoStorageKey,
-          localSourcePath,
+        await transcodeForRemotion(sourceSignedUrl, transcodedLocalPath, {
+          fps: 30,
+        });
+
+        this.logger.log(
+          `[${projectId}] Uploading transcoded video to GCS: ${transcodedStorageKey}`,
+        );
+        await this.gcsStorageService.uploadLocalFile(
+          transcodedLocalPath,
+          transcodedStorageKey,
         );
 
-        // Remotion automatically exposes everything in the public/ folder at the root path during render
-        const videoUrlForRemotion = fileName;
+        // Use a 60-minute signed URL for the transcoded video so it stays valid
+        // throughout the potentially long Remotion render.
+        const videoUrlForRemotion =
+          await this.gcsStorageService.createSignedVideoUrl(
+            transcodedStorageKey,
+            60,
+          );
 
         const preparedRenderRequest = this.renderService.prepareRenderRequest({
           videoUrl: videoUrlForRemotion,
@@ -490,7 +506,7 @@ ${script.full_text}`);
         });
       } finally {
         await import('node:fs/promises').then((fs) =>
-          fs.rm(localSourcePath, { force: true }),
+          fs.rm(tmpDir, { recursive: true, force: true }),
         );
       }
     } catch (error) {
