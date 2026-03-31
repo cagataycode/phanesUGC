@@ -67,7 +67,8 @@
     "typescript-eslint": "^8.20.0"
   },
   "overrides": {
-    "loader-utils": "^3.3.1"
+    "loader-utils": "^3.3.1",
+    "path-to-regexp": "^8.4.1"
   },
   "jest": {
     "moduleFileExtensions": [
