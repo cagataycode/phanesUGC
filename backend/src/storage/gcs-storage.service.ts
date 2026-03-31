@@ -133,6 +133,30 @@ export class GcsStorageService {
     return objectPath;
   }
 
+  async importAssetFromUrl(
+    sourceUrl: string,
+    objectPath: string,
+  ): Promise<string> {
+    const response = await fetch(sourceUrl);
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to download asset from source URL: ${response.status}`,
+      );
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+
+    const file = this.storage.bucket(this.bucketName).file(objectPath);
+
+    await file.save(Buffer.from(arrayBuffer), {
+      resumable: false,
+      contentType: response.headers.get('content-type') ?? 'application/octet-stream',
+    });
+
+    return objectPath;
+  }
+
   async downloadFile(
     objectPath: string,
     destinationLocalPath: string,
