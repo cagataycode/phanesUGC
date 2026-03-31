@@ -50,6 +50,7 @@ export async function fetchWithAuth(
 
   return fetch(url, {
     ...rest,
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
       ...authHeader,
