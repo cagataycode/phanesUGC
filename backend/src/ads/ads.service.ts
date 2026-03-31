@@ -400,11 +400,15 @@ ${script.full_text}`);
         const simulatedScenes = this.simulateScenes(script, plannedDurationSec);
         const subtitleSegments = generateSubtitlesFromScenes(simulatedScenes);
 
-        const scalingFactor = actualDurationSec / plannedDurationSec;
-        const correctedSubtitleSegments = scaleSubtitleTimestamps(
-          subtitleSegments,
-          scalingFactor,
-        );
+        const scalingFactor =
+          plannedDurationSec > 0 && Number.isFinite(plannedDurationSec)
+            ? actualDurationSec / plannedDurationSec
+            : 1;
+
+        const correctedSubtitleSegments =
+          scalingFactor !== 1
+            ? scaleSubtitleTimestamps(subtitleSegments, scalingFactor)
+            : subtitleSegments;
 
         const videoUrlForRemotion = fileName;
         const preparedRenderRequest = this.renderService.prepareRenderRequest({
@@ -468,7 +472,7 @@ ${script.full_text}`);
             renderRequest: {
               fps: preparedRenderRequest.fps,
               durationInFrames: preparedRenderRequest.durationInFrames,
-              phraseCount: preparedRenderRequest.phrases?.length ?? 0,
+              phraseCount: correctedSubtitleSegments.length,
             },
             subtitleScaling: {
               plannedDurationSec,

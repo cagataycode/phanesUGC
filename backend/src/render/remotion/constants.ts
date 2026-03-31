@@ -9,7 +9,7 @@ export type SubtitleStyle = 'standard' | 'kinetic';
 
 export type RenderRequest = {
   videoUrl: string;
-  segments: RawSubtitleSegment[];
+  segments?: RawSubtitleSegment[];
   phrases?: SubtitlePhrase[];
   fps: number;
   durationInFrames: number;

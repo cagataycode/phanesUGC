@@ -15,13 +15,11 @@ export type SubtitlePhrase = {
 export type SubtitleChunkingOptions = {
   minWordsPerPhrase: number;
   maxWordsPerPhrase: number;
-  maxCharsPerLine: number;
   maxLines: number;
 };
 
 export const DEFAULT_SUBTITLE_CHUNKING_OPTIONS: SubtitleChunkingOptions = {
   minWordsPerPhrase: 3,
   maxWordsPerPhrase: 4,
-  maxCharsPerLine: 18,
   maxLines: 2,
 };
