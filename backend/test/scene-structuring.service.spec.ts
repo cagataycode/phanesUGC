@@ -152,10 +152,19 @@ describe('SceneStructuringService', () => {
         mockScript,
       );
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geminiService.generateContent).toHaveBeenCalledTimes(1);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geminiService.generateContent).toHaveBeenCalledWith(
-        expect.stringContaining('You are a video ad scene director'),
-        expect.stringContaining('Generate a single 8-second scene prompt'),
+        expect.any(String),
+        expect.any(String),
+      );
+
+      // Verify the prompts contain expected content
+      const mockCalls = geminiService.generateContent.mock.calls;
+      expect(mockCalls[0][0]).toContain('You are a video ad scene director');
+      expect(mockCalls[0][1]).toContain(
+        'Generate a single 8-second scene prompt',
       );
 
       expect(result).toBeDefined();
