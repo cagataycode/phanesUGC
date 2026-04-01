@@ -140,14 +140,13 @@ export class ScraperService {
         return result.value;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const reason = result.reason as any;
+      const reason: unknown = result.reason;
 
       return {
         sourceUrl: urls[index],
         status: 'failed' as const,
         extraction: null,
-        error: reason?.message || 'Unknown error',
+        error: reason instanceof Error ? reason.message : 'Unknown error',
         scrapedAt: new Date(),
         method: 'cheerio' as const,
         durationMs: 0,

@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ScraperService } from './scraper.service';
-import { ScraperAdapter, ScrapeResult } from './interfaces/product-extraction.interface';
+import {
+  ScraperAdapter,
+  ScrapeResult,
+} from './interfaces/product-extraction.interface';
 
 @Injectable()
 export class CrawleeScraperAdapter implements ScraperAdapter {

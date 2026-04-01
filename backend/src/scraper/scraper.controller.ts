@@ -1,6 +1,12 @@
-import { Controller, Post, Body, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { ScraperService } from './scraper.service';
-import { ScrapeRequestDto, ScrapeRequestSchema } from './dto/scrape-request.dto';
+import { ScrapeRequestSchema } from './dto/scrape-request.dto';
 import { ScrapeResultDto } from './dto/scrape-result.dto';
 
 @Controller('scraper')
@@ -10,7 +16,7 @@ export class ScraperController {
   @Post('scrape')
   async scrapeUrl(@Body() body: Record<string, any>): Promise<ScrapeResultDto> {
     const parseResult = ScrapeRequestSchema.safeParse(body);
-    
+
     if (!parseResult.success) {
       throw new HttpException(
         {
@@ -23,7 +29,7 @@ export class ScraperController {
     }
 
     const { url, ...options } = parseResult.data;
-    
+
     try {
       const result = await this.scraperService.scrape(url, options);
       return result;
