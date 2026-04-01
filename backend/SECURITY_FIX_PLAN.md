@@ -13,17 +13,18 @@
 - **Remotion**: Current 4.0.442 (needs loader-utils override)
 
 ### Key Findings
-1. **loader-utils 3.x** is available and fixes all ReDoS and prototype pollution issues
-2. **path-to-regexp 8.4.1** is available and fixes all ReDoS vulnerabilities
-3. **picomatch 4.0.4** is available and fixes method injection and ReDoS
-4. All fixes can be applied via **npm overrides** without breaking changes
+1. **loader-utils 3.x** is available and fixes all ReDoS and prototype pollution issues (major version upgrade from 2.x)
+2. **path-to-regexp 8.4.1** is available and fixes all ReDoS vulnerabilities (patch version)
+3. **picomatch 4.0.4** is available and fixes method injection and ReDoS (patch version)
+4. **@tootallnate/once 3.0.1** is available and fixes control flow scoping issues
+5. Most fixes can be applied via **npm overrides**; loader-utils requires testing due to major version change
 
 ---
 
 ## Phase 1: Fix loader-utils (CRITICAL) via npm overrides
 **Priority**: CRITICAL  
-**Risk**: Low (overrides are safe for patch versions)  
-**Estimated Time**: 5 minutes
+**Risk**: Medium (major-version override from 2.x to 3.3.1; requires targeted Remotion/bundler regression testing)  
+**Estimated Time**: 10 minutes (including testing)
 
 ### Issue
 - **Package**: loader-utils 2.0.0 - 2.0.3
@@ -138,9 +139,9 @@ git commit -m "fix: override path-to-regexp to 8.4.1 to fix ReDoS vulnerabilitie
 - **Package**: picomatch 4.0.0 - 4.0.3
 - **Severity**: High
 - **Vulnerabilities**:
-  - Method injection in POSIX character classes (CVE-2024-XXXXX)
-  - ReDoS via extglob quantifiers (CVE-2024-XXXXX)
-- **Affected**: @nestjs/cli 11.0.16 (dev dependency only)
+  - Method injection in POSIX character classes (GHSA-3v7f-55p6-f55p)
+  - ReDoS via extglob quantifiers (GHSA-c2c7-rcm5-vvqj)
+- **Affected**: @nestjs/cli 11.0.17 (dev dependency only)
 
 ### Solution
 Use npm overrides to force picomatch to 4.0.4 (latest stable with fixes)
@@ -184,56 +185,90 @@ git commit -m "fix: override picomatch to 4.0.4 to fix ReDoS vulnerabilities
 
 ---
 
-## Phase 4: Address @tootallnate/once (LOW) - Monitor Only
+## Phase 4: Address @tootallnate/once (LOW) - Apply Overrides
 **Priority**: LOW  
-**Risk**: Very Low (indirect dependency, limited exposure)  
-**Estimated Time**: Documentation only
+**Risk**: Medium (major version upgrades in deep dependency chain: http-proxy-agent 5→8, teeny-request 9→10, retry-request 7→8)  
+**Estimated Time**: 10 minutes (including testing)
 
 ### Issue
 - **Package**: @tootallnate/once <3.0.1
 - **Severity**: Low
-- **Vulnerability**: Incorrect control flow scoping (CVE-2026-25128)
+- **Vulnerability**: Incorrect control flow scoping (CVE-2026-3449)
 - **Affected**: firebase-admin 13.7.0 → @google-cloud/storage 7.19.0 → http-proxy-agent → @tootallnate/once
 
 ### Analysis
 - Firebase Admin 13.7.0 release notes state it "addresses vulnerability CVE-2026-25128"
+- However, npm audit still reports the vulnerability in the dependency chain
 - The vulnerability is in a deep dependency chain (4 levels deep)
-- Very low severity and limited exposure
-- Downgrading @google-cloud/storage to 5.18.3 would be a breaking change
+- Fixing requires overriding multiple packages with major version upgrades
 
 ### Solution
-**Monitor and document** - No immediate action required
+**Apply npm overrides** to force patched versions throughout the Google Cloud dependency chain
 
 ### Implementation Steps
 ```bash
-# 1. Document the status
-# Update SECURITY_AUDIT_SUMMARY.md with:
-# - Confirmed Firebase Admin 13.7.0 addresses CVE-2026-25128
-# - Risk assessment: Very Low
-# - Action: Monitor for @google-cloud/storage updates
-
-# 2. Set up monitoring
-# Add to package.json scripts:
+# 1. Add overrides to package.json
+# Update overrides section:
 {
-  "scripts": {
-    "security:check": "npm audit --audit-level=moderate",
-    "security:report": "npm audit --json > security-audit.json"
+  "overrides": {
+    "loader-utils": "^3.3.1",
+    "path-to-regexp": "^8.4.1",
+    "picomatch": "^4.0.4",
+    "@tootallnate/once": "^3.0.1",
+    "http-proxy-agent": "^8.0.0",
+    "teeny-request": "^10.1.2",
+    "retry-request": "^8.0.2"
   }
 }
 
-# 3. Commit documentation
-git add package.json SECURITY_AUDIT_SUMMARY.md
-git commit -m "docs: document @tootallnate/once monitoring strategy
+# 2. Reinstall dependencies
+rm -rf node_modules package-lock.json
+npm install
 
-- CVE-2026-25128 addressed by Firebase Admin 13.7.0
-- Risk level: Very Low (indirect dependency, limited exposure)
-- Action: Monitor for upstream fixes, no immediate action required
-- Add security check scripts for ongoing monitoring"
+# 3. Verify fix
+npm audit
+
+# 4. Run tests (IMPORTANT - major version changes)
+npm run lint
+npm run test:unit
+npm run test:e2e
+
+# 5. Test GCS operations manually
+# - Upload a file
+# - Download a file
+# - Create signed URLs
+
+# 6. Commit
+git add package.json package-lock.json
+git commit -m "fix: Phase 4 - override Google Cloud dependency chain to eliminate LOW vulnerabilities
+
+- Override @tootallnate/once to 3.0.1 (fixes CVE-2026-3449)
+- Override http-proxy-agent to 8.0.0 (major version upgrade)
+- Override teeny-request to 10.1.2 (major version upgrade)
+- Override retry-request to 8.0.2 (major version upgrade)
+- Fixes entire Google Cloud/Firebase dependency chain
+- Reduces vulnerabilities from 8 to 0 (100% elimination)
+- REQUIRES TESTING: Major version upgrades in HTTP proxy chain"
 ```
 
 ### Expected Outcome
-- Low vulnerabilities: ~8 (documented and monitored)
-- Total vulnerabilities: ~9 (all documented with mitigation strategies)
+- Low vulnerabilities: 8 → 0
+- Total vulnerabilities: 8 → 0 ✅
+- ALL VULNERABILITIES ELIMINATED
+
+### Testing Requirements
+⚠️ **CRITICAL**: These are major version upgrades in the HTTP proxy chain used by Google Cloud Storage and Firebase Admin. Thorough testing is required:
+
+1. **Unit tests**: Must pass
+2. **E2E tests**: Must pass
+3. **Manual GCS testing**:
+   - Upload files to GCS
+   - Download files from GCS
+   - Create signed URLs
+   - Verify Firebase Admin operations
+4. **Integration testing**:
+   - Test video generation workflow end-to-end
+   - Verify asset uploads work correctly
 
 ---
 
@@ -268,11 +303,11 @@ git commit -m "docs: document @tootallnate/once monitoring strategy
 - **Low**: ~4
 
 ### After Phase 4 (Final)
-- **Total**: ~9 vulnerabilities (all documented and monitored)
+- **Total**: 0 vulnerabilities ✅
 - **Critical**: 0 ✅
-- **High**: 0-1 (if any remain, documented with mitigation)
-- **Moderate**: ~4 (low risk, indirect dependencies)
-- **Low**: ~4-5 (documented, monitoring in place)
+- **High**: 0 ✅
+- **Moderate**: 0 ✅
+- **Low**: 0 ✅
 - **Production Risk**: VERY LOW ✅
 
 ---
@@ -280,9 +315,13 @@ git commit -m "docs: document @tootallnate/once monitoring strategy
 ## Risk Assessment
 
 ### npm Overrides Safety
-- **loader-utils**: 2.0.3 → 3.3.1 (major version, but backward compatible API)
+- **loader-utils**: 2.0.3 → 3.3.1 (major version, requires testing - API changes possible)
 - **path-to-regexp**: 8.3.0 → 8.4.1 (patch version, safe)
 - **picomatch**: 4.0.3 → 4.0.4 (patch version, safe)
+- **@tootallnate/once**: <3.0.1 → 3.0.1 (patch version, safe)
+- **http-proxy-agent**: 5.0.0 → 8.0.0 (major version, requires testing - breaking changes possible)
+- **teeny-request**: 9.x → 10.1.2 (major version, requires testing)
+- **retry-request**: 7.x → 8.0.2 (major version, requires testing)
 
 ### Testing Requirements
 - ✅ Lint must pass after each phase
