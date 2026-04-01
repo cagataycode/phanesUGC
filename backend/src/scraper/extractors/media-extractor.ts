@@ -170,7 +170,7 @@ export function extractMedia(
  */
 function extractImageSrc(
   $: cheerio.CheerioAPI,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   element: any,
   baseUrl: string,
 ): string | null {
@@ -210,7 +210,7 @@ function extractImageSrc(
  */
 function extractImageSrcFromElement(
   $: cheerio.CheerioAPI,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   img: any,
   baseUrl: string,
 ): string | null {

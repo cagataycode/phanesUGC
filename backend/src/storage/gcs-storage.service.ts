@@ -151,7 +151,8 @@ export class GcsStorageService {
 
     await file.save(Buffer.from(arrayBuffer), {
       resumable: false,
-      contentType: response.headers.get('content-type') ?? 'application/octet-stream',
+      contentType:
+        response.headers.get('content-type') ?? 'application/octet-stream',
     });
 
     return objectPath;

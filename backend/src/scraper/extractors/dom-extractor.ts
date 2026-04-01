@@ -350,10 +350,10 @@ function extractBrandColors($: cheerio.CheerioAPI): string[] {
     colors.add(themeColor.trim());
   }
 
-  // 2. We can try pulling from inline styles or basic head styles, but for the MVP 
-  // we'll keep it simple and just rely on theme-color. Extracting CSS variables 
+  // 2. We can try pulling from inline styles or basic head styles, but for the MVP
+  // we'll keep it simple and just rely on theme-color. Extracting CSS variables
   // requires parsing stylesheets which can be heavy.
-  
+
   return Array.from(colors);
 }
 
