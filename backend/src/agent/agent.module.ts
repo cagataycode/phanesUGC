@@ -14,6 +14,7 @@ import { OutputValidatorService } from './stages/output-validator.service';
 import { QualityGatesService } from './orchestrator/quality-gates.service';
 import { FirebaseModule } from '../firebase/firebase.module';
 import { StorageModule } from '../storage/storage.module';
+import { GeminiService } from '../ai/gemini.service';
 
 /**
  * AgentModule - AI Ad Agent orchestration system
@@ -25,6 +26,9 @@ import { StorageModule } from '../storage/storage.module';
 @Module({
   imports: [FirebaseModule, StorageModule],
   providers: [
+    // AI Services
+    GeminiService,
+
     // Core orchestrator
     AgentOrchestratorService,
     QualityGatesService,
