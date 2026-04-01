@@ -11,7 +11,8 @@ import { VideoGeneratorService } from '../stages/video-generator.service';
 import { SubtitleGeneratorService } from '../stages/subtitle-generator.service';
 import { TimelineAssemblerService } from '../stages/timeline-assembler.service';
 import { RenderExecutorService } from '../stages/render-executor.service';
-import { OutputValidatorService } from '../stages/output-validator.service';
+// TODO: Use OutputValidatorService in Phase 2
+// import { OutputValidatorService } from '../stages/output-validator.service';
 import { QualityGatesService } from './quality-gates.service';
 import { NormalizedRequest } from '../contracts/normalized-request';
 import { ScenarioSet } from '../contracts/scenario';
@@ -28,7 +29,8 @@ import { FinalOutput } from '../contracts/final-output';
 export class AgentOrchestratorService {
   private readonly logger = new Logger(AgentOrchestratorService.name);
   private readonly SCENARIO_EXPIRY_HOURS = 24;
-  private readonly MAX_RETRIES = 2;
+  // TODO: Implement retry logic in Phase 2
+  // private readonly MAX_RETRIES = 2;
 
   constructor(
     private readonly firestore: FirestoreService,
@@ -42,7 +44,8 @@ export class AgentOrchestratorService {
     private readonly subtitleGenerator: SubtitleGeneratorService,
     private readonly timelineAssembler: TimelineAssemblerService,
     private readonly renderExecutor: RenderExecutorService,
-    private readonly outputValidator: OutputValidatorService,
+    // TODO: Use outputValidator in Phase 2 for final validation
+    // private readonly outputValidator: OutputValidatorService,
     private readonly qualityGates: QualityGatesService,
   ) {}
 
@@ -150,13 +153,27 @@ export class AgentOrchestratorService {
 
     // Validate scenario selection
     if (state.stage !== 'scenarios_ready') {
-      throw new Error(
-        `Cannot select scenario in stage ${state.stage}. Expected scenarios_ready.`,
-      );
+      throw new Error('Invalid job state for scenario selection');
     }
 
     if (state.scenarioExpiresAt && new Date() > state.scenarioExpiresAt) {
       throw new Error('Scenario selection has expired');
+    }
+
+    // Validate scenarioId is 1-4
+    if (!Number.isInteger(scenarioId) || scenarioId < 1 || scenarioId > 4) {
+      throw new Error('Invalid scenario selection');
+    }
+
+    // Validate scenario exists in generated set
+    const scenarioSet = state.artifacts.scenarioSet as ScenarioSet;
+    if (!scenarioSet?.scenarios?.find((s) => s.scenarioId === scenarioId)) {
+      throw new Error('Selected scenario not found');
+    }
+
+    // Check if Phase 2 is already running
+    if (state.phase2Status === 'in_progress') {
+      throw new Error('Video generation already in progress');
     }
 
     state.selectedScenarioId = scenarioId;
@@ -326,7 +343,10 @@ export class AgentOrchestratorService {
    * Save state to Firestore
    */
   private async saveState(state: AgentJobState): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    // Validate IDs before constructing path
+    this.validateId(state.businessId);
+    this.validateId(state.jobId);
+
     await this.firestore.set(
       `businesses/${state.businessId}/agent_jobs/${state.jobId}`,
       state,
@@ -336,9 +356,33 @@ export class AgentOrchestratorService {
   /**
    * Load state from Firestore
    */
-  private loadState(jobId: string): Promise<AgentJobState> {
-    // For now, we need to find the job by ID across all businesses
-    // In production, we'd pass businessId or index by jobId
-    throw new Error(`loadState not yet implemented for job ${jobId} - needs Firestore query`);
+  private async loadState(jobId: string): Promise<AgentJobState> {
+    this.validateId(jobId);
+
+    // Query across all businesses by jobId
+    // Note: This requires a Firestore composite index on (jobId)
+    const results = await this.firestore.queryCollectionGroup(
+      'agent_jobs',
+      [{ field: 'jobId', operator: '==', value: jobId }],
+      1,
+    );
+
+    if (!results || results.length === 0) {
+      throw new Error('Job not found');
+    }
+
+    return results[0] as AgentJobState;
+  }
+
+  /**
+   * Validate ID format (alphanumeric, hyphens, underscores only)
+   */
+  private validateId(id: string): void {
+    if (!id || typeof id !== 'string') {
+      throw new Error('Invalid ID');
+    }
+    if (!/^[a-zA-Z0-9-_]+$/.test(id)) {
+      throw new Error('Invalid ID format');
+    }
   }
 }

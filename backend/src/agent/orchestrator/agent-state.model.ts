@@ -46,7 +46,7 @@ export interface AgentJobState {
   /** Selected scenario ID (set by user) */
   selectedScenarioId?: number;
 
-  /** Stage artifacts (stored as JSON) */
+  /** Stage artifacts (stored as JSON - use type assertions when accessing) */
   artifacts: {
     normalizedRequest?: unknown;
     productContext?: unknown;

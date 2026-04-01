@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import { QualityGatesService } from './orchestrator/quality-gates.service';
 import { InputNormalizerService } from './stages/input-normalizer.service';
 import { ContextAcquisitionService } from './stages/context-acquisition.service';
@@ -196,6 +197,46 @@ describe('Agent Foundation - Phase 1', () => {
       expect(normalized.durationSec).toBe(8);
       expect(normalized.language).toBe('en');
       expect(normalized.aspectRatio).toBe('9:16');
+    });
+
+    it('should reject invalid prompt', async () => {
+      const rawInput = {
+        prompt: '', // Empty prompt
+      };
+
+      try {
+        await inputNormalizer.normalize('job-1', 'biz-1', rawInput);
+        fail('Should have thrown an error');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+      }
+    });
+
+    it('should reject invalid platform', async () => {
+      const rawInput = {
+        prompt: 'Test',
+        platform: 'invalid-platform',
+      };
+
+      try {
+        await inputNormalizer.normalize('job-1', 'biz-1', rawInput);
+        fail('Should have thrown an error');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+      }
+    });
+
+    it('should reject invalid job ID', async () => {
+      const rawInput = {
+        prompt: 'Test',
+      };
+
+      try {
+        await inputNormalizer.normalize('job/../etc/passwd', 'biz-1', rawInput);
+        fail('Should have thrown an error');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+      }
     });
 
     it('should acquire product context', async () => {
