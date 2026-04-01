@@ -20,7 +20,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "security:check": "npm audit --audit-level=moderate",
-    "security:report": "npm audit --json > tmp/security-audit.json"
+    "security:report": "mkdir -p tmp && npm audit --json > tmp/security-audit.json"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",
