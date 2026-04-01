@@ -15,6 +15,8 @@ import { RenderExecutorService } from '../stages/render-executor.service';
 // import { OutputValidatorService } from '../stages/output-validator.service';
 import { QualityGatesService } from './quality-gates.service';
 import { NormalizedRequest } from '../contracts/normalized-request';
+import { CreativeBrief } from '../contracts/creative-brief';
+import { ProductContext } from '../contracts/product-context';
 import { ScenarioSet } from '../contracts/scenario';
 import { FinalOutput } from '../contracts/final-output';
 
@@ -205,9 +207,11 @@ export class AgentOrchestratorService {
 
       // Stage 5: Generate script
       this.transitionStage(state, 'script_ready');
-      const adScript = await this.scriptGenerator.generate(
+      const creativeBrief = state.artifacts.creativeBrief as CreativeBrief;
+      const adScript = await this.scriptGenerator.generateFromBrief(
         state.jobId,
         state.selectedScenarioId,
+        creativeBrief,
       );
       state.artifacts.adScript = adScript;
 
@@ -221,9 +225,16 @@ export class AgentOrchestratorService {
 
       // Stage 6: Build Veo prompt
       this.transitionStage(state, 'veo_prompt_ready');
+      const normalizedRequest = state.artifacts
+        .normalizedRequest as NormalizedRequest;
+      const productContext = state.artifacts.productContext as ProductContext;
+
       const veoPrompt = await this.veoPromptBuilder.build(
         state.jobId,
         adScript,
+        creativeBrief,
+        productContext,
+        normalizedRequest,
       );
       state.artifacts.veoPrompt = veoPrompt;
       await this.saveState(state);
