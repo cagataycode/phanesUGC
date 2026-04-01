@@ -16,6 +16,10 @@ export interface CreateUploadUrlPayload {
   role?: "profile" | "reference" | "demo" | "voice_sample" | "brand";
 }
 
+export interface CreateUploadFromUrlPayload extends CreateUploadUrlPayload {
+  sourceUrl: string;
+}
+
 export interface RawUploadAssetDescriptor {
   storageKey: string;
   type: "image" | "video" | "audio" | "logo";
@@ -72,6 +76,33 @@ export async function createUploadUrl(
   }>;
 }
 
+export async function createUploadFromUrl(
+  businessId: string,
+  entityId: string,
+  payload: CreateUploadFromUrlPayload,
+): Promise<{
+  objectPath: string;
+  asset: RawUploadAssetDescriptor;
+}> {
+  const res = await fetchWithAuth(
+    `/v1/businesses/${encodeURIComponent(businessId)}/assets/${encodeURIComponent(entityId)}/upload-from-url`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to upload asset from URL: ${text}`);
+  }
+
+  return res.json() as Promise<{
+    objectPath: string;
+    asset: RawUploadAssetDescriptor;
+  }>;
+}
+
 export async function uploadFileToSignedUrl(
   uploadUrl: string,
   file: File,
@@ -87,5 +118,25 @@ export async function uploadFileToSignedUrl(
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Failed to upload file: ${text}`);
+  }
+}
+
+export async function getAssetDownloadUrl(
+  businessId: string,
+  storageKey: string,
+): Promise<string | null> {
+  try {
+    const res = await fetchWithAuth(
+      `/v1/businesses/${encodeURIComponent(businessId)}/assets/download-url?storageKey=${encodeURIComponent(storageKey)}`,
+    );
+
+    if (!res.ok) {
+      return null;
+    }
+
+    const data = (await res.json()) as { downloadUrl: string | null };
+    return data.downloadUrl;
+  } catch {
+    return null;
   }
 }

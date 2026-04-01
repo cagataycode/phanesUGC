@@ -14,7 +14,7 @@ import { App } from 'supertest/types';
 import { AuthModule } from '../src/auth/auth.module';
 import { FirebaseAuthGuard } from '../src/auth/firebase-auth.guard';
 import { GetUser } from '../src/auth/get-user.decorator';
-import { DecodedIdToken } from 'firebase-admin/auth';
+import type { DecodedIdToken } from 'firebase-admin/auth';
 import * as admin from 'firebase-admin';
 
 // Interface for response bodies to fix unsafe member access lint errors

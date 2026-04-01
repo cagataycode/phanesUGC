@@ -131,4 +131,13 @@ export class JobStoreService {
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
   }
+
+  async listByBusiness(businessId: string): Promise<AdJob[]> {
+    const snapshot = await this.firestore
+      .collection(`businesses/${businessId}/projects`)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as AdJob);
+  }
 }

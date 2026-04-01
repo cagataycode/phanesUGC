@@ -162,6 +162,10 @@ export class AdsService {
     return this.jobStoreService.getById(businessId, projectId);
   }
 
+  async listJobs(businessId: string) {
+    return this.jobStoreService.listByBusiness(businessId);
+  }
+
   async getJobResult(businessId: string, projectId: string) {
     const job = await this.jobStoreService.getById(businessId, projectId);
 

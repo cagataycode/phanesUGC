@@ -96,8 +96,8 @@ export function ResultClient({ id }: ResultClientProps) {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background bg-mesh-blur font-sans">
-      <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 pb-12 pt-28 sm:px-6 lg:px-8">
+    <div className="relative min-h-screen bg-background bg-mesh-blur font-sans">
+      <main className="mx-auto flex w-full max-w-6xl flex-col px-4 pb-12 pt-6 sm:px-6 lg:px-8">
         <section className="rounded-xl border border-border bg-card/80 p-6 shadow-sm backdrop-blur-sm sm:p-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-2">
@@ -119,8 +119,9 @@ export function ResultClient({ id }: ResultClientProps) {
           </div>
         </section>
 
-        <section className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        {/* Video Section - Centered at top */}
+        <section className="mt-6 flex justify-center">
+          <div className="w-full max-w-4xl rounded-xl border border-border bg-card p-6 shadow-sm">
             {loading ? (
               <div className="flex min-h-[420px] items-center justify-center text-sm text-muted-foreground">
                 Loading result…
@@ -134,7 +135,8 @@ export function ResultClient({ id }: ResultClientProps) {
                 src={result.video_url}
                 controls
                 autoPlay
-                className="h-auto w-full rounded-xl border border-border bg-black shadow-sm"
+                playsInline
+                className="w-full aspect-video rounded-xl border border-border bg-black shadow-sm"
               />
             ) : (
               <div className="flex min-h-[420px] items-center justify-center text-sm text-muted-foreground">
@@ -142,135 +144,143 @@ export function ResultClient({ id }: ResultClientProps) {
               </div>
             )}
           </div>
+        </section>
 
-          <div className="space-y-6">
-            {/* ── Output Summary ─────────────────────────────────── */}
-            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-              <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                Output summary
-              </h2>
-              <div className="mt-5 space-y-3 text-sm">
-                <SummaryRow label="Job ID" value={id} />
+        {/* Output Summary - Below video */}
+        <section className="mt-6 flex justify-center">
+          <div className="w-full max-w-4xl rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">
+              Output summary
+            </h2>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+              <SummaryRow label="Job ID" value={id} />
 
-                {result?.generationConfig && (
-                  <>
-                    <SummaryRow
-                      label="Platform"
-                      value={
-                        result.generationConfig.platform
-                          ?.toUpperCase()
-                          .replace("-", "") ?? "—"
-                      }
-                    />
-                    <SummaryRow
-                      label="Aspect ratio"
-                      value={result.generationConfig.aspectRatio ?? "—"}
-                    />
-                    <SummaryRow
-                      label="Duration"
-                      value={
-                        result.generationConfig.durationSec
-                          ? `${result.generationConfig.durationSec}s`
-                          : "—"
-                      }
-                    />
-                  </>
-                )}
+              {result?.generationConfig && (
+                <>
+                  <SummaryRow
+                    label="Platform"
+                    value={
+                      result.generationConfig.platform
+                        ?.toUpperCase()
+                        .replace("-", "") ?? "—"
+                    }
+                  />
+                  <SummaryRow
+                    label="Aspect ratio"
+                    value={result.generationConfig.aspectRatio ?? "—"}
+                  />
+                  <SummaryRow
+                    label="Duration"
+                    value={
+                      result.generationConfig.durationSec
+                        ? `${result.generationConfig.durationSec}s`
+                        : "—"
+                    }
+                  />
+                </>
+              )}
 
-                <SummaryRow
-                  label="Status"
-                  value={
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${result?.pipeline.status === "completed" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" : result?.pipeline.status === "failed" ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"}`}
-                    >
-                      {result?.pipeline.status ?? "unknown"}
-                    </span>
-                  }
-                />
+              <SummaryRow
+                label="Status"
+                value={
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${result?.pipeline.status === "completed" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" : result?.pipeline.status === "failed" ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"}`}
+                  >
+                    {result?.pipeline.status ?? "unknown"}
+                  </span>
+                }
+              />
 
-                <SummaryRow
-                  label="Thumbnail"
-                  value={result?.thumbnail_url ? "Available" : "Not available"}
-                />
-                <SummaryRow
-                  label="Script artifact"
-                  value={result?.script ? "Included" : "Unavailable"}
-                />
-                <SummaryRow
-                  label="Creative brief"
-                  value={result?.creativeBrief ? "Included" : "Unavailable"}
-                />
-                <SummaryRow
-                  label="Subtitles"
-                  value={
-                    Array.isArray(result?.subtitles) &&
-                    result.subtitles.length > 0
-                      ? `${result.subtitles.length} segments`
-                      : "Not generated"
-                  }
-                />
-                <SummaryRow
-                  label="Created"
-                  value={formatDate(result?.timestamps.createdAt ?? null)}
-                />
-                <SummaryRow
-                  label="Updated"
-                  value={formatDate(result?.timestamps.updatedAt ?? null)}
-                />
-              </div>
+              <SummaryRow
+                label="Thumbnail"
+                value={result?.thumbnail_url ? "Available" : "Not available"}
+              />
+              <SummaryRow
+                label="Script artifact"
+                value={result?.script ? "Included" : "Unavailable"}
+              />
+              <SummaryRow
+                label="Creative brief"
+                value={result?.creativeBrief ? "Included" : "Unavailable"}
+              />
+              <SummaryRow
+                label="Subtitles"
+                value={
+                  Array.isArray(result?.subtitles) &&
+                  result.subtitles.length > 0
+                    ? `${result.subtitles.length} segments`
+                    : "Not generated"
+                }
+              />
+              <SummaryRow
+                label="Created"
+                value={formatDate(result?.timestamps.createdAt ?? null)}
+              />
+              <SummaryRow
+                label="Updated"
+                value={formatDate(result?.timestamps.updatedAt ?? null)}
+              />
             </div>
+          </div>
+        </section>
 
-            {/* ── Script ─────────────────────────────────────────── */}
-            {result?.script && Object.keys(result.script).length > 0 && (
-              <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        {/* Pipeline Stages */}
+        {result?.pipeline.stages &&
+          Object.keys(result.pipeline.stages).length > 0 && (
+            <section className="mt-6 flex justify-center">
+              <div className="w-full max-w-4xl rounded-xl border border-border bg-card p-6 shadow-sm">
                 <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                  Script
+                  Pipeline stages
                 </h2>
-                <pre className="mt-4 overflow-x-auto whitespace-pre-wrap rounded-lg border border-border bg-background/70 p-4 text-xs leading-relaxed text-foreground/80">
-                  {JSON.stringify(result.script, null, 2)}
-                </pre>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {Object.entries(result.pipeline.stages).map(
+                    ([stage, status]) => (
+                      <StageBadge key={stage} stage={stage} status={status} />
+                    ),
+                  )}
+                </div>
               </div>
-            )}
+            </section>
+          )}
 
-            {/* ── Creative Brief ─────────────────────────────────── */}
-            {result?.creativeBrief &&
-              Object.keys(result.creativeBrief).length > 0 && (
-                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-                  <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                    Creative brief
-                  </h2>
-                  <pre className="mt-4 overflow-x-auto whitespace-pre-wrap rounded-lg border border-border bg-background/70 p-4 text-xs leading-relaxed text-foreground/80">
-                    {JSON.stringify(result.creativeBrief, null, 2)}
-                  </pre>
-                </div>
-              )}
-
-            {/* ── Pipeline Stages ────────────────────────────────── */}
-            {result?.pipeline.stages &&
-              Object.keys(result.pipeline.stages).length > 0 && (
-                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-                  <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                    Pipeline stages
-                  </h2>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {Object.entries(result.pipeline.stages).map(
-                      ([stage, status]) => (
-                        <StageBadge key={stage} stage={stage} status={status} />
-                      ),
-                    )}
-                  </div>
-                </div>
-              )}
-
-            {/* ── Metadata ───────────────────────────────────────── */}
-            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        {/* Script */}
+        {result?.script && Object.keys(result.script).length > 0 && (
+          <section className="mt-6 flex justify-center">
+            <div className="w-full max-w-4xl rounded-xl border border-border bg-card p-6 shadow-sm">
               <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                Metadata
+                Script
               </h2>
-              <pre className="mt-4 overflow-x-auto rounded-lg border border-border bg-background/70 p-4 text-xs text-foreground/80">
-                {JSON.stringify(result?.metadata ?? {}, null, 2)}
+              <pre className="mt-4 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-background/70 p-4 text-xs leading-relaxed text-foreground/80">
+                {JSON.stringify(result.script, null, 2)}
               </pre>
             </div>
+          </section>
+        )}
+
+        {/* Creative Brief */}
+        {result?.creativeBrief &&
+          Object.keys(result.creativeBrief).length > 0 && (
+            <section className="mt-6 flex justify-center">
+              <div className="w-full max-w-4xl rounded-xl border border-border bg-card p-6 shadow-sm">
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                  Creative brief
+                </h2>
+                <pre className="mt-4 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-background/70 p-4 text-xs leading-relaxed text-foreground/80">
+                  {JSON.stringify(result.creativeBrief, null, 2)}
+                </pre>
+              </div>
+            </section>
+          )}
+
+        {/* Metadata */}
+        <section className="mt-6 flex justify-center">
+          <div className="w-full max-w-4xl rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">
+              Metadata
+            </h2>
+            <pre className="mt-4 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-background/70 p-4 text-xs text-foreground/80">
+              {JSON.stringify(result?.metadata ?? {}, null, 2)}
+            </pre>
           </div>
         </section>
       </main>

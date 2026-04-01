@@ -12,6 +12,7 @@ import { AvatarsModule } from './avatars/avatars.module';
 import { AssetsModule } from './assets/assets.module';
 import { validateEnv } from './config/env';
 import { RenderModule } from './render/render.module';
+import { ScraperModule } from './scraper/scraper.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { RenderModule } from './render/render.module';
     ProductsModule,
     AvatarsModule,
     AssetsModule,
+    ScraperModule,
   ],
   controllers: [AppController],
   providers: [AppService],

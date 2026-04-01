@@ -15,6 +15,7 @@ import {
 import type { ProductData } from "@/lib/firebase/hooks";
 import {
   createUploadUrl,
+  createUploadFromUrl,
   toProductAsset,
   uploadFileToSignedUrl,
 } from "@/lib/assets-api";
@@ -23,6 +24,7 @@ import {
   updateProduct,
   type CreateProductPayload,
 } from "@/lib/products-api";
+import { scrapeProductUrl } from "@/lib/scraper-api";
 
 interface ProductFormProps {
   businessId: string;
@@ -56,6 +58,12 @@ export function ProductForm({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isScraping, setIsScraping] = useState(false);
+  const [scrapeUrl, setScrapeUrl] = useState("");
+  const [scrapedImages, setScrapedImages] = useState<string[]>([]);
+  const [selectedScrapedImages, setSelectedScrapedImages] = useState<
+    Set<string>
+  >(new Set());
   const [error, setError] = useState<string | null>(null);
 
   function parseLinesArray(raw: string): string[] {
@@ -133,14 +141,48 @@ export function ProductForm({
     };
 
     try {
+      let currentProductId = isEdit && product ? product.id : null;
       if (isEdit && product) {
         await updateProduct(businessId, product.id, payload);
-        onSuccess?.(product.id);
       } else {
         const result = await createProduct(businessId, payload);
+        currentProductId = result.id;
         console.log("Product created with ID:", result.id);
-        onSuccess?.(result.id);
       }
+
+      if (currentProductId && selectedScrapedImages.size > 0 && !isEdit) {
+        setIsUploading(true);
+        try {
+          const uploaded = [] as NonNullable<
+            CreateProductPayload["brandAssets"]
+          >;
+          for (const url of Array.from(selectedScrapedImages)) {
+            const upload = await createUploadFromUrl(
+              businessId,
+              currentProductId,
+              {
+                sourceUrl: url,
+                filename:
+                  url.split("/").pop()?.split("?")[0] || "scraped-image",
+                contentType: "application/octet-stream",
+                entityType: "product",
+                assetType: "image",
+                role: "brand",
+              },
+            );
+            uploaded.push(toProductAsset(upload.asset));
+          }
+          await updateProduct(businessId, currentProductId, {
+            brandAssets: [...brandAssets, ...uploaded],
+          });
+        } catch (err) {
+          console.error("Failed to upload scraped images:", err);
+        } finally {
+          setIsUploading(false);
+        }
+      }
+
+      onSuccess?.(currentProductId!);
     } catch (err) {
       console.error("ProductForm submit error:", err);
       setError(
@@ -153,8 +195,172 @@ export function ProductForm({
     }
   }
 
+  async function handleAutoFill() {
+    if (!scrapeUrl.trim()) {
+      setError("Please enter a URL to auto-fill.");
+      return;
+    }
+
+    // Add http:// if missing and not localhost
+    let validUrl = scrapeUrl.trim();
+    if (!validUrl.startsWith("http://") && !validUrl.startsWith("https://")) {
+      validUrl = `https://${validUrl}`;
+    }
+
+    try {
+      // Basic URL validation
+      new URL(validUrl);
+    } catch {
+      setError("Please enter a valid URL.");
+      return;
+    }
+
+    setIsScraping(true);
+    setError(null);
+
+    try {
+      const result = await scrapeProductUrl({ url: validUrl });
+
+      if (!result.extraction) {
+        throw new Error(
+          "Could not extract any product information from this URL.",
+        );
+      }
+
+      const { extraction } = result;
+
+      if (extraction.productName) {
+        setName((prev) => prev || extraction.productName!);
+      }
+
+      if (extraction.description) {
+        setDescription((prev) => prev || extraction.description!);
+      }
+
+      if (extraction.benefits && extraction.benefits.length > 0) {
+        setBenefitsRaw((prev) => {
+          const prevLines = parseLinesArray(prev);
+          const newBenefits = extraction.benefits.filter(
+            (b) => !prevLines.includes(b),
+          );
+          return [...prevLines, ...newBenefits].join("\n");
+        });
+      }
+
+      setUrlsRaw((prev) => {
+        const prevLines = parseLinesArray(prev);
+        if (!prevLines.includes(validUrl)) {
+          return [...prevLines, validUrl].join("\n");
+        }
+        return prev;
+      });
+
+      if (extraction.mediaUrls && extraction.mediaUrls.length > 0) {
+        const images = extraction.mediaUrls
+          .filter((m: { type: string; url: string }) => m.type === "image")
+          .map((m: { type: string; url: string }) => m.url);
+        if (images.length > 0) {
+          setScrapedImages(images);
+          setSelectedScrapedImages(new Set(images.slice(0, 5)));
+        }
+      }
+
+      setScrapeUrl(""); // Clear the input on success
+    } catch (err) {
+      console.error("Auto-fill error:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to auto-fill from URL.",
+      );
+    } finally {
+      setIsScraping(false);
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Auto-fill Section */}
+      {!isEdit && (
+        <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+          <div>
+            <p className="text-sm font-medium text-foreground flex items-center gap-2">
+              ✨ Auto-fill from URL
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Save time by extracting product name, description, and benefits
+              automatically.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              value={scrapeUrl}
+              onChange={(e) => setScrapeUrl(e.target.value)}
+              placeholder="https://example.com/product"
+              className="bg-background"
+              disabled={isScraping}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void handleAutoFill();
+                }
+              }}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleAutoFill}
+              disabled={isScraping || !scrapeUrl.trim()}
+            >
+              {isScraping ? "Extracting..." : "Auto-fill"}
+            </Button>
+          </div>
+
+          {scrapedImages.length > 0 && (
+            <div className="pt-2">
+              <p className="text-xs font-medium text-foreground mb-2">
+                Select images to add as brand assets:
+              </p>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {scrapedImages.map((imgUrl, i) => {
+                  const isSelected = selectedScrapedImages.has(imgUrl);
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        const newSet = new Set(selectedScrapedImages);
+                        if (isSelected) newSet.delete(imgUrl);
+                        else newSet.add(imgUrl);
+                        setSelectedScrapedImages(newSet);
+                      }}
+                      className={`relative flex-shrink-0 h-20 w-20 overflow-hidden rounded-md border-2 transition-all ${
+                        isSelected
+                          ? "border-primary"
+                          : "border-transparent hover:border-primary/50"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={imgUrl}
+                        alt="Scraped image preview"
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                      {isSelected && (
+                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                          <div className="bg-primary text-primary-foreground rounded-full p-0.5">
+                            ✅
+                          </div>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="space-y-1.5">
         <Label htmlFor="product-name">Product name *</Label>
         <Input

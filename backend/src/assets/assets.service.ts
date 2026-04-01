@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { GcsStorageService } from '../storage/gcs-storage.service';
 import type { CreateUploadUrlDto } from './dto/create-upload-url.dto';
+import type { CreateUploadFromUrlDto } from './dto/create-upload-from-url.dto';
 
 @Injectable()
 export class AssetsService {
@@ -71,5 +72,38 @@ export class AssetsService {
         role: dto.role,
       },
     };
+  }
+
+  async importFromUrl(
+    businessId: string,
+    entityId: string,
+    dto: CreateUploadFromUrlDto,
+  ) {
+    const objectPath = this.buildObjectPath(
+      businessId,
+      dto.entityType,
+      entityId,
+      dto,
+    );
+
+    await this.gcsStorageService.importAssetFromUrl(dto.sourceUrl, objectPath);
+
+    return {
+      objectPath,
+      asset: {
+        storageKey: objectPath,
+        type: dto.assetType,
+        filename: dto.filename,
+        role: dto.role,
+      },
+    };
+  }
+
+  async createDownloadUrl(
+    objectPath: string,
+  ): Promise<{ downloadUrl: string }> {
+    const downloadUrl =
+      await this.gcsStorageService.createSignedDownloadUrl(objectPath);
+    return { downloadUrl };
   }
 }

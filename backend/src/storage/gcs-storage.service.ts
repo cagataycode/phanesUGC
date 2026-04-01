@@ -63,6 +63,19 @@ export class GcsStorageService {
     return signedUrl;
   }
 
+  async createSignedDownloadUrl(objectPath: string): Promise<string> {
+    const [signedUrl] = await this.storage
+      .bucket(this.bucketName)
+      .file(objectPath)
+      .getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 1000 * 60 * 60, // 1 hour
+        version: 'v4',
+      });
+
+    return signedUrl;
+  }
+
   async createSignedUploadUrl(
     objectPath: string,
     contentType: string,
@@ -115,6 +128,31 @@ export class GcsStorageService {
     await file.save(Buffer.from(arrayBuffer), {
       resumable: false,
       contentType: response.headers.get('content-type') ?? 'video/mp4',
+    });
+
+    return objectPath;
+  }
+
+  async importAssetFromUrl(
+    sourceUrl: string,
+    objectPath: string,
+  ): Promise<string> {
+    const response = await fetch(sourceUrl);
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to download asset from source URL: ${response.status}`,
+      );
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+
+    const file = this.storage.bucket(this.bucketName).file(objectPath);
+
+    await file.save(Buffer.from(arrayBuffer), {
+      resumable: false,
+      contentType:
+        response.headers.get('content-type') ?? 'application/octet-stream',
     });
 
     return objectPath;
