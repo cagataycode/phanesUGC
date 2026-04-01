@@ -1,9 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { QualityGatesService } from './orchestrator/quality-gates.service';
 import { InputNormalizerService } from './stages/input-normalizer.service';
 import { ContextAcquisitionService } from './stages/context-acquisition.service';
 import { ScenarioGeneratorService } from './stages/scenario-generator.service';
+import { GeminiService } from '../ai/gemini.service';
 import {
   isValidTransition,
   getPhase,
@@ -164,6 +166,16 @@ describe('Agent Foundation - Phase 1', () => {
           InputNormalizerService,
           ContextAcquisitionService,
           ScenarioGeneratorService,
+          GeminiService,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string) => {
+                if (key === 'GEMINI_API_KEY') return 'test-api-key';
+                return null;
+              }),
+            },
+          },
         ],
       }).compile();
 
