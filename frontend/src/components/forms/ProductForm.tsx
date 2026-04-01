@@ -61,7 +61,9 @@ export function ProductForm({
   const [isScraping, setIsScraping] = useState(false);
   const [scrapeUrl, setScrapeUrl] = useState("");
   const [scrapedImages, setScrapedImages] = useState<string[]>([]);
-  const [selectedScrapedImages, setSelectedScrapedImages] = useState<Set<string>>(new Set());
+  const [selectedScrapedImages, setSelectedScrapedImages] = useState<
+    Set<string>
+  >(new Set());
   const [error, setError] = useState<string | null>(null);
 
   function parseLinesArray(raw: string): string[] {
@@ -151,16 +153,23 @@ export function ProductForm({
       if (currentProductId && selectedScrapedImages.size > 0 && !isEdit) {
         setIsUploading(true);
         try {
-          const uploaded = [] as NonNullable<CreateProductPayload["brandAssets"]>;
+          const uploaded = [] as NonNullable<
+            CreateProductPayload["brandAssets"]
+          >;
           for (const url of Array.from(selectedScrapedImages)) {
-            const upload = await createUploadFromUrl(businessId, currentProductId, {
-              sourceUrl: url,
-              filename: url.split('/').pop()?.split('?')[0] || "scraped-image",
-              contentType: "application/octet-stream",
-              entityType: "product",
-              assetType: "image",
-              role: "brand",
-            });
+            const upload = await createUploadFromUrl(
+              businessId,
+              currentProductId,
+              {
+                sourceUrl: url,
+                filename:
+                  url.split("/").pop()?.split("?")[0] || "scraped-image",
+                contentType: "application/octet-stream",
+                entityType: "product",
+                assetType: "image",
+                role: "brand",
+              },
+            );
             uploaded.push(toProductAsset(upload.asset));
           }
           await updateProduct(businessId, currentProductId, {
@@ -191,7 +200,7 @@ export function ProductForm({
       setError("Please enter a URL to auto-fill.");
       return;
     }
-    
+
     // Add http:// if missing and not localhost
     let validUrl = scrapeUrl.trim();
     if (!validUrl.startsWith("http://") && !validUrl.startsWith("https://")) {
@@ -211,9 +220,11 @@ export function ProductForm({
 
     try {
       const result = await scrapeProductUrl({ url: validUrl });
-      
+
       if (!result.extraction) {
-        throw new Error("Could not extract any product information from this URL.");
+        throw new Error(
+          "Could not extract any product information from this URL.",
+        );
       }
 
       const { extraction } = result;
@@ -221,15 +232,17 @@ export function ProductForm({
       if (extraction.productName) {
         setName((prev) => prev || extraction.productName!);
       }
-      
+
       if (extraction.description) {
         setDescription((prev) => prev || extraction.description!);
       }
-      
+
       if (extraction.benefits && extraction.benefits.length > 0) {
         setBenefitsRaw((prev) => {
           const prevLines = parseLinesArray(prev);
-          const newBenefits = extraction.benefits.filter(b => !prevLines.includes(b));
+          const newBenefits = extraction.benefits.filter(
+            (b) => !prevLines.includes(b),
+          );
           return [...prevLines, ...newBenefits].join("\n");
         });
       }
@@ -244,18 +257,20 @@ export function ProductForm({
 
       if (extraction.mediaUrls && extraction.mediaUrls.length > 0) {
         const images = extraction.mediaUrls
-          .filter((m: any) => m.type === "image")
-          .map((m: any) => m.url);
+          .filter((m: { type: string; url: string }) => m.type === "image")
+          .map((m: { type: string; url: string }) => m.url);
         if (images.length > 0) {
           setScrapedImages(images);
           setSelectedScrapedImages(new Set(images.slice(0, 5)));
         }
       }
-      
+
       setScrapeUrl(""); // Clear the input on success
     } catch (err) {
       console.error("Auto-fill error:", err);
-      setError(err instanceof Error ? err.message : "Failed to auto-fill from URL.");
+      setError(
+        err instanceof Error ? err.message : "Failed to auto-fill from URL.",
+      );
     } finally {
       setIsScraping(false);
     }
@@ -271,7 +286,8 @@ export function ProductForm({
               ✨ Auto-fill from URL
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Save time by extracting product name, description, and benefits automatically.
+              Save time by extracting product name, description, and benefits
+              automatically.
             </p>
           </div>
           <div className="flex gap-2">
@@ -288,16 +304,16 @@ export function ProductForm({
                 }
               }}
             />
-            <Button 
-              type="button" 
-              variant="secondary" 
+            <Button
+              type="button"
+              variant="secondary"
               onClick={handleAutoFill}
               disabled={isScraping || !scrapeUrl.trim()}
             >
               {isScraping ? "Extracting..." : "Auto-fill"}
             </Button>
           </div>
-          
+
           {scrapedImages.length > 0 && (
             <div className="pt-2">
               <p className="text-xs font-medium text-foreground mb-2">
@@ -317,7 +333,9 @@ export function ProductForm({
                         setSelectedScrapedImages(newSet);
                       }}
                       className={`relative flex-shrink-0 h-20 w-20 overflow-hidden rounded-md border-2 transition-all ${
-                        isSelected ? "border-primary" : "border-transparent hover:border-primary/50"
+                        isSelected
+                          ? "border-primary"
+                          : "border-transparent hover:border-primary/50"
                       }`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}

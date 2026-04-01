@@ -38,7 +38,8 @@ export class AssetsController {
   async uploadFromUrl(
     @Param('businessId') businessId: string,
     @Param('entityId') entityId: string,
-    @Body(new ZodValidationPipe(createUploadFromUrlSchema)) dto: CreateUploadFromUrlDto,
+    @Body(new ZodValidationPipe(createUploadFromUrlSchema))
+    dto: CreateUploadFromUrlDto,
   ) {
     return this.assetsService.importFromUrl(businessId, entityId, dto);
   }
