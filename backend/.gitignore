@@ -38,3 +38,7 @@ lerna-debug.log*
 *.pem
 .env
 .env.local
+
+# Security reports
+tmp/
+security-audit.json

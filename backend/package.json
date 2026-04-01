@@ -18,33 +18,35 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "security:check": "npm audit --audit-level=moderate",
+    "security:report": "mkdir -p tmp && npm audit --json > tmp/security-audit.json"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",
     "@google/genai": "^1.46.0",
     "@google/generative-ai": "^0.24.1",
-    "@nestjs/common": "^11.0.1",
+    "@nestjs/common": "^11.1.17",
     "@nestjs/config": "^4.0.3",
-    "@nestjs/core": "^11.0.1",
-    "@nestjs/platform-express": "^11.0.1",
-    "@remotion/bundler": "^4.0.366",
-    "@remotion/renderer": "^4.0.366",
+    "@nestjs/core": "^11.1.17",
+    "@nestjs/platform-express": "^11.1.17",
+    "@remotion/bundler": "^4.0.442",
+    "@remotion/renderer": "^4.0.442",
     "firebase-admin": "^13.7.0",
     "google-auth-library": "^10.6.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "reflect-metadata": "^0.2.2",
-    "remotion": "^4.0.366",
+    "remotion": "^4.0.442",
     "rxjs": "^7.8.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
-    "@nestjs/cli": "^11.0.0",
-    "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.1",
+    "@nestjs/cli": "^11.0.16",
+    "@nestjs/schematics": "^11.0.9",
+    "@nestjs/testing": "^11.1.17",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.10.7",
@@ -65,6 +67,15 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
+  },
+  "overrides": {
+    "loader-utils": "^3.3.1",
+    "path-to-regexp": "^8.4.1",
+    "picomatch": "^4.0.4",
+    "@tootallnate/once": "^3.0.1",
+    "http-proxy-agent": "^8.0.0",
+    "teeny-request": "^10.1.2",
+    "retry-request": "^8.0.2"
   },
   "jest": {
     "moduleFileExtensions": [
