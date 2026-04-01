@@ -19,7 +19,10 @@ import {
   PlaywrightCrawlingContext,
 } from 'crawlee';
 import * as cheerio from 'cheerio';
-import { ProductExtraction } from '../interfaces/product-extraction.interface';
+import {
+  ProductExtraction,
+  MediaAsset,
+} from '../interfaces/product-extraction.interface';
 import { extractFromJsonLd } from '../extractors/jsonld-extractor';
 import { extractFromMeta } from '../extractors/meta-extractor';
 import { extractFromDom } from '../extractors/dom-extractor';
@@ -94,8 +97,7 @@ export async function scrapeWithPlaywright(
  * Uses the extractors with priority: JSON-LD > Meta > DOM
  */
 function extractProductData(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  $: any,
+  $: cheerio.CheerioAPI,
   url: string,
 ): ProductExtraction {
   // Priority 1: JSON-LD extraction
@@ -153,16 +155,14 @@ function extractProductData(
  * Merge media URLs from different sources, deduplicating
  */
 function mergeMediaUrls(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  jsonLdMedia: any[],
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  metaMedia: any[],
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  domMedia: any[],
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): any[] {
+  jsonLdMedia: MediaAsset[],
+
+  metaMedia: MediaAsset[],
+
+  domMedia: MediaAsset[],
+): MediaAsset[] {
   const seen = new Set<string>();
-  const merged: { url: string; type: 'image' | 'video' }[] = [];
+  const merged: MediaAsset[] = [];
 
   // Add JSON-LD media first (highest priority)
   for (const media of jsonLdMedia) {
