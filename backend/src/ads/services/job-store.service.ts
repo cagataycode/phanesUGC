@@ -2,15 +2,29 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { FirestoreService } from '../../firebase/firestore.service';
 import { CreativeBrief } from '../types/creative-brief';
 import { GeneratedScript } from '../types/generated-script';
+import { Scenario } from '../../agent/contracts/scenario';
+import { FinalOutput } from '../../agent/contracts/final-output';
 import * as admin from 'firebase-admin';
 
-export type AdJobStatus = 'created' | 'processing' | 'completed' | 'failed';
+export type AdJobStatus =
+  | 'created'
+  | 'processing'
+  | 'scenarios_ready'
+  | 'phase2_started'
+  | 'completed'
+  | 'failed';
+
+export type StageStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped';
 
 export interface ProjectStage {
-  status: 'pending' | 'running' | 'done' | 'failed' | 'skipped';
+  status: StageStatus;
 }
 
 export interface AdJobMetadata {
+  scenarios?: Scenario[]; // Phase 1: Generated scenarios
+  scenarioExpiresAt?: Date; // Phase 1: When scenarios expire
+  selectedScenarioId?: number; // Phase 2: User's choice
+  finalOutput?: FinalOutput; // Phase 2: Final output from agent
   scenePrompt?: {
     intent: string;
     visualStyle: string;
@@ -46,14 +60,14 @@ export interface AdJob {
   status: AdJobStatus;
   progress: number;
   stages: {
-    scrape: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
-    brief: AdJobStatus | 'pending' | 'running' | 'done';
-    script: AdJobStatus | 'pending' | 'running' | 'done';
-    scenes: AdJobStatus | 'pending' | 'running' | 'done';
-    assets: AdJobStatus | 'pending' | 'running' | 'done';
-    audio: AdJobStatus | 'pending' | 'running' | 'done';
-    subtitles: AdJobStatus | 'pending' | 'running' | 'done';
-    render: AdJobStatus | 'pending' | 'running' | 'done';
+    normalize?: StageStatus;
+    scrape?: StageStatus;
+    brief?: StageStatus;
+    scenarios?: StageStatus;
+    script?: StageStatus;
+    veo?: StageStatus;
+    subtitles?: StageStatus;
+    render?: StageStatus;
   };
   creativeBrief?: CreativeBrief;
   script?: GeneratedScript;
@@ -89,12 +103,12 @@ export class JobStoreService {
       status: 'created',
       progress: 0,
       stages: {
+        normalize: 'pending',
         scrape: 'pending',
         brief: 'pending',
+        scenarios: 'pending',
         script: 'pending',
-        scenes: 'pending',
-        assets: 'pending',
-        audio: 'pending',
+        veo: 'pending',
         subtitles: 'pending',
         render: 'pending',
       },
@@ -122,7 +136,7 @@ export class JobStoreService {
   async update(
     businessId: string,
     projectId: string,
-    updates: Partial<AdJob>,
+    updates: Partial<AdJob> | Record<string, unknown>,
   ): Promise<void> {
     await this.firestore
       .doc(`businesses/${businessId}/projects/${projectId}`)

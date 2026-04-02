@@ -75,4 +75,29 @@ export class FirestoreService implements OnModuleInit {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   }
+
+  async queryCollectionGroup(
+    collectionId: string,
+    filters: Array<{
+      field: string;
+      operator: admin.firestore.WhereFilterOp;
+      value: unknown;
+    }>,
+    limit?: number,
+  ): Promise<admin.firestore.DocumentData[]> {
+    let query: admin.firestore.Query = this.db.collectionGroup(collectionId);
+
+    // Apply filters
+    for (const filter of filters) {
+      query = query.where(filter.field, filter.operator, filter.value);
+    }
+
+    // Apply limit if specified
+    if (limit !== undefined && limit > 0) {
+      query = query.limit(limit);
+    }
+
+    const snapshot = await query.get();
+    return snapshot.docs.map((doc) => doc.data());
+  }
 }
