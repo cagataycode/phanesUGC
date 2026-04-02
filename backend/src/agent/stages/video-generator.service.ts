@@ -39,7 +39,7 @@ export class VideoGeneratorService {
         durationSeconds: prompt.durationSeconds as 8 | 15 | 30 | 60,
         negativePrompt,
         personGeneration: 'allow_adult',
-        enhancePrompt: false, // We provide structured prompts, no enhancement needed
+        enhancePrompt: true,
       },
     );
 

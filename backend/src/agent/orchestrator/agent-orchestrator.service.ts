@@ -18,6 +18,8 @@ import { CreativeBrief } from '../contracts/creative-brief';
 import { ProductContext } from '../contracts/product-context';
 import { ScenarioSet } from '../contracts/scenario';
 import { FinalOutput } from '../contracts/final-output';
+import { AdScript, NarrationLine } from '../contracts/ad-script';
+import { VeoPrompt } from '../contracts/veo-prompt';
 import { CreateAdDto } from '../../ads/dto/create-ad.dto';
 import { PlatformMapper, AgentConstants } from '../utils';
 import { RetryPolicy, FallbackPolicy } from '../policies';
@@ -110,6 +112,208 @@ export class AgentOrchestratorService {
     };
 
     await this.saveState(state);
+    return state;
+  }
+
+  /**
+   * Initialize a job from wizard-generated content
+   * Skips Phase 1 by pre-populating artifacts
+   */
+  async initializeFromWizard(
+    jobId: string,
+    businessId: string,
+    wizardData: {
+      prompt: string;
+      platform: 'tiktok' | 'instagram' | 'youtube';
+      language?: string;
+      tone?: string;
+      targetAudience?: string;
+      cta?: string;
+      aspectRatio: '9:16' | '1:1' | '16:9';
+      subtitleStyle?: 'standard' | 'kinetic';
+      brief: Record<string, unknown>;
+      script: Record<string, unknown>;
+      scene: Record<string, unknown>;
+    },
+  ): Promise<AgentJobState> {
+    this.logger.log(`Initializing wizard job ${jobId}`);
+
+    const now = new Date();
+
+    // Map platform
+    const agentPlatform = this.mapPlatform(wizardData.platform);
+
+    // Build normalized request from wizard data
+    const normalizedRequest: Partial<NormalizedRequest> = {
+      jobId,
+      businessId,
+      prompt: wizardData.prompt,
+      platform: agentPlatform,
+      aspectRatio: wizardData.aspectRatio,
+      durationSec: ((wizardData.scene as { duration_seconds?: number })
+        ?.duration_seconds || 8) as 8,
+      language: wizardData.language || 'en',
+      tone: wizardData.tone,
+      targetAudience: wizardData.targetAudience,
+      cta: wizardData.cta,
+      subtitleStyle: wizardData.subtitleStyle || 'kinetic',
+      disableBackgroundMusic: false,
+      disableCaptions: false,
+      disableCtaOverlay: false,
+    };
+
+    // Build product context from brief if available
+    const briefData = wizardData.brief;
+    const productContext: Partial<ProductContext> = {
+      name: (briefData.product_name || briefData.productName) as string,
+      description: (briefData.product_description ||
+        briefData.description) as string,
+      benefits: (briefData.benefits || briefData.keyBenefits || []) as string[],
+    };
+
+    // Map wizard brief to CreativeBrief format
+    const creativeBrief: Partial<CreativeBrief> = {
+      productName: (briefData.product_name || briefData.productName) as string,
+      offer: (briefData.offer || '') as string,
+      audience: (briefData.audience ||
+        briefData.target_audience ||
+        '') as string,
+      painPoints: (briefData.pain_points ||
+        briefData.painPoints ||
+        []) as string[],
+      keyBenefits: (briefData.benefits ||
+        briefData.keyBenefits ||
+        []) as string[],
+      tone: (briefData.tone as CreativeBrief['tone']) || 'casual',
+      cta: (briefData.cta || '') as string,
+      visualStyle:
+        ((briefData.visual_style ||
+          briefData.visualStyle) as CreativeBrief['visualStyle']) || 'dynamic',
+      keyMessage: (briefData.key_message ||
+        briefData.keyMessage ||
+        '') as string,
+      targetPlatform: agentPlatform,
+      targetDuration:
+        (wizardData.scene as { duration_seconds?: number })?.duration_seconds ||
+        8,
+      targetAspectRatio: wizardData.aspectRatio,
+      language: wizardData.language || 'en',
+      createdAt: now,
+    };
+
+    // Map wizard script to AdScript format
+    const scriptData = wizardData.script;
+    const adScript: Partial<AdScript> = {
+      jobId,
+      scenarioId: 1,
+      title: (scriptData.title as string) || 'Wizard Generated Script',
+      hook: (scriptData.hook as string) || '',
+      voiceoverLines: (scriptData.voiceover_lines ||
+        scriptData.voiceoverLines ||
+        []) as NarrationLine[],
+      cta: (scriptData.cta as string) || '',
+      fullText: ((scriptData.full_text || scriptData.fullText) as string) || '',
+      visualDescription: (scriptData.visual_description ||
+        scriptData.visualDescription) as string,
+      totalEstimatedDuration:
+        (wizardData.scene as { duration_seconds?: number })?.duration_seconds ||
+        8,
+      generatedAt: now,
+    };
+
+    // Map wizard scene to VeoPrompt format
+    const sceneData = wizardData.scene;
+    const promptData = (sceneData.prompt || {}) as Record<string, unknown>;
+    const veoPrompt: Partial<VeoPrompt> = {
+      sceneId: (sceneData.scene_id as number) || 1,
+      projectId: jobId,
+      durationSeconds: (sceneData.duration_seconds as number) || 8,
+      aspectRatio: wizardData.aspectRatio,
+      prompt: {
+        intent: (promptData.intent as string) || '',
+        shot: (promptData.shot as VeoPrompt['prompt']['shot']) || {
+          type: 'medium',
+          framing: 'center',
+          cameraAngle: 'eye_level',
+          cameraMotion: 'static',
+          lensFeel: 'normal',
+          composition: 'rule_of_thirds',
+        },
+        subject: (promptData.subject as VeoPrompt['prompt']['subject']) || {
+          type: 'product',
+          description: '',
+          action: '',
+        },
+        environment:
+          (promptData.environment as VeoPrompt['prompt']['environment']) || {
+            location: '',
+            props: [],
+            atmosphere: '',
+          },
+        lighting: (promptData.lighting as VeoPrompt['prompt']['lighting']) || {
+          style: 'natural',
+          colorTemperature: 'daylight',
+        },
+        audio: (promptData.audio as VeoPrompt['prompt']['audio']) || {
+          speechText: '',
+          speechStyle: 'conversational',
+        },
+        style: (promptData.style as VeoPrompt['prompt']['style']) || {
+          visualStyle: 'dynamic',
+          colorPalette: 'vibrant',
+          renderingQuality: 'high',
+          aestheticReference: '',
+        },
+        textOverlay: ((promptData.text_overlay ||
+          promptData.textOverlay) as VeoPrompt['prompt']['textOverlay']) || {
+          enabled: false,
+        },
+        cta: (promptData.cta as VeoPrompt['prompt']['cta']) || {
+          enabled: false,
+        },
+      },
+      transitionIn:
+        (sceneData.transition_in as VeoPrompt['transitionIn']) || 'cut',
+      transitionOut:
+        (sceneData.transition_out as VeoPrompt['transitionOut']) || 'cut',
+      negativePrompt: (sceneData.negative_prompt as string) || '',
+      generationConfig:
+        (sceneData.generation_config as VeoPrompt['generationConfig']) || {
+          model: 'veo-2.0-generate-001',
+          safetyFilter: 'standard',
+          retryCount: 3,
+          priority: 'normal',
+        },
+      builtAt: now,
+    };
+
+    // Create state with Phase 1 completed
+    const state: AgentJobState = {
+      jobId,
+      businessId,
+      stage: 'scenario_selected',
+      phase1Status: 'completed',
+      phase2Status: 'pending',
+      selectedScenarioId: 1,
+      artifacts: {
+        normalizedRequest,
+        productContext,
+        creativeBrief,
+        adScript,
+        veoPrompt,
+      },
+      errors: [],
+      qualityReports: [],
+      createdAt: now,
+      updatedAt: now,
+      phase1StartedAt: now,
+      phase1CompletedAt: now,
+    };
+
+    await this.saveState(state);
+    this.logger.log(
+      `Wizard job ${jobId} initialized with pre-generated content`,
+    );
     return state;
   }
 
