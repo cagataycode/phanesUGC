@@ -136,7 +136,7 @@ export class JobStoreService {
   async update(
     businessId: string,
     projectId: string,
-    updates: Partial<AdJob>,
+    updates: Partial<AdJob> | Record<string, unknown>,
   ): Promise<void> {
     await this.firestore
       .doc(`businesses/${businessId}/projects/${projectId}`)

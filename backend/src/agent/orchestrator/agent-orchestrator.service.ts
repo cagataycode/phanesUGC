@@ -472,6 +472,16 @@ export class AgentOrchestratorService {
    * recorded in state.errors. Individual retry attempts within RetryPolicy.execute()
    * are logged but not persisted here, so retryCount may be 0 even after retries.
    */
+  /**
+   * Record an error in the job state
+   *
+   * Note: retryCount reflects the number of previously persisted errors for this stage,
+   * not the number of retry attempts made by RetryPolicy. RetryPolicy retries are logged
+   * but not recorded in state.errors until they fail completely.
+   *
+   * Example: If RetryPolicy retries 2 times and all fail, only 1 error is recorded with retryCount=0
+   * (or higher if this stage has failed before in the same job).
+   */
   private recordError(
     state: AgentJobState,
     stage: AgentStage,
