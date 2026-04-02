@@ -24,7 +24,6 @@ import { VertexAiService } from '../ai/vertex-ai.service';
 import { BriefGenerationService } from '../ads/services/brief-generation.service';
 import { ScriptGenerationService } from '../ads/services/script-generation.service';
 import { SceneStructuringService } from '../ads/services/scene-structuring.service';
-import { VeoPromptBuilderService as AdsVeoPromptBuilderService } from '../ads/services/veo-prompt-builder.service';
 
 /**
  * AgentModule - AI Ad Agent orchestration system
@@ -70,7 +69,6 @@ import { VeoPromptBuilderService as AdsVeoPromptBuilderService } from '../ads/se
     BriefGenerationService,
     ScriptGenerationService,
     SceneStructuringService,
-    AdsVeoPromptBuilderService,
   ],
   exports: [AgentOrchestratorService],
 })

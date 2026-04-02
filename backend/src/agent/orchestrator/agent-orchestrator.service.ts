@@ -20,6 +20,7 @@ import { ProductContext } from '../contracts/product-context';
 import { ScenarioSet } from '../contracts/scenario';
 import { FinalOutput } from '../contracts/final-output';
 import { CreateAdDto } from '../../ads/dto/create-ad.dto';
+import { PlatformMapper, AgentConstants } from '../utils';
 
 /**
  * AgentOrchestratorService - Main pipeline controller
@@ -31,9 +32,9 @@ import { CreateAdDto } from '../../ads/dto/create-ad.dto';
 @Injectable()
 export class AgentOrchestratorService {
   private readonly logger = new Logger(AgentOrchestratorService.name);
-  private readonly SCENARIO_EXPIRY_HOURS = 24;
+  private readonly SCENARIO_EXPIRY_HOURS = AgentConstants.SCENARIO_EXPIRY_HOURS;
   // TODO: Implement retry logic in Phase 2
-  // private readonly MAX_RETRIES = 2;
+  // private readonly MAX_RETRIES = AgentConstants.MAX_RETRIES;
 
   constructor(
     private readonly firestore: FirestoreService,
@@ -114,13 +115,14 @@ export class AgentOrchestratorService {
   }
 
   /**
-   * Map platform names between frontend and agent
+   * Map platform names between frontend and agent using shared utility
    */
   private mapPlatform(
     platform: string,
   ): 'tiktok' | 'instagram_reels' | 'youtube_shorts' {
-    if (platform === 'instagram') return 'instagram_reels';
-    if (platform === 'youtube') return 'youtube_shorts';
+    if (platform === 'instagram')
+      return PlatformMapper.toAgentFormat('instagram');
+    if (platform === 'youtube') return PlatformMapper.toAgentFormat('youtube');
     return 'tiktok';
   }
 
@@ -193,7 +195,7 @@ export class AgentOrchestratorService {
     } catch (error) {
       state.phase1Status = 'failed';
       this.recordError(state, state.stage, error);
-      
+
       // Log full error details for debugging
       this.logger.error(`Phase 1 failed for job ${jobId}:`, {
         error: error instanceof Error ? error.message : String(error),
@@ -201,7 +203,7 @@ export class AgentOrchestratorService {
         stage: state.stage,
         errorDetails: JSON.stringify(error, null, 2),
       });
-      
+
       await this.saveState(state);
       throw error;
     }
@@ -210,7 +212,11 @@ export class AgentOrchestratorService {
   /**
    * Select a scenario and trigger Phase 2
    */
-  async selectScenario(jobId: string, businessId: string, scenarioId: number): Promise<void> {
+  async selectScenario(
+    jobId: string,
+    businessId: string,
+    scenarioId: number,
+  ): Promise<void> {
     this.logger.log(`Scenario ${scenarioId} selected for job ${jobId}`);
 
     const state = await this.loadState(jobId, businessId);
@@ -460,7 +466,10 @@ export class AgentOrchestratorService {
   /**
    * Load state from Firestore
    */
-  private async loadState(jobId: string, businessId: string): Promise<AgentJobState> {
+  private async loadState(
+    jobId: string,
+    businessId: string,
+  ): Promise<AgentJobState> {
     this.validateId(jobId);
     this.validateId(businessId);
 

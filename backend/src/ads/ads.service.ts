@@ -147,7 +147,10 @@ export class AdsService {
   private async runPhase2(businessId: string, jobId: string): Promise<void> {
     try {
       // Run agent Phase 2
-      const finalOutput = await this.agentOrchestrator.runPhase2(jobId, businessId);
+      const finalOutput = await this.agentOrchestrator.runPhase2(
+        jobId,
+        businessId,
+      );
 
       // Store final output in job
       await this.jobStoreService.update(businessId, jobId, {
