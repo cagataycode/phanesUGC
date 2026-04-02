@@ -16,8 +16,11 @@ export class SubtitleGeneratorService {
     jobId: string,
     script: AdScript,
     veoOutput: VeoOutput,
+    style: 'standard' | 'kinetic' = 'standard',
   ): Promise<SubtitleData> {
-    this.logger.log(`Generating subtitles for job ${jobId}`);
+    this.logger.log(
+      `Generating subtitles for job ${jobId} with style: ${style}`,
+    );
 
     // Generate subtitle segments from script voiceover lines
     // Use cumulative timing from script's estimatedDurationSec
@@ -34,7 +37,7 @@ export class SubtitleGeneratorService {
           startSec,
           endSec,
           lines: [line.text],
-          style: 'standard',
+          style,
         };
       },
     );
@@ -58,7 +61,7 @@ export class SubtitleGeneratorService {
       plannedDurationSec: script.totalEstimatedDuration,
       actualDurationSec: veoOutput.actualDurationSec,
       scalingFactor,
-      style: 'standard',
+      style,
       generatedAt: new Date(),
     });
   }

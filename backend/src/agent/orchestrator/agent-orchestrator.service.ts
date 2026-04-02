@@ -375,7 +375,13 @@ export class AgentOrchestratorService {
       // Stage 8: Generate subtitles (parallel with Veo, then scale)
       this.transitionStage(state, 'subtitles_ready');
       const subtitleData = await this.retryPolicy.execute(
-        () => this.subtitleGenerator.generate(state.jobId, adScript, veoOutput),
+        () =>
+          this.subtitleGenerator.generate(
+            state.jobId,
+            adScript,
+            veoOutput,
+            normalizedRequest.subtitleStyle,
+          ),
         { jobId, stage: 'subtitle_generator' },
       );
       state.artifacts.subtitleData = subtitleData;

@@ -207,5 +207,37 @@ describe('SubtitleGeneratorService', () => {
       expect(segment).toHaveProperty('lines');
       expect(segment).toHaveProperty('style');
     });
+
+    it('should use provided subtitle style', async () => {
+      const script: AdScript = {
+        jobId: 'test-job',
+        scenarioId: 1,
+        hook: 'Test hook',
+        voiceoverLines: [
+          { text: 'Line 1', estimatedDurationSec: 2, speaker: 'narrator' },
+        ],
+        cta: 'Test CTA',
+        overlayText: [],
+        totalEstimatedDuration: 2,
+      };
+
+      const veoOutput: VeoOutput = {
+        jobId: 'test-job',
+        gcsPath: 'test/path.mp4',
+        actualDurationSec: 2,
+        resolution: { width: 1080, height: 1920 },
+        generatedAt: new Date(),
+      };
+
+      const result = await service.generate(
+        'test-job',
+        script,
+        veoOutput,
+        'kinetic',
+      );
+
+      expect(result.style).toBe('kinetic');
+      expect(result.segments[0].style).toBe('kinetic');
+    });
   });
 });
