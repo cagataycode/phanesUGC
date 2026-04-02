@@ -21,6 +21,7 @@ import { ScenarioSet } from '../contracts/scenario';
 import { FinalOutput } from '../contracts/final-output';
 import { CreateAdDto } from '../../ads/dto/create-ad.dto';
 import { PlatformMapper, AgentConstants } from '../utils';
+import { RetryPolicy, FallbackPolicy } from '../policies';
 
 /**
  * AgentOrchestratorService - Main pipeline controller
@@ -33,8 +34,6 @@ import { PlatformMapper, AgentConstants } from '../utils';
 export class AgentOrchestratorService {
   private readonly logger = new Logger(AgentOrchestratorService.name);
   private readonly SCENARIO_EXPIRY_HOURS = AgentConstants.SCENARIO_EXPIRY_HOURS;
-  // TODO: Implement retry logic in Phase 2
-  // private readonly MAX_RETRIES = AgentConstants.MAX_RETRIES;
 
   constructor(
     private readonly firestore: FirestoreService,
@@ -51,6 +50,8 @@ export class AgentOrchestratorService {
     // TODO: Use outputValidator in Phase 2 for final validation
     // private readonly outputValidator: OutputValidatorService,
     private readonly qualityGates: QualityGatesService,
+    private readonly retryPolicy: RetryPolicy,
+    private readonly fallbackPolicy: FallbackPolicy,
   ) {}
 
   /**
@@ -143,42 +144,77 @@ export class AgentOrchestratorService {
       // Stage 1: Normalize input
       this.logger.debug(`[${jobId}] Starting Stage 1: Normalize input`);
       this.transitionStage(state, 'normalized');
-      const normalizedRequest = await this.inputNormalizer.normalize(
-        state.jobId,
-        state.businessId,
-        state.artifacts.normalizedRequest as Record<string, unknown>,
+      const normalizedRequest = await this.retryPolicy.execute(
+        () =>
+          this.inputNormalizer.normalize(
+            state.jobId,
+            state.businessId,
+            state.artifacts.normalizedRequest as Record<string, unknown>,
+          ),
+        { jobId, stage: 'normalize' },
       );
       state.artifacts.normalizedRequest = normalizedRequest;
       this.logger.debug(`[${jobId}] Stage 1 complete, saving state`);
       await this.saveState(state);
 
-      // Stage 2: Acquire product context
+      // Stage 2: Acquire product context (with fallback)
       this.logger.debug(`[${jobId}] Starting Stage 2: Acquire product context`);
       this.transitionStage(state, 'context_ready');
-      const productContext =
-        await this.contextAcquisition.acquire(normalizedRequest);
+      let productContext: ProductContext;
+      try {
+        productContext = await this.retryPolicy.execute(
+          () => this.contextAcquisition.acquire(normalizedRequest),
+          { jobId, stage: 'context_acquisition' },
+        );
+      } catch (error) {
+        // Fallback: Use manual inputs if scraping fails
+        productContext = this.fallbackPolicy.handleScrapingFailure(
+          normalizedRequest,
+          error,
+        );
+      }
       state.artifacts.productContext = productContext;
       this.logger.debug(`[${jobId}] Stage 2 complete, saving state`);
       await this.saveState(state);
 
-      // Stage 3: Build creative brief
+      // Stage 3: Build creative brief (with fallback)
       this.logger.debug(`[${jobId}] Starting Stage 3: Build creative brief`);
       this.transitionStage(state, 'brief_ready');
-      const creativeBrief = await this.briefBuilder.build(
-        normalizedRequest,
-        productContext,
-      );
+      let creativeBrief: CreativeBrief;
+      try {
+        creativeBrief = await this.retryPolicy.execute(
+          () => this.briefBuilder.build(normalizedRequest, productContext),
+          { jobId, stage: 'brief_builder' },
+        );
+      } catch (error) {
+        // Fallback: Use template brief if generation fails
+        creativeBrief = await this.fallbackPolicy.handleBriefFailure(
+          normalizedRequest,
+          productContext,
+          error,
+        );
+      }
       state.artifacts.creativeBrief = creativeBrief;
       this.logger.debug(`[${jobId}] Stage 3 complete, saving state`);
       await this.saveState(state);
 
-      // Stage 4: Generate 4 scenarios
+      // Stage 4: Generate 4 scenarios (with fallback)
       this.logger.debug(`[${jobId}] Starting Stage 4: Generate scenarios`);
       this.transitionStage(state, 'scenarios_ready');
-      const scenarioSet = await this.scenarioGenerator.generate(
-        state.jobId,
-        creativeBrief,
-      );
+      let scenarioSet: ScenarioSet;
+      try {
+        scenarioSet = await this.retryPolicy.execute(
+          () => this.scenarioGenerator.generate(state.jobId, creativeBrief),
+          { jobId, stage: 'scenario_generator' },
+        );
+      } catch (error) {
+        // Fallback: Use default scenarios if generation fails
+        scenarioSet = await this.fallbackPolicy.handleScenarioFailure(
+          state.jobId,
+          creativeBrief,
+          error,
+        );
+      }
       state.artifacts.scenarioSet = scenarioSet;
 
       // Set scenario expiry
@@ -276,10 +312,14 @@ export class AgentOrchestratorService {
       // Stage 5: Generate script
       this.transitionStage(state, 'script_ready');
       const creativeBrief = state.artifacts.creativeBrief as CreativeBrief;
-      const adScript = await this.scriptGenerator.generateFromBrief(
-        state.jobId,
-        state.selectedScenarioId,
-        creativeBrief,
+      const adScript = await this.retryPolicy.execute(
+        () =>
+          this.scriptGenerator.generateFromBrief(
+            state.jobId,
+            state.selectedScenarioId!,
+            creativeBrief,
+          ),
+        { jobId, stage: 'script_generator' },
       );
       state.artifacts.adScript = adScript;
 
@@ -297,19 +337,26 @@ export class AgentOrchestratorService {
         .normalizedRequest as NormalizedRequest;
       const productContext = state.artifacts.productContext as ProductContext;
 
-      const veoPrompt = await this.veoPromptBuilder.build(
-        state.jobId,
-        adScript,
-        creativeBrief,
-        productContext,
-        normalizedRequest,
+      const veoPrompt = await this.retryPolicy.execute(
+        () =>
+          this.veoPromptBuilder.build(
+            state.jobId,
+            adScript,
+            creativeBrief,
+            productContext,
+            normalizedRequest,
+          ),
+        { jobId, stage: 'veo_prompt_builder' },
       );
       state.artifacts.veoPrompt = veoPrompt;
       await this.saveState(state);
 
-      // Stage 7: Generate video with Veo
+      // Stage 7: Generate video with Veo (no fallback - critical stage)
       this.transitionStage(state, 'veo_generating');
-      const veoOutput = await this.videoGenerator.generate(veoPrompt);
+      const veoOutput = await this.retryPolicy.execute(
+        () => this.videoGenerator.generate(veoPrompt),
+        { jobId, stage: 'video_generator' },
+      );
       this.transitionStage(state, 'veo_output_ready');
       state.artifacts.veoOutput = veoOutput;
 
@@ -324,10 +371,9 @@ export class AgentOrchestratorService {
 
       // Stage 8: Generate subtitles (parallel with Veo, then scale)
       this.transitionStage(state, 'subtitles_ready');
-      const subtitleData = await this.subtitleGenerator.generate(
-        state.jobId,
-        adScript,
-        veoOutput,
+      const subtitleData = await this.retryPolicy.execute(
+        () => this.subtitleGenerator.generate(state.jobId, adScript, veoOutput),
+        { jobId, stage: 'subtitle_generator' },
       );
       state.artifacts.subtitleData = subtitleData;
 
@@ -338,18 +384,25 @@ export class AgentOrchestratorService {
 
       // Stage 9: Assemble render timeline
       this.transitionStage(state, 'composition_ready');
-      const renderTimeline = await this.timelineAssembler.assemble(
-        state.jobId,
-        veoOutput,
-        subtitleData,
-        state.artifacts.normalizedRequest as NormalizedRequest,
+      const renderTimeline = await this.retryPolicy.execute(
+        () =>
+          this.timelineAssembler.assemble(
+            state.jobId,
+            veoOutput,
+            subtitleData,
+            state.artifacts.normalizedRequest as NormalizedRequest,
+          ),
+        { jobId, stage: 'timeline_assembler' },
       );
       state.artifacts.renderTimeline = renderTimeline;
       await this.saveState(state);
 
       // Stage 10: Render final video
       this.transitionStage(state, 'rendering');
-      const finalOutput = await this.renderExecutor.render(renderTimeline);
+      const finalOutput = await this.retryPolicy.execute(
+        () => this.renderExecutor.render(renderTimeline),
+        { jobId, stage: 'render_executor' },
+      );
       this.transitionStage(state, 'completed');
 
       // Quality gate: Final render

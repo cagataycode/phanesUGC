@@ -13,6 +13,9 @@ import { TimelineAssemblerService } from './stages/timeline-assembler.service';
 import { RenderExecutorService } from './stages/render-executor.service';
 import { OutputValidatorService } from './stages/output-validator.service';
 import { QualityGatesService } from './orchestrator/quality-gates.service';
+import { RetryPolicy } from './policies/retry-policy';
+import { FallbackPolicy } from './policies/fallback-policy';
+import { AgentConstants } from './utils';
 import { FirebaseModule } from '../firebase/firebase.module';
 import { StorageModule } from '../storage/storage.module';
 import { ScraperModule } from '../scraper/scraper.module';
@@ -51,6 +54,36 @@ import { SceneStructuringService } from '../ads/services/scene-structuring.servi
     // Core orchestrator
     AgentOrchestratorService,
     QualityGatesService,
+
+    // Policies
+    {
+      provide: RetryPolicy,
+      useFactory: () =>
+        new RetryPolicy({
+          maxRetries: AgentConstants.MAX_RETRIES,
+          initialDelayMs: AgentConstants.RETRY_DELAY_MS,
+          backoffMultiplier: AgentConstants.RETRY_BACKOFF_MULTIPLIER,
+          retryableErrors: [
+            'timeout',
+            'rate limit',
+            'network error',
+            'ECONNRESET',
+            'ETIMEDOUT',
+            'ENOTFOUND',
+            '429',
+            '503',
+            '504',
+          ],
+        }),
+    },
+    {
+      provide: FallbackPolicy,
+      useFactory: () =>
+        new FallbackPolicy({
+          enableFallbacks: true,
+          logFallbacks: true,
+        }),
+    },
 
     // Agent-specific stage services
     InputNormalizerService,
