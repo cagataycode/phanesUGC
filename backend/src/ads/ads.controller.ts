@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { AdsService } from './ads.service';
 import { CreateAdDto } from './dto/create-ad.dto';
+import { WizardSubmitSchema } from './dto/wizard.dto';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 
@@ -51,5 +52,11 @@ export class AdsController {
   ) {
     await this.adsService.selectScenario(businessId, id, body.scenarioId);
     return { id, status: 'phase2_started' };
+  }
+
+  @Post('wizard')
+  async createWizardJob(@Body() wizardDto: Record<string, unknown>) {
+    const parsed = WizardSubmitSchema.parse(wizardDto);
+    return this.adsService.createWizardJob(parsed);
   }
 }
