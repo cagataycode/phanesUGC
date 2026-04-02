@@ -42,4 +42,14 @@ export class AdsController {
   ) {
     return this.adsService.getJobResult(businessId, id);
   }
+
+  @Post(':id/select')
+  async selectScenario(
+    @Param('id') id: string,
+    @Body() body: { scenarioId: number },
+    @Query('businessId') businessId: string,
+  ) {
+    await this.adsService.selectScenario(businessId, id, body.scenarioId);
+    return { id, status: 'phase2_started' };
+  }
 }

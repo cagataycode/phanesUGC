@@ -4,13 +4,23 @@ import { CreativeBrief } from '../types/creative-brief';
 import { GeneratedScript } from '../types/generated-script';
 import * as admin from 'firebase-admin';
 
-export type AdJobStatus = 'created' | 'processing' | 'completed' | 'failed';
+export type AdJobStatus =
+  | 'created'
+  | 'processing'
+  | 'scenarios_ready'
+  | 'phase2_started'
+  | 'completed'
+  | 'failed';
 
 export interface ProjectStage {
   status: 'pending' | 'running' | 'done' | 'failed' | 'skipped';
 }
 
 export interface AdJobMetadata {
+  scenarios?: any[]; // Phase 1: Generated scenarios
+  scenarioExpiresAt?: Date; // Phase 1: When scenarios expire
+  selectedScenarioId?: number; // Phase 2: User's choice
+  finalOutput?: any; // Phase 2: Final output from agent
   scenePrompt?: {
     intent: string;
     visualStyle: string;
@@ -46,14 +56,14 @@ export interface AdJob {
   status: AdJobStatus;
   progress: number;
   stages: {
-    scrape: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
-    brief: AdJobStatus | 'pending' | 'running' | 'done';
-    script: AdJobStatus | 'pending' | 'running' | 'done';
-    scenes: AdJobStatus | 'pending' | 'running' | 'done';
-    assets: AdJobStatus | 'pending' | 'running' | 'done';
-    audio: AdJobStatus | 'pending' | 'running' | 'done';
-    subtitles: AdJobStatus | 'pending' | 'running' | 'done';
-    render: AdJobStatus | 'pending' | 'running' | 'done';
+    normalize?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
+    scrape?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
+    brief?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
+    scenarios?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
+    script?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
+    veo?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
+    subtitles?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
+    render?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
   };
   creativeBrief?: CreativeBrief;
   script?: GeneratedScript;
@@ -89,12 +99,12 @@ export class JobStoreService {
       status: 'created',
       progress: 0,
       stages: {
+        normalize: 'pending',
         scrape: 'pending',
         brief: 'pending',
+        scenarios: 'pending',
         script: 'pending',
-        scenes: 'pending',
-        assets: 'pending',
-        audio: 'pending',
+        veo: 'pending',
         subtitles: 'pending',
         render: 'pending',
       },

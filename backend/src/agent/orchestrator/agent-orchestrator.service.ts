@@ -19,6 +19,7 @@ import { CreativeBrief } from '../contracts/creative-brief';
 import { ProductContext } from '../contracts/product-context';
 import { ScenarioSet } from '../contracts/scenario';
 import { FinalOutput } from '../contracts/final-output';
+import { CreateAdDto } from '../../ads/dto/create-ad.dto';
 
 /**
  * AgentOrchestratorService - Main pipeline controller
@@ -57,17 +58,51 @@ export class AgentOrchestratorService {
   async initializeJob(
     jobId: string,
     businessId: string,
+    createAdDto: CreateAdDto,
   ): Promise<AgentJobState> {
     this.logger.log(`Initializing agent job ${jobId}`);
 
     const now = new Date();
+
+    // Convert CreateAdDto to NormalizedRequest format
+    const promptInputs = createAdDto.prompt_inputs;
+    const veoConfig = createAdDto.veo_config;
+
+    const normalizedRequest = {
+      jobId,
+      businessId,
+      prompt:
+        typeof promptInputs.prompt === 'string'
+          ? promptInputs.prompt
+          : JSON.stringify(promptInputs.prompt),
+      platform: this.mapPlatform(promptInputs.platform),
+      aspectRatio: veoConfig.aspect_ratio,
+      durationSec: veoConfig.duration_sec,
+      language: promptInputs.language || 'en',
+      product: {
+        name: promptInputs.product_info?.name,
+        description: promptInputs.product_info?.description,
+        benefits: promptInputs.product_info?.benefits,
+        urls: promptInputs.urls,
+      },
+      tone: promptInputs.tone,
+      targetAudience: promptInputs.target_audience,
+      cta: promptInputs.cta,
+      subtitleStyle: promptInputs.subtitle_style || 'kinetic',
+      disableBackgroundMusic: false,
+      disableCaptions: false,
+      disableCtaOverlay: false,
+    };
+
     const state: AgentJobState = {
       jobId,
       businessId,
       stage: 'created',
       phase1Status: 'pending',
       phase2Status: 'pending',
-      artifacts: {},
+      artifacts: {
+        normalizedRequest,
+      },
       errors: [],
       qualityReports: [],
       createdAt: now,
@@ -76,6 +111,17 @@ export class AgentOrchestratorService {
 
     await this.saveState(state);
     return state;
+  }
+
+  /**
+   * Map platform names between frontend and agent
+   */
+  private mapPlatform(
+    platform: string,
+  ): 'tiktok' | 'instagram_reels' | 'youtube_shorts' {
+    if (platform === 'instagram') return 'instagram_reels';
+    if (platform === 'youtube') return 'youtube_shorts';
+    return 'tiktok';
   }
 
   /**
