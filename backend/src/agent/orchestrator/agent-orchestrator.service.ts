@@ -554,7 +554,52 @@ export class AgentOrchestratorService {
       throw new Error('Job not found');
     }
 
-    return doc.data() as AgentJobState;
+    const data = doc.data() as AgentJobState;
+
+    // Convert Firestore Timestamps to Date objects
+    return {
+      ...data,
+      createdAt: this.toDate(data.createdAt),
+      updatedAt: this.toDate(data.updatedAt),
+      phase1StartedAt: data.phase1StartedAt
+        ? this.toDate(data.phase1StartedAt)
+        : undefined,
+      phase1CompletedAt: data.phase1CompletedAt
+        ? this.toDate(data.phase1CompletedAt)
+        : undefined,
+      phase2StartedAt: data.phase2StartedAt
+        ? this.toDate(data.phase2StartedAt)
+        : undefined,
+      phase2CompletedAt: data.phase2CompletedAt
+        ? this.toDate(data.phase2CompletedAt)
+        : undefined,
+      scenarioExpiresAt: data.scenarioExpiresAt
+        ? this.toDate(data.scenarioExpiresAt)
+        : undefined,
+      errors: data.errors.map((e) => ({
+        ...e,
+        timestamp: this.toDate(e.timestamp),
+      })),
+      qualityReports: data.qualityReports.map((r) => ({
+        ...r,
+        checkedAt: this.toDate(r.checkedAt),
+      })),
+    };
+  }
+
+  /**
+   * Convert Firestore Timestamp to Date
+   */
+  private toDate(value: unknown): Date {
+    if (value instanceof Date) {
+      return value;
+    }
+    // Firestore Timestamp has toDate() method
+    if (value && typeof value === 'object' && 'toDate' in value) {
+      return (value as { toDate: () => Date }).toDate();
+    }
+    // Fallback to current date if invalid
+    return new Date();
   }
 
   /**

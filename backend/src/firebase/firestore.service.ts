@@ -93,7 +93,7 @@ export class FirestoreService implements OnModuleInit {
     }
 
     // Apply limit if specified
-    if (limit) {
+    if (limit !== undefined && limit > 0) {
       query = query.limit(limit);
     }
 
