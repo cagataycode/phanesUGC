@@ -139,6 +139,7 @@ export class AgentOrchestratorService {
 
     try {
       // Stage 1: Normalize input
+      this.logger.debug(`[${jobId}] Starting Stage 1: Normalize input`);
       this.transitionStage(state, 'normalized');
       const normalizedRequest = await this.inputNormalizer.normalize(
         state.jobId,
@@ -146,25 +147,31 @@ export class AgentOrchestratorService {
         state.artifacts.normalizedRequest as Record<string, unknown>,
       );
       state.artifacts.normalizedRequest = normalizedRequest;
+      this.logger.debug(`[${jobId}] Stage 1 complete, saving state`);
       await this.saveState(state);
 
       // Stage 2: Acquire product context
+      this.logger.debug(`[${jobId}] Starting Stage 2: Acquire product context`);
       this.transitionStage(state, 'context_ready');
       const productContext =
         await this.contextAcquisition.acquire(normalizedRequest);
       state.artifacts.productContext = productContext;
+      this.logger.debug(`[${jobId}] Stage 2 complete, saving state`);
       await this.saveState(state);
 
       // Stage 3: Build creative brief
+      this.logger.debug(`[${jobId}] Starting Stage 3: Build creative brief`);
       this.transitionStage(state, 'brief_ready');
       const creativeBrief = await this.briefBuilder.build(
         normalizedRequest,
         productContext,
       );
       state.artifacts.creativeBrief = creativeBrief;
+      this.logger.debug(`[${jobId}] Stage 3 complete, saving state`);
       await this.saveState(state);
 
       // Stage 4: Generate 4 scenarios
+      this.logger.debug(`[${jobId}] Starting Stage 4: Generate scenarios`);
       this.transitionStage(state, 'scenarios_ready');
       const scenarioSet = await this.scenarioGenerator.generate(
         state.jobId,
@@ -186,6 +193,15 @@ export class AgentOrchestratorService {
     } catch (error) {
       state.phase1Status = 'failed';
       this.recordError(state, state.stage, error);
+      
+      // Log full error details for debugging
+      this.logger.error(`Phase 1 failed for job ${jobId}:`, {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        stage: state.stage,
+        errorDetails: JSON.stringify(error, null, 2),
+      });
+      
       await this.saveState(state);
       throw error;
     }
@@ -400,34 +416,45 @@ export class AgentOrchestratorService {
    * Save state to Firestore
    */
   private async saveState(state: AgentJobState): Promise<void> {
-    // Validate IDs before constructing path
-    this.validateId(state.businessId);
-    this.validateId(state.jobId);
+    try {
+      // Validate IDs before constructing path
+      this.validateId(state.businessId);
+      this.validateId(state.jobId);
 
-    // Convert Date objects to Firestore Timestamps
-    const firestoreState = {
-      ...state,
-      createdAt: state.createdAt,
-      updatedAt: state.updatedAt,
-      phase1StartedAt: state.phase1StartedAt,
-      phase1CompletedAt: state.phase1CompletedAt,
-      phase2StartedAt: state.phase2StartedAt,
-      phase2CompletedAt: state.phase2CompletedAt,
-      scenarioExpiresAt: state.scenarioExpiresAt,
-      errors: state.errors.map((e) => ({
-        ...e,
-        timestamp: e.timestamp,
-      })),
-      qualityReports: state.qualityReports.map((r) => ({
-        ...r,
-        checkedAt: r.checkedAt,
-      })),
-    };
+      // Convert Date objects to Firestore Timestamps
+      const firestoreState = {
+        ...state,
+        createdAt: state.createdAt,
+        updatedAt: state.updatedAt,
+        phase1StartedAt: state.phase1StartedAt,
+        phase1CompletedAt: state.phase1CompletedAt,
+        phase2StartedAt: state.phase2StartedAt,
+        phase2CompletedAt: state.phase2CompletedAt,
+        scenarioExpiresAt: state.scenarioExpiresAt,
+        errors: state.errors.map((e) => ({
+          ...e,
+          timestamp: e.timestamp,
+        })),
+        qualityReports: state.qualityReports.map((r) => ({
+          ...r,
+          checkedAt: r.checkedAt,
+        })),
+      };
 
-    await this.firestore.set(
-      `businesses/${state.businessId}/agent_jobs/${state.jobId}`,
-      firestoreState,
-    );
+      await this.firestore.set(
+        `businesses/${state.businessId}/agent_jobs/${state.jobId}`,
+        firestoreState,
+      );
+    } catch (error) {
+      this.logger.error(`Failed to save state for job ${state.jobId}:`, {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        businessId: state.businessId,
+        jobId: state.jobId,
+        stage: state.stage,
+      });
+      throw error;
+    }
   }
 
   /**
