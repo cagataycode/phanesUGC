@@ -76,7 +76,7 @@
     "path-to-regexp": "^8.4.1",
     "picomatch": "^4.0.4",
     "@tootallnate/once": "^3.0.1",
-    "http-proxy-agent": "^8.0.0",
+    "http-proxy-agent": "^7.0.2",
     "teeny-request": "^10.1.2",
     "retry-request": "^8.0.2"
   },
