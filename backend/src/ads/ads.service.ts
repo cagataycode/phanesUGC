@@ -157,7 +157,7 @@ export class AdsService {
         status: 'completed',
         progress: 100,
         output: {
-          videoStorageKey: finalOutput.gcsPath.replace('gs://phanes-ugc/', ''),
+          videoStorageKey: finalOutput.gcsPath, // Already in objectPath format
         },
         metadata: {
           finalOutput,

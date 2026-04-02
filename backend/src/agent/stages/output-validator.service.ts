@@ -135,7 +135,7 @@ export class OutputValidatorService {
    */
   private async checkFileExists(gcsPath: string): Promise<boolean> {
     try {
-      // Try to create a signed URL - if it succeeds, file exists
+      // gcsPath is objectPath format (jobId/final.mp4)
       await this.storage.createSignedVideoUrl(gcsPath);
       return true;
     } catch {

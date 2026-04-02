@@ -35,11 +35,7 @@ export class RenderExecutorService {
 
     // Get signed URL for the video source
     const videoUrl = await this.gcsStorage.createSignedVideoUrl(
-      timeline.videoSource.gcsPath
-        .replace('gs://', '')
-        .split('/')
-        .slice(1)
-        .join('/'),
+      timeline.videoSource.gcsPath,
     );
 
     // Prepare render request
@@ -73,7 +69,7 @@ export class RenderExecutorService {
       const output: FinalOutput = {
         jobId: timeline.jobId,
         videoUrl: finalVideoUrl,
-        gcsPath: `gs://${finalGcsPath}`,
+        gcsPath: finalGcsPath, // Store objectPath consistently
         metadata: {
           durationSec: timeline.videoSource.durationSec,
           width: timeline.output.width,
