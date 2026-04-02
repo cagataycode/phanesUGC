@@ -124,9 +124,9 @@ The retry policy logs each attempt:
 
 ```
 [RetryPolicy] Attempt 1 failed for job-123 at stage context_acquisition: ETIMEDOUT
-[RetryPolicy] Retrying in 1000ms (attempt 2/2)
+[RetryPolicy] Retrying in 1000ms (attempt 1/2)
 [RetryPolicy] Attempt 2 failed for job-123 at stage context_acquisition: ETIMEDOUT
-[RetryPolicy] Retrying in 2000ms (attempt 3/2)
+[RetryPolicy] Retrying in 2000ms (attempt 2/2)
 [RetryPolicy] All retry attempts exhausted for job-123 at stage context_acquisition
 ```
 
