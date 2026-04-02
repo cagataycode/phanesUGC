@@ -107,15 +107,21 @@ const agentPrompt = DtoMapper.toAgentVeoPrompt(jobId, adsScenePrompt);
 ```typescript
 // Agent format (camelCase)
 const agentBrief: CreativeBrief = {
-  jobId: 'job-123',
   productName: 'SuperWidget',
+  productCategory: 'Electronics',
+  offer: 'Get 50% off today',
+  audience: 'Young professionals',
+  painPoints: ['Slow performance', 'High cost'],
   keyBenefits: ['Fast', 'Reliable', 'Affordable'],
+  tone: 'professional',
+  cta: 'Shop now',
+  visualStyle: 'dynamic',
+  keyMessage: 'Speed meets reliability',
   targetPlatform: 'instagram_reels',
   targetDuration: 8,
   targetAspectRatio: '9:16',
-  targetAudience: 'Young professionals',
-  tone: 'professional',
-  cta: 'Shop now',
+  language: 'en',
+  createdAt: new Date(),
 };
 
 // Convert to ads format (snake_case)

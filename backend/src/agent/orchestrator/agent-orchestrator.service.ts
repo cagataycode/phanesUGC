@@ -467,7 +467,7 @@ export class AgentOrchestratorService {
 
   /**
    * Record an error
-   * 
+   *
    * Note: retryCount reflects the number of times this stage has failed and been
    * recorded in state.errors. Individual retry attempts within RetryPolicy.execute()
    * are logged but not persisted here, so retryCount may be 0 even after retries.
