@@ -3,7 +3,10 @@ import { ConfigModule } from '@nestjs/config';
 import { AgentOrchestratorService } from './orchestrator/agent-orchestrator.service';
 import { InputNormalizerService } from './stages/input-normalizer.service';
 import { ContextAcquisitionService } from './stages/context-acquisition.service';
+import { BriefBuilderService } from './stages/brief-builder.service';
 import { ScenarioGeneratorService } from './stages/scenario-generator.service';
+import { ScriptGeneratorService } from './stages/script-generator.service';
+import { VeoPromptBuilderService } from './stages/veo-prompt-builder.service';
 import { VideoGeneratorService } from './stages/video-generator.service';
 import { SubtitleGeneratorService } from './stages/subtitle-generator.service';
 import { TimelineAssemblerService } from './stages/timeline-assembler.service';
@@ -17,7 +20,7 @@ import { RenderModule } from '../render/render.module';
 import { GeminiService } from '../ai/gemini.service';
 import { VertexAiService } from '../ai/vertex-ai.service';
 
-// Import existing ads services instead of duplicating
+// Import existing ads services that the adapters use
 import { BriefGenerationService } from '../ads/services/brief-generation.service';
 import { ScriptGenerationService } from '../ads/services/script-generation.service';
 import { SceneStructuringService } from '../ads/services/scene-structuring.service';
@@ -53,14 +56,17 @@ import { VeoPromptBuilderService as AdsVeoPromptBuilderService } from '../ads/se
     // Agent-specific stage services
     InputNormalizerService,
     ContextAcquisitionService,
+    BriefBuilderService,
     ScenarioGeneratorService,
+    ScriptGeneratorService,
+    VeoPromptBuilderService,
     VideoGeneratorService,
     SubtitleGeneratorService,
     TimelineAssemblerService,
     RenderExecutorService,
     OutputValidatorService,
 
-    // Reuse existing ads services
+    // Reuse existing ads services (used by adapters)
     BriefGenerationService,
     ScriptGenerationService,
     SceneStructuringService,
