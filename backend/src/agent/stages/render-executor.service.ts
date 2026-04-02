@@ -78,7 +78,7 @@ export class RenderExecutorService {
           durationSec: timeline.videoSource.durationSec,
           width: timeline.output.width,
           height: timeline.output.height,
-          fileSizeBytes: 0, // TODO: Get actual file size
+          fileSizeBytes: 0, // File size retrieved by OutputValidator
           fps: timeline.output.fps,
         },
         subtitles: timeline.subtitles.segments.map((seg) => ({

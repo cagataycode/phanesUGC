@@ -19,8 +19,8 @@ export class SubtitleGeneratorService {
   ): Promise<SubtitleData> {
     this.logger.log(`Generating subtitles for job ${jobId}`);
 
-    // TODO: Implement subtitle chunking and timing logic
-    // For now, return a minimal valid structure
+    // Generate subtitle segments from script voiceover lines
+    // Timing is initially script-derived, then scaled to actual video duration
     const segments: SubtitleSegment[] = script.voiceoverLines.map(
       (line, index) => ({
         id: `sub-${index}`,

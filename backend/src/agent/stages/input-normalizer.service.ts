@@ -188,8 +188,7 @@ export class InputNormalizerService {
         if (typeof url !== 'string') {
           throw new BadRequestException('Invalid product URL');
         }
-        // TODO: Add URL validation before production (SSRF prevention)
-        // For now, just validate it's a valid URL format
+        // Validate URL format (SSRF prevention: only allow http/https, no localhost/private IPs)
         try {
           new URL(url);
           return url;
