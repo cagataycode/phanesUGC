@@ -139,6 +139,11 @@ export class AgentOrchestratorService {
     await this.saveState(state);
 
     try {
+      // Stage 0: Platform validation (transition to platform_ready)
+      this.logger.debug(`[${jobId}] Platform validation`);
+      this.transitionStage(state, 'platform_ready');
+      await this.saveState(state);
+
       // Stage 1: Normalize input
       this.logger.debug(`[${jobId}] Starting Stage 1: Normalize input`);
       this.transitionStage(state, 'normalized');

@@ -50,7 +50,7 @@ export class TimelineAssemblerService {
       ctaOverlay: {
         enabled: !request.disableCtaOverlay,
         text: request.cta || '',
-        startSec: veoOutput.actualDurationSec - 2,
+        startSec: Math.max(0, veoOutput.actualDurationSec - 2),
         endSec: veoOutput.actualDurationSec,
       },
       output: {

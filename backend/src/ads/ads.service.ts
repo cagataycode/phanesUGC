@@ -153,9 +153,7 @@ export class AdsService {
         output: {
           videoStorageKey: finalOutput.gcsPath, // Already in objectPath format
         },
-        metadata: {
-          finalOutput,
-        },
+        'metadata.finalOutput': finalOutput,
         'stages.normalize': 'done',
         'stages.scrape': 'done',
         'stages.brief': 'done',
