@@ -13,6 +13,7 @@ import { QualityGatesService } from './orchestrator/quality-gates.service';
 import { FirebaseModule } from '../firebase/firebase.module';
 import { StorageModule } from '../storage/storage.module';
 import { GeminiService } from '../ai/gemini.service';
+import { VertexAiService } from '../ai/vertex-ai.service';
 
 // Import existing ads services instead of duplicating
 import { BriefGenerationService } from '../ads/services/brief-generation.service';
@@ -35,6 +36,7 @@ import { VeoPromptBuilderService as AdsVeoPromptBuilderService } from '../ads/se
   providers: [
     // AI Services
     GeminiService,
+    VertexAiService,
 
     // Core orchestrator
     AgentOrchestratorService,
