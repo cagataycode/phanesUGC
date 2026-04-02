@@ -129,10 +129,10 @@ export class AgentOrchestratorService {
    *
    * Returns 4 scenarios for user selection
    */
-  async runPhase1(jobId: string): Promise<ScenarioSet> {
+  async runPhase1(jobId: string, businessId: string): Promise<ScenarioSet> {
     this.logger.log(`Starting Phase 1 for job ${jobId}`);
 
-    const state = await this.loadState(jobId);
+    const state = await this.loadState(jobId, businessId);
     state.phase1Status = 'in_progress';
     state.phase1StartedAt = new Date();
     await this.saveState(state);
@@ -210,10 +210,10 @@ export class AgentOrchestratorService {
   /**
    * Select a scenario and trigger Phase 2
    */
-  async selectScenario(jobId: string, scenarioId: number): Promise<void> {
+  async selectScenario(jobId: string, businessId: string, scenarioId: number): Promise<void> {
     this.logger.log(`Scenario ${scenarioId} selected for job ${jobId}`);
 
-    const state = await this.loadState(jobId);
+    const state = await this.loadState(jobId, businessId);
 
     // Validate scenario selection
     if (state.stage !== 'scenarios_ready') {
@@ -245,7 +245,7 @@ export class AgentOrchestratorService {
     await this.saveState(state);
 
     // Start Phase 2 asynchronously
-    void this.runPhase2(jobId);
+    void this.runPhase2(jobId, businessId);
   }
 
   /**
@@ -253,10 +253,10 @@ export class AgentOrchestratorService {
    *
    * Generates the final video for the selected scenario
    */
-  async runPhase2(jobId: string): Promise<FinalOutput> {
+  async runPhase2(jobId: string, businessId: string): Promise<FinalOutput> {
     this.logger.log(`Starting Phase 2 for job ${jobId}`);
 
-    const state = await this.loadState(jobId);
+    const state = await this.loadState(jobId, businessId);
     state.phase2Status = 'in_progress';
     state.phase2StartedAt = new Date();
     await this.saveState(state);
@@ -375,8 +375,8 @@ export class AgentOrchestratorService {
   /**
    * Get current job state
    */
-  async getJobState(jobId: string): Promise<AgentJobState> {
-    return this.loadState(jobId);
+  async getJobState(jobId: string, businessId: string): Promise<AgentJobState> {
+    return this.loadState(jobId, businessId);
   }
 
   /**
@@ -460,22 +460,21 @@ export class AgentOrchestratorService {
   /**
    * Load state from Firestore
    */
-  private async loadState(jobId: string): Promise<AgentJobState> {
+  private async loadState(jobId: string, businessId: string): Promise<AgentJobState> {
     this.validateId(jobId);
+    this.validateId(businessId);
 
-    // Query across all businesses by jobId
-    // Note: This requires a Firestore composite index on (jobId)
-    const results = await this.firestore.queryCollectionGroup(
-      'agent_jobs',
-      [{ field: 'jobId', operator: '==', value: jobId }],
-      1,
+    // Direct document read instead of collection group query
+    const docRef = this.firestore.doc(
+      `businesses/${businessId}/agent_jobs/${jobId}`,
     );
+    const doc = await docRef.get();
 
-    if (!results || results.length === 0) {
+    if (!doc.exists) {
       throw new Error('Job not found');
     }
 
-    return results[0] as AgentJobState;
+    return doc.data() as AgentJobState;
   }
 
   /**

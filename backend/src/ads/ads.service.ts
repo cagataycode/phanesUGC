@@ -66,7 +66,10 @@ export class AdsService {
       });
 
       // Run agent Phase 1
-      const scenarioSet = await this.agentOrchestrator.runPhase1(jobId);
+      const scenarioSet = await this.agentOrchestrator.runPhase1(
+        jobId,
+        createAdDto.businessId,
+      );
 
       // Store scenarios in job
       await this.jobStoreService.update(createAdDto.businessId, jobId, {
@@ -112,7 +115,7 @@ export class AdsService {
     }
 
     // Select scenario in agent
-    await this.agentOrchestrator.selectScenario(jobId, scenarioId);
+    await this.agentOrchestrator.selectScenario(jobId, businessId, scenarioId);
 
     // Update job status
     await this.jobStoreService.update(businessId, jobId, {
@@ -144,7 +147,7 @@ export class AdsService {
   private async runPhase2(businessId: string, jobId: string): Promise<void> {
     try {
       // Run agent Phase 2
-      const finalOutput = await this.agentOrchestrator.runPhase2(jobId);
+      const finalOutput = await this.agentOrchestrator.runPhase2(jobId, businessId);
 
       // Store final output in job
       await this.jobStoreService.update(businessId, jobId, {
