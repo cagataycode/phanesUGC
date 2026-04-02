@@ -138,7 +138,7 @@ describe('DtoMapper', () => {
       expect(result.cta).toBe('Shop now');
       expect(result.visual_style).toBe('dynamic');
       expect(result.key_message).toBe('Test message');
-      expect(result.platform).toBe('instagram_reels');
+      expect(result.platform).toBe('instagram'); // Converted from agent format
       expect(result.duration_sec).toBe(8);
       expect(result.aspect_ratio).toBe('9:16');
       expect(result.language).toBe('en');
@@ -157,7 +157,7 @@ describe('DtoMapper', () => {
         cta: 'Shop now',
         visual_style: 'dynamic',
         key_message: 'Test message',
-        platform: 'instagram_reels',
+        platform: 'instagram', // Ads format
         duration_sec: 8,
         aspect_ratio: '9:16',
         language: 'en',
@@ -324,7 +324,7 @@ describe('DtoMapper', () => {
           },
           style: {
             visual_style: 'modern',
-            color_palette: ['#000000'],
+            color_palette: '#000000', // String, not array
             rendering_quality: 'high',
             aesthetic_reference: 'minimalist',
           },

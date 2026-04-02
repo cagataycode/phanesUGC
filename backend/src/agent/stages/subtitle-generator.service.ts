@@ -16,24 +16,37 @@ export class SubtitleGeneratorService {
     jobId: string,
     script: AdScript,
     veoOutput: VeoOutput,
+    style: 'standard' | 'kinetic' = 'standard',
   ): Promise<SubtitleData> {
-    this.logger.log(`Generating subtitles for job ${jobId}`);
-
-    // Generate subtitle segments from script voiceover lines
-    // Timing is initially script-derived, then scaled to actual video duration
-    const segments: SubtitleSegment[] = script.voiceoverLines.map(
-      (line, index) => ({
-        id: `sub-${index}`,
-        text: line.text,
-        startSec: index * 3,
-        endSec: (index + 1) * 3,
-        lines: [line.text],
-        style: 'standard',
-      }),
+    this.logger.log(
+      `Generating subtitles for job ${jobId} with style: ${style}`,
     );
 
+    // Generate subtitle segments from script voiceover lines
+    // Use cumulative timing from script's estimatedDurationSec
+    let cumulativeTime = 0;
+    const segments: SubtitleSegment[] = script.voiceoverLines.map(
+      (line, index) => {
+        const startSec = cumulativeTime;
+        const endSec = cumulativeTime + line.estimatedDurationSec;
+        cumulativeTime = endSec;
+
+        return {
+          id: `sub-${index}`,
+          text: line.text,
+          startSec,
+          endSec,
+          lines: [line.text],
+          style,
+        };
+      },
+    );
+
+    // Guard against division by zero
     const scalingFactor =
-      veoOutput.actualDurationSec / script.totalEstimatedDuration;
+      script.totalEstimatedDuration > 0
+        ? veoOutput.actualDurationSec / script.totalEstimatedDuration
+        : 1;
 
     // Scale timing to match actual video duration
     const scaledSegments = segments.map((seg) => ({
@@ -48,7 +61,7 @@ export class SubtitleGeneratorService {
       plannedDurationSec: script.totalEstimatedDuration,
       actualDurationSec: veoOutput.actualDurationSec,
       scalingFactor,
-      style: 'standard',
+      style,
       generatedAt: new Date(),
     });
   }

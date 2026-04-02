@@ -43,7 +43,7 @@ export class AdsService {
 
     return {
       id: jobId,
-      status: 'phase1_started',
+      status: 'created', // Maintain backward compatibility
     };
   }
 
@@ -122,12 +122,10 @@ export class AdsService {
       await this.jobStoreService.update(createAdDto.businessId, jobId, {
         status: 'processing',
         progress: 10,
-        stages: {
-          normalize: 'running',
-          scrape: 'pending',
-          brief: 'pending',
-          scenarios: 'pending',
-        },
+        'stages.normalize': 'running',
+        'stages.scrape': 'pending',
+        'stages.brief': 'pending',
+        'stages.scenarios': 'pending',
       });
 
       // Run agent Phase 1
@@ -144,12 +142,10 @@ export class AdsService {
           scenarios: scenarioSet.scenarios,
           scenarioExpiresAt: scenarioSet.expiresAt,
         },
-        stages: {
-          normalize: 'done',
-          scrape: 'done',
-          brief: 'done',
-          scenarios: 'done',
-        },
+        'stages.normalize': 'done',
+        'stages.scrape': 'done',
+        'stages.brief': 'done',
+        'stages.scenarios': 'done',
       });
 
       this.logger.log(`Phase 1 completed for job ${jobId} - 4 scenarios ready`);
@@ -190,16 +186,14 @@ export class AdsService {
         ...job.metadata,
         selectedScenarioId: scenarioId,
       },
-      stages: {
-        normalize: 'done',
-        scrape: 'done',
-        brief: 'done',
-        scenarios: 'done',
-        script: 'running',
-        veo: 'pending',
-        subtitles: 'pending',
-        render: 'pending',
-      },
+      'stages.normalize': 'done',
+      'stages.scrape': 'done',
+      'stages.brief': 'done',
+      'stages.scenarios': 'done',
+      'stages.script': 'running',
+      'stages.veo': 'pending',
+      'stages.subtitles': 'pending',
+      'stages.render': 'pending',
     });
 
     // Start Phase 2 asynchronously
@@ -237,6 +231,15 @@ export class AdsService {
           subtitles: 'done',
           render: 'done',
         },
+        'metadata.finalOutput': finalOutput,
+        'stages.normalize': 'done',
+        'stages.scrape': 'done',
+        'stages.brief': 'done',
+        'stages.scenarios': 'done',
+        'stages.script': 'done',
+        'stages.veo': 'done',
+        'stages.subtitles': 'done',
+        'stages.render': 'done',
       });
 
       this.logger.log(`Phase 2 completed for job ${jobId}`);

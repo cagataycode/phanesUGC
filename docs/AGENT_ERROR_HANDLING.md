@@ -124,9 +124,9 @@ The retry policy logs each attempt:
 
 ```
 [RetryPolicy] Attempt 1 failed for job-123 at stage context_acquisition: ETIMEDOUT
-[RetryPolicy] Retrying in 1000ms (attempt 2/2)
+[RetryPolicy] Retrying in 1000ms (attempt 1/2)
 [RetryPolicy] Attempt 2 failed for job-123 at stage context_acquisition: ETIMEDOUT
-[RetryPolicy] Retrying in 2000ms (attempt 3/2)
+[RetryPolicy] Retrying in 2000ms (attempt 2/2)
 [RetryPolicy] All retry attempts exhausted for job-123 at stage context_acquisition
 ```
 
@@ -168,16 +168,13 @@ handleScrapingFailure(
   error: unknown
 ): ProductContext {
   return {
-    jobId: request.jobId,
+    source: 'manual',
     name: request.product.name || 'Unknown Product',
     description: request.product.description || '',
     benefits: request.product.benefits || [],
-    category: 'general',
-    pricing: '',
-    offers: '',
-    source: 'manual',
+    category: request.product.category || 'general',
     confidence: 0.3,  // Low confidence - manual only
-    scrapedAt: new Date(),
+    acquiredAt: new Date(),
   };
 }
 ```
@@ -195,17 +192,21 @@ async handleBriefFailure(
   error: unknown
 ): Promise<CreativeBrief> {
   return {
-    jobId: request.jobId,
     productName: productContext.name,
+    productCategory: productContext.category,
+    offer: productContext.offers || 'Special offer',
+    audience: request.targetAudience || 'general audience',
+    painPoints: [],
     keyBenefits: productContext.benefits.slice(0, 3),
+    tone: request.tone || 'professional',
+    cta: request.cta || 'Learn more',
+    visualStyle: 'minimalist',
+    keyMessage: `Discover ${productContext.name}`,
     targetPlatform: request.platform,
     targetDuration: request.durationSec,
     targetAspectRatio: request.aspectRatio,
-    targetAudience: request.targetAudience || 'general audience',
-    tone: request.tone || 'professional',
-    cta: request.cta || 'Learn more',
-    visualStyle: 'clean and modern',
-    confidence: 0.5,  // Medium confidence - template
+    language: request.language || 'en',
+    createdAt: new Date(),
   };
 }
 ```

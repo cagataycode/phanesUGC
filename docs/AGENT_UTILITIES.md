@@ -20,11 +20,13 @@ The agent module provides shared utilities to eliminate code duplication and ens
 
 #### Platform Formats
 
-| Agent Format (camelCase) | Ads Format (snake_case) |
-| ------------------------ | ----------------------- |
+| Agent Format | Ads Format |
+| ------------ | ---------- |
 | `tiktok`                 | `tiktok`                |
 | `instagram_reels`        | `instagram`             |
 | `youtube_shorts`         | `youtube`               |
+
+**Note:** Agent format uses underscore-separated names (e.g., `instagram_reels`), while ads format uses shorter names (e.g., `instagram`).
 
 #### API
 
@@ -105,15 +107,21 @@ const agentPrompt = DtoMapper.toAgentVeoPrompt(jobId, adsScenePrompt);
 ```typescript
 // Agent format (camelCase)
 const agentBrief: CreativeBrief = {
-  jobId: 'job-123',
   productName: 'SuperWidget',
+  productCategory: 'Electronics',
+  offer: 'Get 50% off today',
+  audience: 'Young professionals',
+  painPoints: ['Slow performance', 'High cost'],
   keyBenefits: ['Fast', 'Reliable', 'Affordable'],
+  tone: 'professional',
+  cta: 'Shop now',
+  visualStyle: 'dynamic',
+  keyMessage: 'Speed meets reliability',
   targetPlatform: 'instagram_reels',
   targetDuration: 8,
   targetAspectRatio: '9:16',
-  targetAudience: 'Young professionals',
-  tone: 'professional',
-  cta: 'Shop now',
+  language: 'en',
+  createdAt: new Date(),
 };
 
 // Convert to ads format (snake_case)
@@ -346,15 +354,15 @@ After utilities:
 export class MyAdapterService {
   constructor(private readonly adsService: AdsService) {}
   
-  async process(agentData: AgentContract): Promise<AgentResult> {
+  async process(agentBrief: CreativeBrief): Promise<AdScript> {
     // 1. Convert to ads format
-    const adsData = DtoMapper.toAdsFormat(agentData);
+    const adsBrief = DtoMapper.toAdsBrief(agentBrief);
     
     // 2. Call ads service
-    const adsResult = await this.adsService.process(adsData);
+    const adsScript = await this.adsService.generateScript(adsBrief);
     
     // 3. Convert back to agent format
-    return DtoMapper.toAgentFormat(adsResult);
+    return DtoMapper.toAgentScript(adsScript, jobId, scenarioId);
   }
 }
 ```

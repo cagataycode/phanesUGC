@@ -66,7 +66,7 @@ export class DtoMapper {
       tone: brief.tone,
       language: brief.language,
       duration_sec: brief.targetDuration,
-      platform: brief.targetPlatform,
+      platform: PlatformMapper.toAdsFormat(brief.targetPlatform),
       cta: brief.cta,
       visual_style: brief.visualStyle,
       aspect_ratio: brief.targetAspectRatio,
@@ -81,6 +81,17 @@ export class DtoMapper {
     adsBrief: AdsCreativeBrief,
     productContext: ProductContext,
   ): CreativeBrief {
+    // Convert platform from ads format to agent format with fallback
+    let targetPlatform: 'tiktok' | 'instagram_reels' | 'youtube_shorts';
+    try {
+      targetPlatform = PlatformMapper.toAgentFormat(
+        adsBrief.platform as 'tiktok' | 'instagram' | 'youtube',
+      );
+    } catch {
+      // Fallback to default if platform is invalid
+      targetPlatform = 'tiktok';
+    }
+
     return {
       productName: adsBrief.product_name || productContext.name,
       productCategory: productContext.category,
@@ -100,10 +111,7 @@ export class DtoMapper {
         | 'bold'
         | 'cinematic',
       keyMessage: adsBrief.key_message || 'Discover our product',
-      targetPlatform: adsBrief.platform as
-        | 'tiktok'
-        | 'instagram_reels'
-        | 'youtube_shorts',
+      targetPlatform,
       targetDuration: adsBrief.duration_sec || 8,
       targetAspectRatio: adsBrief.aspect_ratio as '9:16' | '16:9' | '1:1',
       language: adsBrief.language || 'en',

@@ -188,13 +188,9 @@ export class InputNormalizerService {
         if (typeof url !== 'string') {
           throw new BadRequestException('Invalid product URL');
         }
-        // Validate URL format (SSRF prevention: only allow http/https, no localhost/private IPs)
-        try {
-          new URL(url);
-          return url;
-        } catch {
-          throw new BadRequestException('Invalid product URL format');
-        }
+        // SSRF prevention: validate URL protocol and hostname
+        this.validateUrlForSsrf(url);
+        return url;
       });
     }
 
@@ -228,5 +224,70 @@ export class InputNormalizerService {
       pricing: this.validateString(prod.pricing, 200),
       offers: this.validateString(prod.offers, 500),
     };
+  }
+
+  /**
+   * Validate URL for SSRF prevention
+   * Only allow http/https protocols and block localhost/private IPs
+   */
+  private validateUrlForSsrf(url: string): void {
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      throw new BadRequestException('Invalid product URL format');
+    }
+
+    // Only allow http and https protocols
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      throw new BadRequestException(
+        'Only http and https protocols are allowed',
+      );
+    }
+
+    const hostname = parsedUrl.hostname.toLowerCase();
+
+    // Block localhost variations
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '0.0.0.0' ||
+      hostname === '::1' ||
+      hostname === '0:0:0:0:0:0:0:1'
+    ) {
+      throw new BadRequestException('Localhost URLs are not allowed');
+    }
+
+    // Block private IP ranges (IPv4)
+    // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16
+    const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+    const ipv4Match = hostname.match(ipv4Regex);
+    if (ipv4Match) {
+      const octets = ipv4Match.slice(1).map(Number);
+      const [a, b] = octets;
+
+      // Validate octets are in range 0-255
+      if (octets.some((octet) => octet > 255)) {
+        throw new BadRequestException('Invalid IP address');
+      }
+
+      // Block private ranges
+      if (
+        a === 10 || // 10.0.0.0/8
+        (a === 172 && b >= 16 && b <= 31) || // 172.16.0.0/12
+        (a === 192 && b === 168) || // 192.168.0.0/16
+        (a === 169 && b === 254) // 169.254.0.0/16 (link-local)
+      ) {
+        throw new BadRequestException('Private IP addresses are not allowed');
+      }
+    }
+
+    // Block private IPv6 ranges (simplified check)
+    if (hostname.includes(':')) {
+      // Block link-local (fe80::/10) and unique local (fc00::/7)
+      if (hostname.startsWith('fe80:') || hostname.startsWith('fc')) {
+        throw new BadRequestException('Private IPv6 addresses are not allowed');
+      }
+    }
   }
 }

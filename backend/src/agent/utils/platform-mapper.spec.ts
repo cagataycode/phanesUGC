@@ -52,6 +52,8 @@ describe('PlatformMapper', () => {
       expect(PlatformMapper.isValidAgentPlatform('instagram')).toBe(false);
       expect(PlatformMapper.isValidAgentPlatform('youtube')).toBe(false);
       expect(PlatformMapper.isValidAgentPlatform('invalid')).toBe(false);
+      expect(PlatformMapper.isValidAgentPlatform('toString')).toBe(false);
+      expect(PlatformMapper.isValidAgentPlatform('hasOwnProperty')).toBe(false);
     });
   });
 
@@ -66,6 +68,8 @@ describe('PlatformMapper', () => {
       expect(PlatformMapper.isValidAdsPlatform('instagram_reels')).toBe(false);
       expect(PlatformMapper.isValidAdsPlatform('youtube_shorts')).toBe(false);
       expect(PlatformMapper.isValidAdsPlatform('invalid')).toBe(false);
+      expect(PlatformMapper.isValidAdsPlatform('toString')).toBe(false);
+      expect(PlatformMapper.isValidAdsPlatform('hasOwnProperty')).toBe(false);
     });
   });
 
