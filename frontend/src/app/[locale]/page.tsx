@@ -1,6 +1,7 @@
 import Image from "next/image";
-import { AdCreationForm } from "@/components/forms/AdCreationForm";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { Button } from "@/components/ui/button";
 
 export default async function Home() {
   const t = await getTranslations();
@@ -27,8 +28,12 @@ export default async function Home() {
           {t("app.tagline")}
         </p>
 
-        <div className="relative z-10 w-full max-w-4xl">
-          <AdCreationForm />
+        <div className="relative z-10">
+          <Link href="/create">
+            <Button size="lg" className="text-lg px-8 py-6">
+              Create New Ad
+            </Button>
+          </Link>
         </div>
       </main>
     </div>
