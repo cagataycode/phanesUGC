@@ -404,9 +404,29 @@ export class AgentOrchestratorService {
     this.validateId(state.businessId);
     this.validateId(state.jobId);
 
+    // Convert Date objects to Firestore Timestamps
+    const firestoreState = {
+      ...state,
+      createdAt: state.createdAt,
+      updatedAt: state.updatedAt,
+      phase1StartedAt: state.phase1StartedAt,
+      phase1CompletedAt: state.phase1CompletedAt,
+      phase2StartedAt: state.phase2StartedAt,
+      phase2CompletedAt: state.phase2CompletedAt,
+      scenarioExpiresAt: state.scenarioExpiresAt,
+      errors: state.errors.map((e) => ({
+        ...e,
+        timestamp: e.timestamp,
+      })),
+      qualityReports: state.qualityReports.map((r) => ({
+        ...r,
+        checkedAt: r.checkedAt,
+      })),
+    };
+
     await this.firestore.set(
       `businesses/${state.businessId}/agent_jobs/${state.jobId}`,
-      state,
+      firestoreState,
     );
   }
 
