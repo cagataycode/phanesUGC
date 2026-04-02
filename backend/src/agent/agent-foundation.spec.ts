@@ -3,7 +3,6 @@ import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { QualityGatesService } from './orchestrator/quality-gates.service';
 import { InputNormalizerService } from './stages/input-normalizer.service';
-import { ContextAcquisitionService } from './stages/context-acquisition.service';
 import { ScenarioGeneratorService } from './stages/scenario-generator.service';
 import { GeminiService } from '../ai/gemini.service';
 import {
@@ -157,14 +156,12 @@ describe('Agent Foundation - Phase 1', () => {
 
   describe('Stage Services', () => {
     let inputNormalizer: InputNormalizerService;
-    let contextAcquisition: ContextAcquisitionService;
     let scenarioGenerator: ScenarioGeneratorService;
 
     beforeEach(async () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           InputNormalizerService,
-          ContextAcquisitionService,
           ScenarioGeneratorService,
           GeminiService,
           {
@@ -181,9 +178,6 @@ describe('Agent Foundation - Phase 1', () => {
 
       inputNormalizer = module.get<InputNormalizerService>(
         InputNormalizerService,
-      );
-      contextAcquisition = module.get<ContextAcquisitionService>(
-        ContextAcquisitionService,
       );
       scenarioGenerator = module.get<ScenarioGeneratorService>(
         ScenarioGeneratorService,
@@ -249,26 +243,6 @@ describe('Agent Foundation - Phase 1', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException);
       }
-    });
-
-    it('should acquire product context', async () => {
-      const request = {
-        jobId: 'job-1',
-        businessId: 'biz-1',
-        prompt: 'Test',
-        platform: 'tiktok' as const,
-        aspectRatio: '9:16' as const,
-        durationSec: 8,
-        language: 'en',
-        normalizedAt: new Date(),
-      };
-
-      const context = await contextAcquisition.acquire(request);
-
-      expect(context.source).toBe('manual');
-      expect(context.name).toBeDefined();
-      expect(context.description).toBeDefined();
-      expect(context.benefits).toBeDefined();
     });
 
     it('should generate 4 scenarios', async () => {

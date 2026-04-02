@@ -12,6 +12,7 @@ import { OutputValidatorService } from './stages/output-validator.service';
 import { QualityGatesService } from './orchestrator/quality-gates.service';
 import { FirebaseModule } from '../firebase/firebase.module';
 import { StorageModule } from '../storage/storage.module';
+import { ScraperModule } from '../scraper/scraper.module';
 import { GeminiService } from '../ai/gemini.service';
 import { VertexAiService } from '../ai/vertex-ai.service';
 
@@ -32,7 +33,7 @@ import { VeoPromptBuilderService as AdsVeoPromptBuilderService } from '../ads/se
  * to avoid duplication and maintain consistency.
  */
 @Module({
-  imports: [ConfigModule, FirebaseModule, StorageModule],
+  imports: [ConfigModule, FirebaseModule, StorageModule, ScraperModule],
   providers: [
     // AI Services
     GeminiService,
