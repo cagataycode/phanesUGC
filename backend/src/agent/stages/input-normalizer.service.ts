@@ -264,7 +264,7 @@ export class InputNormalizerService {
     const ipv4Match = hostname.match(ipv4Regex);
     if (ipv4Match) {
       const octets = ipv4Match.slice(1).map(Number);
-      const [a, b, c, d] = octets;
+      const [a, b] = octets;
 
       // Validate octets are in range 0-255
       if (octets.some((octet) => octet > 255)) {
