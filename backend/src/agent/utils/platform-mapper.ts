@@ -53,14 +53,14 @@ export class PlatformMapper {
    * Validate if value is a valid agent platform
    */
   static isValidAgentPlatform(value: string): value is AgentPlatform {
-    return value in this.AGENT_TO_ADS;
+    return Object.hasOwn(this.AGENT_TO_ADS, value);
   }
 
   /**
    * Validate if value is a valid ads platform
    */
   static isValidAdsPlatform(value: string): value is AdsPlatform {
-    return value in this.ADS_TO_AGENT;
+    return Object.hasOwn(this.ADS_TO_AGENT, value);
   }
 
   /**
