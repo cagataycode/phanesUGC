@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,6 +24,7 @@ import {
 import { useAuth } from "@/lib/firebase/auth-provider";
 import { useAvatars, useProducts } from "@/lib/firebase/hooks";
 import type { AvatarData, ProductData } from "@/lib/firebase/hooks";
+import type { ProductAsset, ProductAssetType } from "@/lib/asset-types";
 import { ProductForm } from "@/components/forms/ProductForm";
 import { AvatarForm } from "@/components/forms/AvatarForm";
 import {
@@ -36,9 +38,118 @@ import {
   buildProductTextDataUpdate,
   productToTextDataValues,
 } from "@/lib/library-text-data";
+import { BrandAssetThumbnail } from "@/components/BrandAssetThumbnail";
 
 type LibrarySectionKey = "products" | "text" | "avatars" | "assets";
 type LibraryView = "list" | "create" | "edit";
+
+function ProductCard({
+  product,
+  firstImageStorageKey,
+  isSelected,
+  isDeleting,
+  onEdit,
+  onDelete,
+  businessId,
+}: {
+  product: ProductData;
+  firstImageStorageKey: string | undefined;
+  isSelected: boolean;
+  isDeleting: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  businessId: string;
+}) {
+  const imageUrl = useStorageImageUrl(businessId, firstImageStorageKey);
+  const [imgError, setImgError] = useState(false);
+
+  const hasImage = imageUrl && !imgError;
+
+  return (
+    <Card
+      className={`overflow-hidden rounded-xl border bg-card shadow-sm transition-colors ${
+        isSelected ? "border-primary/40" : "border-border"
+      }`}
+    >
+      {/* Brand asset image preview at the top of the card */}
+      <div className="flex max-h-48 items-center justify-center overflow-hidden bg-muted/50">
+        {hasImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageUrl}
+            alt={product.name}
+            className="max-h-48 w-full object-contain"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-muted-foreground/30"
+          >
+            <path d="m7.5 4.27 9 5.15" />
+            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+            <path d="m3.3 7 8.7 5 8.7-5" />
+            <path d="M12 22V12" />
+          </svg>
+        )}
+      </div>
+      <CardHeader className="px-4 pb-3 pt-3">
+        <div className="min-w-0">
+          <CardTitle className="truncate text-sm font-medium text-foreground">
+            {product.name}
+          </CardTitle>
+          <CardDescription className="mt-1 line-clamp-2 break-words">
+            {product.description || "No description yet."}
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <Separator />
+      <CardContent className="px-4 pt-3 pb-4">
+        <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
+          <span className="rounded-full border border-border px-2 py-0.5">
+            {(product.benefits ?? []).length} benefit
+            {(product.benefits ?? []).length !== 1 ? "s" : ""}
+          </span>
+          <span className="rounded-full border border-border px-2 py-0.5">
+            {(product.brandAssets ?? []).length} asset
+            {(product.brandAssets ?? []).length !== 1 ? "s" : ""}
+          </span>
+          <span className="rounded-full border border-border px-2 py-0.5">
+            {(product.urls ?? []).length} URL
+            {(product.urls ?? []).length !== 1 ? "s" : ""}
+          </span>
+        </div>
+        <div className="mt-3 flex items-center justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            onClick={onEdit}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+            disabled={isDeleting}
+            onClick={onDelete}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function AvatarCard({
   avatar,
@@ -87,7 +198,7 @@ function AvatarCard({
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="text-muted-foreground/40"
+            className="text-muted-foreground/30"
           >
             <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
             <circle cx="12" cy="7" r="4" />
@@ -95,34 +206,13 @@ function AvatarCard({
         )}
       </div>
       <CardHeader className="px-4 pb-3 pt-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <CardTitle className="truncate text-sm font-medium text-foreground">
-              {avatar.name}
-            </CardTitle>
-            <CardDescription className="mt-1 uppercase">
-              {avatar.type.replaceAll("_", " ")}
-            </CardDescription>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={onEdit}
-            >
-              Edit
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-              disabled={isDeleting}
-              onClick={onDelete}
-            >
-              {isDeleting ? "…" : "Delete"}
-            </Button>
-          </div>
+        <div className="min-w-0">
+          <CardTitle className="truncate text-sm font-medium text-foreground">
+            {avatar.name}
+          </CardTitle>
+          <CardDescription className="mt-1 uppercase">
+            {avatar.type.replaceAll("_", " ")}
+          </CardDescription>
         </div>
       </CardHeader>
       <Separator />
@@ -133,6 +223,25 @@ function AvatarCard({
             : "No avatar images"}
           {avatar.isDefault ? " \u2022 Default" : ""}
         </p>
+        <div className="mt-3 flex items-center justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            onClick={onEdit}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+            disabled={isDeleting}
+            onClick={onDelete}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -232,6 +341,29 @@ export default function LibraryPage() {
     } finally {
       setIsSavingTextData(false);
     }
+  }
+
+  async function handleDeleteAsset(asset: ProductAsset) {
+    if (!businessId || !selectedProduct) return;
+    const updated = (selectedProduct.brandAssets ?? []).filter(
+      (a) => a.storageKey !== asset.storageKey,
+    );
+    await updateProduct(businessId, selectedProduct.id, {
+      brandAssets: updated,
+    });
+  }
+
+  async function handleEditAssetType(
+    asset: ProductAsset,
+    newType: ProductAssetType,
+  ) {
+    if (!businessId || !selectedProduct) return;
+    const updated = (selectedProduct.brandAssets ?? []).map((a) =>
+      a.storageKey === asset.storageKey ? { ...a, type: newType } : a,
+    );
+    await updateProduct(businessId, selectedProduct.id, {
+      brandAssets: updated,
+    });
   }
 
   if (!businessId) {
@@ -459,65 +591,23 @@ export default function LibraryPage() {
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     {products.map((p) => (
-                      <Card
+                      <ProductCard
                         key={p.id}
-                        className={`rounded-xl border bg-card p-5 shadow-sm transition-colors ${
-                          selectedProduct?.id === p.id
-                            ? "border-primary/40"
-                            : "border-border"
-                        }`}
-                      >
-                        <CardHeader className="px-0 pb-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <CardTitle className="truncate text-sm font-medium text-foreground">
-                                {p.name}
-                              </CardTitle>
-                              <CardDescription className="mt-1 line-clamp-2">
-                                {p.description || "No description yet."}
-                              </CardDescription>
-                            </div>
-                            <div className="flex shrink-0 gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-xs"
-                                onClick={() => {
-                                  setSelectedProductId(p.id);
-                                  setView("edit");
-                                }}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-                                disabled={deletingId === p.id}
-                                onClick={() => handleDelete(p.id)}
-                              >
-                                {deletingId === p.id ? "…" : "Delete"}
-                              </Button>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <Separator />
-                        <CardContent className="px-0 pt-3">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                              <span className="rounded-full border border-border px-2 py-0.5">
-                                {(p.benefits ?? []).length} benefits
-                              </span>
-                              <span className="rounded-full border border-border px-2 py-0.5">
-                                {(p.brandAssets ?? []).length} assets
-                              </span>
-                              <span className="rounded-full border border-border px-2 py-0.5">
-                                {(p.urls ?? []).length} urls
-                              </span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                        product={p}
+                        firstImageStorageKey={
+                          p.brandAssets?.find(
+                            (a) => a.type === "image" || a.type === "logo",
+                          )?.storageKey
+                        }
+                        isSelected={selectedProduct?.id === p.id}
+                        isDeleting={deletingId === p.id}
+                        businessId={businessId!}
+                        onEdit={() => {
+                          setSelectedProductId(p.id);
+                          setView("edit");
+                        }}
+                        onDelete={() => handleDelete(p.id)}
+                      />
                     ))}
                   </div>
                 )}
@@ -856,22 +946,13 @@ export default function LibraryPage() {
                       {selectedProduct?.brandAssets?.length ? (
                         <div className="mt-3 grid gap-3 sm:grid-cols-2">
                           {selectedProduct.brandAssets.map((asset, index) => (
-                            <div
+                            <BrandAssetThumbnail
                               key={`${asset.storageKey}-${index}`}
-                              className="rounded-lg border border-border bg-card px-3 py-3"
-                            >
-                              <p className="text-sm font-medium text-foreground">
-                                {asset.filename}
-                              </p>
-                              <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                                <span className="rounded-full border border-border px-2 py-0.5 uppercase">
-                                  {asset.type}
-                                </span>
-                                <span className="truncate">
-                                  {asset.storageKey}
-                                </span>
-                              </div>
-                            </div>
+                              businessId={businessId}
+                              asset={asset}
+                              onDelete={handleDeleteAsset}
+                              onEditType={handleEditAssetType}
+                            />
                           ))}
                         </div>
                       ) : (

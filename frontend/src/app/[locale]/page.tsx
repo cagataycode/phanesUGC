@@ -10,7 +10,7 @@ export default async function Home() {
       <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 pb-10 pt-[14vh] text-center sm:px-6">
         <div className="pointer-events-none absolute inset-x-0 top-[3.75rem] flex justify-center z-0 opacity-[0.06] dark:opacity-[0.1] sm:top-[4.5rem]">
           <Image
-            src="/icons/PhanesLogo.svg"
+            src="/icons/PhanesLogo-stroke.svg"
             alt="Phanes"
             width={820}
             height={960}

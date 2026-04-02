@@ -12,6 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardAction,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Sparkles, Check, Upload } from "lucide-react";
 import type { ProductData } from "@/lib/firebase/hooks";
 import {
   createUploadUrl,
@@ -25,6 +35,8 @@ import {
   type CreateProductPayload,
 } from "@/lib/products-api";
 import { scrapeProductUrl } from "@/lib/scraper-api";
+import { BrandAssetThumbnail } from "@/components/BrandAssetThumbnail";
+import type { ProductAsset, ProductAssetType } from "@/lib/asset-types";
 
 interface ProductFormProps {
   businessId: string;
@@ -113,6 +125,26 @@ export function ProductForm({
       setError(err instanceof Error ? err.message : "Failed to upload asset.");
     } finally {
       setIsUploading(false);
+    }
+  }
+
+  function handleDeleteAsset(asset: ProductAsset) {
+    const updated = brandAssets.filter(
+      (a) => a.storageKey !== asset.storageKey,
+    );
+    setBrandAssets(updated);
+    if (isEdit && product) {
+      updateProduct(businessId, product.id, { brandAssets: updated });
+    }
+  }
+
+  function handleEditAssetType(asset: ProductAsset, newType: ProductAssetType) {
+    const updated = brandAssets.map((a) =>
+      a.storageKey === asset.storageKey ? { ...a, type: newType } : a,
+    );
+    setBrandAssets(updated);
+    if (isEdit && product) {
+      updateProduct(businessId, product.id, { brandAssets: updated });
     }
   }
 
@@ -277,253 +309,279 @@ export function ProductForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {/* Auto-fill Section */}
       {!isEdit && (
-        <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
-          <div>
-            <p className="text-sm font-medium text-foreground flex items-center gap-2">
-              ✨ Auto-fill from URL
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              Auto-fill from URL
+            </CardTitle>
+            <CardDescription>
               Save time by extracting product name, description, and benefits
               automatically.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Input
-              value={scrapeUrl}
-              onChange={(e) => setScrapeUrl(e.target.value)}
-              placeholder="https://example.com/product"
-              className="bg-background"
-              disabled={isScraping}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void handleAutoFill();
-                }
-              }}
-            />
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleAutoFill}
-              disabled={isScraping || !scrapeUrl.trim()}
-            >
-              {isScraping ? "Extracting..." : "Auto-fill"}
-            </Button>
-          </div>
-
-          {scrapedImages.length > 0 && (
-            <div className="pt-2">
-              <p className="text-xs font-medium text-foreground mb-2">
-                Select images to add as brand assets:
-              </p>
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {scrapedImages.map((imgUrl, i) => {
-                  const isSelected = selectedScrapedImages.has(imgUrl);
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => {
-                        const newSet = new Set(selectedScrapedImages);
-                        if (isSelected) newSet.delete(imgUrl);
-                        else newSet.add(imgUrl);
-                        setSelectedScrapedImages(newSet);
-                      }}
-                      className={`relative flex-shrink-0 h-20 w-20 overflow-hidden rounded-md border-2 transition-all ${
-                        isSelected
-                          ? "border-primary"
-                          : "border-transparent hover:border-primary/50"
-                      }`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={imgUrl}
-                        alt="Scraped image preview"
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                      {isSelected && (
-                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                          <div className="bg-primary text-primary-foreground rounded-full p-0.5">
-                            ✅
-                          </div>
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2">
+              <Input
+                value={scrapeUrl}
+                onChange={(e) => setScrapeUrl(e.target.value)}
+                placeholder="https://example.com/product"
+                className="bg-background"
+                disabled={isScraping}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleAutoFill();
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleAutoFill}
+                disabled={isScraping || !scrapeUrl.trim()}
+              >
+                {isScraping ? "Extracting..." : "Auto-fill"}
+              </Button>
             </div>
-          )}
-        </div>
+
+            {scrapedImages.length > 0 && (
+              <div className="pt-3">
+                <p className="text-xs font-medium text-foreground mb-2">
+                  Select images to add as brand assets:
+                </p>
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {scrapedImages.map((imgUrl, i) => {
+                    const isSelected = selectedScrapedImages.has(imgUrl);
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => {
+                          const newSet = new Set(selectedScrapedImages);
+                          if (isSelected) newSet.delete(imgUrl);
+                          else newSet.add(imgUrl);
+                          setSelectedScrapedImages(newSet);
+                        }}
+                        className={`relative flex-shrink-0 h-20 w-20 overflow-hidden rounded-md border-2 transition-all ${
+                          isSelected
+                            ? "border-primary"
+                            : "border-transparent hover:border-primary/50"
+                        }`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={imgUrl}
+                          alt="Scraped image preview"
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                        {isSelected && (
+                          <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                            <div className="bg-primary text-primary-foreground rounded-full p-0.5">
+                              <Check className="h-3 w-3" />
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
-      <div className="space-y-1.5">
-        <Label htmlFor="product-name">Product name *</Label>
-        <Input
-          id="product-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. My SaaS Product"
-          required
-        />
+      {/* Basic Fields */}
+      <div className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="product-name">Product name *</Label>
+          <Input
+            id="product-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. My SaaS Product"
+            required
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="product-description">Description</Label>
+          <Textarea
+            id="product-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="What does this product do?"
+            className="min-h-24 resize-none"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="product-benefits">
+            Key benefits{" "}
+            <span className="text-xs text-muted-foreground">
+              (one per line)
+            </span>
+          </Label>
+          <Textarea
+            id="product-benefits"
+            value={benefitsRaw}
+            onChange={(e) => setBenefitsRaw(e.target.value)}
+            placeholder={"Saves time\nEasy to use\nAffordable"}
+            className="min-h-20 resize-none"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="product-urls">
+            Product URLs{" "}
+            <span className="text-xs text-muted-foreground">
+              (one per line)
+            </span>
+          </Label>
+          <Textarea
+            id="product-urls"
+            value={urlsRaw}
+            onChange={(e) => setUrlsRaw(e.target.value)}
+            placeholder={
+              "https://example.com/product\nhttps://example.com/pricing"
+            }
+            className="min-h-16 resize-none"
+          />
+        </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="product-description">Description</Label>
-        <Textarea
-          id="product-description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="What does this product do?"
-          className="min-h-24 resize-none"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="product-benefits">
-          Key benefits{" "}
-          <span className="text-xs text-muted-foreground">(one per line)</span>
-        </Label>
-        <Textarea
-          id="product-benefits"
-          value={benefitsRaw}
-          onChange={(e) => setBenefitsRaw(e.target.value)}
-          placeholder={"Saves time\nEasy to use\nAffordable"}
-          className="min-h-20 resize-none"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="product-urls">
-          Product URLs{" "}
-          <span className="text-xs text-muted-foreground">(one per line)</span>
-        </Label>
-        <Textarea
-          id="product-urls"
-          value={urlsRaw}
-          onChange={(e) => setUrlsRaw(e.target.value)}
-          placeholder={
-            "https://example.com/product\nhttps://example.com/pricing"
-          }
-          className="min-h-16 resize-none"
-        />
-      </div>
-
-      <div className="space-y-2 rounded-lg border border-border p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium text-foreground">Brand assets</p>
-            <p className="text-xs text-muted-foreground">
-              Upload images, videos, or logos after the product exists.
-            </p>
-          </div>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent">
-            <span>{isUploading ? "Uploading…" : "Upload asset"}</span>
-            <input
-              type="file"
-              className="hidden"
-              multiple
+      {/* Brand Assets Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Brand assets</CardTitle>
+          <CardDescription>
+            Upload images, videos, or logos for use in ad generation.
+          </CardDescription>
+          <CardAction>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              asChild
               disabled={!product?.id || isUploading || isSubmitting}
-              onChange={(e) => void handleAssetUpload(e.target.files)}
-            />
-          </label>
-        </div>
-        {!product?.id ? (
-          <p className="text-xs text-muted-foreground">
-            Create the product first to enable uploads.
-          </p>
-        ) : null}
-        {brandAssets.length > 0 ? (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {brandAssets.map((asset, index) => (
-              <div
-                key={`${asset.storageKey}-${index}`}
-                className="rounded-md border border-border bg-background px-3 py-2"
-              >
-                <p className="truncate text-sm font-medium text-foreground">
-                  {asset.filename}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {asset.type} • {asset.storageKey}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            No assets uploaded yet.
-          </p>
-        )}
-      </div>
+            >
+              <label className="flex cursor-pointer items-center gap-2">
+                <Upload className="h-3.5 w-3.5" />
+                {isUploading ? "Uploading…" : "Upload"}
+                <input
+                  type="file"
+                  className="hidden"
+                  multiple
+                  disabled={!product?.id || isUploading || isSubmitting}
+                  onChange={(e) => void handleAssetUpload(e.target.files)}
+                />
+              </label>
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          {!product?.id ? (
+            <p className="text-xs text-muted-foreground">
+              Create the product first to enable uploads.
+            </p>
+          ) : brandAssets.length > 0 ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {brandAssets.map((asset, index) => (
+                <BrandAssetThumbnail
+                  key={`${asset.storageKey}-${index}`}
+                  businessId={businessId}
+                  asset={asset}
+                  onDelete={handleDeleteAsset}
+                  onEditType={handleEditAssetType}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              No assets uploaded yet.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
-      <div className="border-t border-border pt-4">
-        <p className="mb-4 text-sm font-medium text-foreground">
-          Default ad settings
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="product-tone">Default tone</Label>
-            <Select value={tone} onValueChange={setTone}>
-              <SelectTrigger id="product-tone" className="h-9 text-sm">
-                <SelectValue placeholder="Select tone…" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                <SelectItem value="direct">Direct</SelectItem>
-                <SelectItem value="playful">Playful</SelectItem>
-                <SelectItem value="professional">Professional</SelectItem>
-                <SelectItem value="emotional">Emotional</SelectItem>
-                <SelectItem value="urgent">Urgent</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      {/* Default Ad Settings Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Default ad settings</CardTitle>
+          <CardDescription>
+            Pre-configure defaults for ad generation with this product.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="product-tone">Default tone</Label>
+              <Select value={tone} onValueChange={setTone}>
+                <SelectTrigger id="product-tone" className="h-9 text-sm">
+                  <SelectValue placeholder="Select tone…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="direct">Direct</SelectItem>
+                  <SelectItem value="playful">Playful</SelectItem>
+                  <SelectItem value="professional">Professional</SelectItem>
+                  <SelectItem value="emotional">Emotional</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="product-language">Default language</Label>
-            <Select value={language} onValueChange={setLanguage}>
-              <SelectTrigger id="product-language" className="h-9 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="de">Deutsch</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="product-language">Default language</Label>
+              <Select value={language} onValueChange={setLanguage}>
+                <SelectTrigger id="product-language" className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="de">Deutsch</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="product-audience">Default target audience</Label>
-            <Input
-              id="product-audience"
-              value={targetAudience}
-              onChange={(e) => setTargetAudience(e.target.value)}
-              placeholder="e.g. Small business owners 25–45"
-            />
-          </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="product-audience">Default target audience</Label>
+              <Input
+                id="product-audience"
+                value={targetAudience}
+                onChange={(e) => setTargetAudience(e.target.value)}
+                placeholder="e.g. Small business owners 25–45"
+              />
+            </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="product-cta">Default CTA</Label>
-            <Input
-              id="product-cta"
-              value={cta}
-              onChange={(e) => setCta(e.target.value)}
-              placeholder="e.g. Try for free today"
-            />
+            <div className="space-y-1.5">
+              <Label htmlFor="product-cta">Default CTA</Label>
+              <Input
+                id="product-cta"
+                value={cta}
+                onChange={(e) => setCta(e.target.value)}
+                placeholder="e.g. Try for free today"
+              />
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
+      {/* Error */}
       {error && (
         <p className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </p>
       )}
 
-      <div className="flex justify-end gap-3 pt-2">
+      {/* Actions */}
+      <Separator />
+      <div className="flex justify-end gap-3">
         {onCancel && (
           <Button
             type="button"
