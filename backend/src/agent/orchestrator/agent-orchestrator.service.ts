@@ -11,8 +11,7 @@ import { VideoGeneratorService } from '../stages/video-generator.service';
 import { SubtitleGeneratorService } from '../stages/subtitle-generator.service';
 import { TimelineAssemblerService } from '../stages/timeline-assembler.service';
 import { RenderExecutorService } from '../stages/render-executor.service';
-// TODO: Use OutputValidatorService in Phase 2
-// import { OutputValidatorService } from '../stages/output-validator.service';
+import { OutputValidatorService } from '../stages/output-validator.service';
 import { QualityGatesService } from './quality-gates.service';
 import { NormalizedRequest } from '../contracts/normalized-request';
 import { CreativeBrief } from '../contracts/creative-brief';
@@ -47,8 +46,7 @@ export class AgentOrchestratorService {
     private readonly subtitleGenerator: SubtitleGeneratorService,
     private readonly timelineAssembler: TimelineAssemblerService,
     private readonly renderExecutor: RenderExecutorService,
-    // TODO: Use outputValidator in Phase 2 for final validation
-    // private readonly outputValidator: OutputValidatorService,
+    private readonly outputValidator: OutputValidatorService,
     private readonly qualityGates: QualityGatesService,
     private readonly retryPolicy: RetryPolicy,
     private readonly fallbackPolicy: FallbackPolicy,
@@ -404,6 +402,26 @@ export class AgentOrchestratorService {
         { jobId, stage: 'render_executor' },
       );
       this.transitionStage(state, 'completed');
+
+      // Validate output
+      const validationResult = await this.outputValidator.validate(
+        finalOutput,
+        (state.artifacts.normalizedRequest as NormalizedRequest).durationSec,
+        (state.artifacts.normalizedRequest as NormalizedRequest).aspectRatio,
+      );
+
+      // Add validation warnings to quality reports
+      if (
+        validationResult.warnings.length > 0 ||
+        validationResult.errors.length > 0
+      ) {
+        state.qualityReports.push({
+          gate: 'output_validation',
+          status: validationResult.passed ? 'warn' : 'fail',
+          issues: [...validationResult.warnings, ...validationResult.errors],
+          checkedAt: new Date(),
+        });
+      }
 
       // Quality gate: Final render
       const renderReport = this.qualityGates.checkFinalRender(finalOutput);
