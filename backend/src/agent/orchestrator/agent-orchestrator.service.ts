@@ -467,6 +467,10 @@ export class AgentOrchestratorService {
 
   /**
    * Record an error
+   * 
+   * Note: retryCount reflects the number of times this stage has failed and been
+   * recorded in state.errors. Individual retry attempts within RetryPolicy.execute()
+   * are logged but not persisted here, so retryCount may be 0 even after retries.
    */
   private recordError(
     state: AgentJobState,
@@ -485,7 +489,7 @@ export class AgentOrchestratorService {
     });
 
     this.logger.error(
-      `Job ${state.jobId} error at stage ${stage} (retry ${retryCount}): ${message}`,
+      `Job ${state.jobId} error at stage ${stage} (attempt ${retryCount + 1}): ${message}`,
     );
   }
 

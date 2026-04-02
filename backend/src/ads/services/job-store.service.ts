@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { FirestoreService } from '../../firebase/firestore.service';
 import { CreativeBrief } from '../types/creative-brief';
 import { GeneratedScript } from '../types/generated-script';
+import { Scenario } from '../../agent/contracts/scenario';
+import { FinalOutput } from '../../agent/contracts/final-output';
 import * as admin from 'firebase-admin';
 
 export type AdJobStatus =
@@ -12,15 +14,17 @@ export type AdJobStatus =
   | 'completed'
   | 'failed';
 
+export type StageStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped';
+
 export interface ProjectStage {
-  status: 'pending' | 'running' | 'done' | 'failed' | 'skipped';
+  status: StageStatus;
 }
 
 export interface AdJobMetadata {
-  scenarios?: any[]; // Phase 1: Generated scenarios
+  scenarios?: Scenario[]; // Phase 1: Generated scenarios
   scenarioExpiresAt?: Date; // Phase 1: When scenarios expire
   selectedScenarioId?: number; // Phase 2: User's choice
-  finalOutput?: any; // Phase 2: Final output from agent
+  finalOutput?: FinalOutput; // Phase 2: Final output from agent
   scenePrompt?: {
     intent: string;
     visualStyle: string;
@@ -56,14 +60,14 @@ export interface AdJob {
   status: AdJobStatus;
   progress: number;
   stages: {
-    normalize?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
-    scrape?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
-    brief?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
-    scenarios?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
-    script?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
-    veo?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
-    subtitles?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
-    render?: AdJobStatus | 'pending' | 'running' | 'done' | 'skipped';
+    normalize?: StageStatus;
+    scrape?: StageStatus;
+    brief?: StageStatus;
+    scenarios?: StageStatus;
+    script?: StageStatus;
+    veo?: StageStatus;
+    subtitles?: StageStatus;
+    render?: StageStatus;
   };
   creativeBrief?: CreativeBrief;
   script?: GeneratedScript;
