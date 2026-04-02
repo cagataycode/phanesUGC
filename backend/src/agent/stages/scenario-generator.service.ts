@@ -112,7 +112,16 @@ Create 4 scenarios that approach this product from completely different creative
     }
 
     return data.map((item, index) => {
-      const scenario = item as Record<string, unknown>;
+      // Type guard for scenario-like object
+      const isScenarioLike = (obj: unknown): obj is Partial<Scenario> => {
+        return typeof obj === 'object' && obj !== null;
+      };
+
+      if (!isScenarioLike(item)) {
+        throw new Error(`Invalid scenario at index ${index}`);
+      }
+
+      const scenario = item;
       const now = new Date();
 
       return {

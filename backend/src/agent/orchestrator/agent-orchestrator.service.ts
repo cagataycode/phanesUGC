@@ -147,7 +147,7 @@ export class AgentOrchestratorService {
           this.inputNormalizer.normalize(
             state.jobId,
             state.businessId,
-            state.artifacts.normalizedRequest as Record<string, unknown>,
+            state.artifacts.normalizedRequest as Partial<NormalizedRequest>,
           ),
         { jobId, stage: 'normalize' },
       );

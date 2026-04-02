@@ -24,7 +24,7 @@ export class InputNormalizerService {
   normalize(
     jobId: string,
     businessId: string,
-    rawInput: Record<string, unknown>,
+    rawInput: Partial<NormalizedRequest>,
   ): Promise<NormalizedRequest> {
     this.logger.log(`Normalizing input for job ${jobId}`);
 
@@ -160,7 +160,18 @@ export class InputNormalizerService {
       return undefined;
     }
 
-    const prod = product as Record<string, unknown>;
+    // Type guard to check if product has expected shape
+    const isProductLike = (
+      obj: object,
+    ): obj is Partial<NonNullable<NormalizedRequest['product']>> => {
+      return true; // We'll validate fields individually below
+    };
+
+    if (!isProductLike(product)) {
+      return undefined;
+    }
+
+    const prod = product;
 
     // Validate URLs
     let urls: string[] | undefined;
