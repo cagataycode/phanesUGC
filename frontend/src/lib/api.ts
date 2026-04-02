@@ -176,3 +176,212 @@ export async function listAdJobs(businessId: string): Promise<AdJobListItem[]> {
   if (!res.ok) throw new Error("Failed to list ad jobs");
   return res.json();
 }
+
+export interface WizardBriefRequest {
+  businessId: string;
+  productId: string;
+  prompt: string;
+  platform: 'tiktok' | 'instagram' | 'youtube';
+  language?: string;
+  tone?: string;
+  target_audience?: string;
+  cta?: string;
+  product_info?: {
+    name?: string;
+    description?: string;
+    benefits?: string[];
+  };
+}
+
+export interface CreativeBrief {
+  product_name?: string;
+  offer?: string;
+  audience?: string;
+  pain_points?: string[];
+  benefits?: string[];
+  tone?: string;
+  language?: string;
+  duration_sec?: number;
+  platform?: string;
+  cta?: string;
+  visual_style?: string;
+  aspect_ratio?: string;
+  key_message?: string;
+}
+
+export interface WizardScriptRequest {
+  businessId: string;
+  brief: CreativeBrief;
+}
+
+export interface GeneratedScript {
+  title?: string;
+  hook?: string;
+  body?: string;
+  cta?: string;
+  full_text: string;
+  visual_description?: string;
+}
+
+export interface WizardSceneRequest {
+  businessId: string;
+  brief: CreativeBrief;
+  script: GeneratedScript;
+  platform: 'tiktok' | 'instagram' | 'youtube';
+  aspectRatio: '9:16' | '16:9' | '1:1';
+  language?: string;
+  tone?: string;
+  target_audience?: string;
+  cta?: string;
+  product_info?: {
+    name?: string;
+    description?: string;
+    benefits?: string[];
+  };
+}
+
+export interface VeoScenePrompt {
+  scene_id: number;
+  project_id: string;
+  duration_seconds: number;
+  aspect_ratio: '9:16' | '16:9' | '1:1';
+  prompt: {
+    intent: string;
+    shot: {
+      type: string;
+      framing: string;
+      camera_angle: string;
+      camera_motion: string;
+      lens_feel: string;
+      composition: string;
+    };
+    subject: {
+      type: string;
+      description: string;
+      action: string;
+      identity_notes: string | null;
+    };
+    environment: {
+      location: string;
+      props: string[];
+      atmosphere: string;
+      time_of_day: string | null;
+    };
+    lighting: {
+      style: string;
+      color_temperature: string;
+      practical_lights: string | null;
+    };
+    audio: {
+      speech_text: string;
+      speech_style: string;
+      ambient_sound: string | null;
+      music_suggestion: string | null;
+    };
+    style: {
+      visual_style: string;
+      color_palette: string;
+      rendering_quality: string;
+      aesthetic_reference: string;
+    };
+    text_overlay: {
+      enabled: boolean;
+      text: string | null;
+      position: string | null;
+      style_hint: string | null;
+    };
+    cta: {
+      enabled: boolean;
+      text: string | null;
+      url_hint: string | null;
+    };
+  };
+  transition_in: 'cut' | 'fade' | 'slide' | 'dissolve';
+  transition_out: 'cut' | 'fade' | 'slide' | 'dissolve';
+  negative_prompt: string;
+  generation_config: {
+    model: string;
+    seed: number | null;
+    safety_filter: string;
+    retry_count: number;
+    priority: string;
+  };
+}
+
+export async function generateWizardBrief(
+  payload: WizardBriefRequest,
+): Promise<CreativeBrief> {
+  const res = await fetchWithAuth('/wizard/brief', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: {
+      'x-business-id': payload.businessId,
+    },
+  });
+  if (!res.ok) throw new Error('Failed to generate brief');
+  return res.json();
+}
+
+export async function generateWizardScript(
+  payload: WizardScriptRequest,
+): Promise<GeneratedScript> {
+  const res = await fetchWithAuth('/wizard/script', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: {
+      'x-business-id': payload.businessId,
+    },
+  });
+  if (!res.ok) throw new Error('Failed to generate script');
+  return res.json();
+}
+
+export async function generateWizardScene(
+  payload: WizardSceneRequest,
+): Promise<VeoScenePrompt> {
+  const res = await fetchWithAuth('/wizard/scene', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: {
+      'x-business-id': payload.businessId,
+    },
+  });
+  if (!res.ok) throw new Error('Failed to generate scene');
+  return res.json();
+}
+
+export interface WizardSubmitRequest {
+  businessId: string;
+  productId: string;
+  createdBy?: string;
+  prompt: string;
+  platform: 'tiktok' | 'instagram' | 'youtube';
+  language?: string;
+  tone?: string;
+  target_audience?: string;
+  cta?: string;
+  product_info?: {
+    name?: string;
+    description?: string;
+    benefits?: string[];
+  };
+  aspect_ratio: '9:16' | '1:1' | '16:9';
+  subtitle_style?: 'standard' | 'kinetic';
+  brief: CreativeBrief;
+  script: GeneratedScript;
+  scene: VeoScenePrompt;
+}
+
+export async function submitWizardJob(
+  payload: WizardSubmitRequest,
+): Promise<AdJobResponse> {
+  const res = await fetchWithAuth(
+    `/ads/wizard?businessId=${encodeURIComponent(payload.businessId)}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+  );
+  if (!res.ok) throw new Error('Failed to submit wizard job');
+  return res.json();
+}
