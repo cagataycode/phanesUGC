@@ -96,13 +96,18 @@ export class GcsStorageService {
   async importGeneratedVideo(
     sourceUrl: string,
     objectPath: string,
-  ): Promise<string> {
+  ): Promise<{ path: string; sizeBytes: number }> {
     if (sourceUrl.startsWith('gs://')) {
       const { bucketName, objectPath: sourceObjectPath } =
         this.parseGcsUri(sourceUrl);
 
       if (bucketName === this.bucketName && sourceObjectPath === objectPath) {
-        return objectPath;
+        // Get file size
+        const [metadata] = await this.storage
+          .bucket(this.bucketName)
+          .file(objectPath)
+          .getMetadata();
+        return { path: objectPath, sizeBytes: Number(metadata.size) || 0 };
       }
 
       await this.storage
@@ -110,7 +115,12 @@ export class GcsStorageService {
         .file(sourceObjectPath)
         .copy(this.storage.bucket(this.bucketName).file(objectPath));
 
-      return objectPath;
+      // Get file size after copy
+      const [metadata] = await this.storage
+        .bucket(this.bucketName)
+        .file(objectPath)
+        .getMetadata();
+      return { path: objectPath, sizeBytes: Number(metadata.size) || 0 };
     }
 
     const response = await fetch(sourceUrl);
@@ -122,6 +132,7 @@ export class GcsStorageService {
     }
 
     const arrayBuffer = await response.arrayBuffer();
+    const sizeBytes = arrayBuffer.byteLength;
 
     const file = this.storage.bucket(this.bucketName).file(objectPath);
 
@@ -130,7 +141,7 @@ export class GcsStorageService {
       contentType: response.headers.get('content-type') ?? 'video/mp4',
     });
 
-    return objectPath;
+    return { path: objectPath, sizeBytes };
   }
 
   async importAssetFromUrl(
