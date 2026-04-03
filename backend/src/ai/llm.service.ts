@@ -145,7 +145,7 @@ export class LlmService {
   ): Promise<unknown> {
     this.logger.debug('Generating content with AWS Bedrock Claude');
 
-    // Build Claude request with Structured Outputs
+    // Build Claude request with JSON mode (not strict schema)
     const requestBody = {
       anthropic_version: 'bedrock-2023-05-31',
       max_tokens: 4096,
@@ -162,17 +162,6 @@ export class LlmService {
           ],
         },
       ],
-      // Use Structured Outputs for guaranteed JSON compliance
-      output_config: {
-        format: {
-          type: 'json_schema',
-          schema: {
-            type: 'object',
-            properties: {},
-            additionalProperties: true, // Allow any JSON structure
-          },
-        },
-      },
     };
 
     const input: InvokeModelCommandInput = {
@@ -213,8 +202,15 @@ export class LlmService {
       `Bedrock response length: ${String(textContent.text.length)} chars`,
     );
 
-    // Parse JSON from response text
-    return JSON.parse(textContent.text);
+    // Parse JSON from response text, stripping markdown code blocks if present
+    let jsonText = textContent.text.trim();
+    
+    // Remove markdown code blocks (```json ... ``` or ``` ... ```)
+    if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    }
+
+    return JSON.parse(jsonText);
   }
 
   /**

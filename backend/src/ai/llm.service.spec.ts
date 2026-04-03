@@ -98,6 +98,54 @@ describe('LlmService', () => {
       expect(result).toEqual({ result: 'test response' });
       expect(mockBedrockSend).toHaveBeenCalledTimes(1);
     });
+
+    it('should strip markdown code blocks from Bedrock response', async () => {
+      const mockResponse = {
+        content: [
+          {
+            type: 'text',
+            text: '```json\n{"result": "test response"}\n```',
+          },
+        ],
+        stop_reason: 'end_turn',
+      };
+
+      mockBedrockSend.mockResolvedValue({
+        body: new TextEncoder().encode(JSON.stringify(mockResponse)),
+      });
+
+      const result = await service.generateContent(
+        'You are a helpful assistant',
+        'Generate a test response',
+      );
+
+      expect(result).toEqual({ result: 'test response' });
+      expect(mockBedrockSend).toHaveBeenCalledTimes(1);
+    });
+
+    it('should strip markdown code blocks without language specifier', async () => {
+      const mockResponse = {
+        content: [
+          {
+            type: 'text',
+            text: '```\n{"result": "test response"}\n```',
+          },
+        ],
+        stop_reason: 'end_turn',
+      };
+
+      mockBedrockSend.mockResolvedValue({
+        body: new TextEncoder().encode(JSON.stringify(mockResponse)),
+      });
+
+      const result = await service.generateContent(
+        'You are a helpful assistant',
+        'Generate a test response',
+      );
+
+      expect(result).toEqual({ result: 'test response' });
+      expect(mockBedrockSend).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('generateContent - Fallback to Gemini', () => {
