@@ -21,10 +21,7 @@ export class ScenarioGeneratorService {
     const userPrompt = this.buildUserPrompt(brief);
 
     try {
-      const response = await this.llm.generateContent(
-        systemPrompt,
-        userPrompt,
-      );
+      const response = await this.llm.generateContent(systemPrompt, userPrompt);
 
       const scenarios = this.parseResponse(response);
       const now = new Date();

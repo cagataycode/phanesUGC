@@ -8,7 +8,6 @@ jest.mock('@aws-sdk/client-bedrock-runtime');
 
 describe('LlmService', () => {
   let service: LlmService;
-  let configService: ConfigService;
   let mockBedrockSend: jest.Mock;
 
   const mockConfig = {
@@ -33,6 +32,7 @@ describe('LlmService', () => {
         {
           provide: ConfigService,
           useValue: {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-return
             get: jest.fn((key: string) => mockConfig[key]),
           },
         },
@@ -40,7 +40,6 @@ describe('LlmService', () => {
     }).compile();
 
     service = module.get<LlmService>(LlmService);
-    configService = module.get<ConfigService>(ConfigService);
   });
 
   afterEach(() => {
@@ -63,10 +62,11 @@ describe('LlmService', () => {
     });
 
     it('should throw error if AWS credentials are missing', () => {
-      const invalidConfig = { ...mockConfig };
+      const invalidConfig: Record<string, string> = { ...mockConfig };
       delete invalidConfig.AWS_ACCESS_KEY_ID;
 
       expect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         new LlmService({
           get: jest.fn((key: string) => invalidConfig[key]),
         } as any);
@@ -153,26 +153,19 @@ describe('LlmService', () => {
       // Mock Bedrock failure
       mockBedrockSend.mockRejectedValue(new Error('Bedrock API error'));
 
-      // Mock Gemini success
-      const mockGeminiResponse = {
-        response: {
-          text: () => JSON.stringify({ fallback: 'gemini response' }),
-        },
-      };
-
       // We need to mock the Gemini client, but since it's initialized in constructor,
       // we'll test the error handling path
-      await expect(
-        service.generateContent('system', 'user'),
-      ).rejects.toThrow(/LLM generation failed/);
+      await expect(service.generateContent('system', 'user')).rejects.toThrow(
+        /LLM generation failed/,
+      );
     });
 
     it('should throw error when both providers fail', async () => {
       mockBedrockSend.mockRejectedValue(new Error('Bedrock failed'));
 
-      await expect(
-        service.generateContent('system', 'user'),
-      ).rejects.toThrow(/LLM generation failed/);
+      await expect(service.generateContent('system', 'user')).rejects.toThrow(
+        /LLM generation failed/,
+      );
     });
   });
 
@@ -182,9 +175,9 @@ describe('LlmService', () => {
         body: new TextEncoder().encode(JSON.stringify({ content: [] })),
       });
 
-      await expect(
-        service.generateContent('system', 'user'),
-      ).rejects.toThrow(/Invalid response structure/);
+      await expect(service.generateContent('system', 'user')).rejects.toThrow(
+        /Invalid response structure/,
+      );
     });
 
     it('should handle missing text content in Bedrock response', async () => {
@@ -196,9 +189,9 @@ describe('LlmService', () => {
         body: new TextEncoder().encode(JSON.stringify(mockResponse)),
       });
 
-      await expect(
-        service.generateContent('system', 'user'),
-      ).rejects.toThrow(/No text content in Bedrock Claude response/);
+      await expect(service.generateContent('system', 'user')).rejects.toThrow(
+        /No text content in Bedrock Claude response/,
+      );
     });
 
     it('should handle invalid JSON in Bedrock response', async () => {
@@ -211,15 +204,13 @@ describe('LlmService', () => {
         body: new TextEncoder().encode(JSON.stringify(mockResponse)),
       });
 
-      await expect(
-        service.generateContent('system', 'user'),
-      ).rejects.toThrow();
+      await expect(service.generateContent('system', 'user')).rejects.toThrow();
     });
   });
 
   describe('generateContent - Without fallback', () => {
     beforeEach(async () => {
-      const configWithoutGemini = { ...mockConfig };
+      const configWithoutGemini: Record<string, string> = { ...mockConfig };
       delete configWithoutGemini.GEMINI_API_KEY;
 
       const module: TestingModule = await Test.createTestingModule({
@@ -240,9 +231,9 @@ describe('LlmService', () => {
     it('should throw error when Bedrock fails and no fallback is configured', async () => {
       mockBedrockSend.mockRejectedValue(new Error('Bedrock error'));
 
-      await expect(
-        service.generateContent('system', 'user'),
-      ).rejects.toThrow(/no fallback configured/);
+      await expect(service.generateContent('system', 'user')).rejects.toThrow(
+        /no fallback configured/,
+      );
     });
   });
 });

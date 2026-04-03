@@ -15,10 +15,7 @@ export const envSchema = z.object({
   AWS_ACCESS_KEY_ID: z.string().min(1),
   AWS_SECRET_ACCESS_KEY: z.string().min(1),
   AWS_REGION: z.string().min(1).default('us-east-1'),
-  BEDROCK_MODEL_ID: z
-    .string()
-    .min(1)
-    .default('us.anthropic.claude-sonnet-4-6'),
+  BEDROCK_MODEL_ID: z.string().min(1).default('us.anthropic.claude-sonnet-4-6'),
   // Gemini API (Fallback LLM Provider)
   GEMINI_API_KEY: z.string().min(1).optional(), // Now optional - used as fallback
   PORT: z.coerce.number().int().positive().default(3000),

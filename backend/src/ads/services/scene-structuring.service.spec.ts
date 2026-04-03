@@ -280,9 +280,7 @@ describe('SceneStructuringService', () => {
     });
 
     it('should throw error if LLM fails', async () => {
-      llmService.generateContent.mockRejectedValue(
-        new Error('LLM API error'),
-      );
+      llmService.generateContent.mockRejectedValue(new Error('LLM API error'));
 
       await expect(
         service.structureSingleScene(mockCreateAdDto, mockBrief, mockScript),
@@ -425,9 +423,7 @@ describe('SceneStructuringService', () => {
         duration_seconds: 10,
       };
 
-      llmService.generateContent.mockResolvedValue(
-        responseWithWrongDuration,
-      );
+      llmService.generateContent.mockResolvedValue(responseWithWrongDuration);
 
       const result = await service.structureSingleScene(
         mockCreateAdDto,
@@ -479,9 +475,7 @@ describe('SceneStructuringService', () => {
         negative_prompt: 'no animals',
       };
 
-      llmService.generateContent.mockResolvedValue(
-        responseWithCustomNegative,
-      );
+      llmService.generateContent.mockResolvedValue(responseWithCustomNegative);
 
       const result = await service.structureSingleScene(
         mockCreateAdDto,

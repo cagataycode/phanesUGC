@@ -12,6 +12,16 @@ import {
 } from '@google/generative-ai';
 import { Env } from '../config/env';
 
+interface BedrockResponseContent {
+  type: string;
+  text?: string;
+}
+
+interface BedrockResponse {
+  content: BedrockResponseContent[];
+  stop_reason: string;
+}
+
 /**
  * LlmService - Unified LLM service with AWS Bedrock Claude as primary and Gemini as fallback
  *
@@ -175,7 +185,9 @@ export class LlmService {
     const response = await this.bedrockClient.send(command);
 
     // Parse Bedrock response
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+    const responseBody = JSON.parse(
+      new TextDecoder().decode(response.body),
+    ) as BedrockResponse;
 
     this.logger.debug(
       `Bedrock response: stop_reason=${responseBody.stop_reason}`,
@@ -191,26 +203,28 @@ export class LlmService {
     }
 
     const textContent = responseBody.content.find(
-      (block: { type: string; text?: string }) => block.type === 'text',
+      (block) => block.type === 'text',
     );
 
-    if (!textContent || !textContent.text) {
+    if (!textContent?.text) {
       throw new Error('No text content in Bedrock Claude response');
     }
 
     this.logger.debug(
-      `Bedrock response length: ${String(textContent.text.length)} chars`,
+      `Bedrock response length: ${textContent.text.length} chars`,
     );
 
     // Parse JSON from response text, stripping markdown code blocks if present
-    let jsonText = textContent.text.trim();
-    
+    let jsonText: string = textContent.text.trim();
+
     // Remove markdown code blocks (```json ... ``` or ``` ... ```)
     if (jsonText.startsWith('```')) {
-      jsonText = jsonText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      jsonText = jsonText
+        .replace(/^```(?:json)?\n?/, '')
+        .replace(/\n?```$/, '');
     }
 
-    return JSON.parse(jsonText);
+    return JSON.parse(jsonText) as unknown;
   }
 
   /**
@@ -233,10 +247,8 @@ export class LlmService {
       });
 
     const responseText = result.response.text();
-    this.logger.debug(
-      `Gemini response length: ${String(responseText.length)} chars`,
-    );
+    this.logger.debug(`Gemini response length: ${responseText.length} chars`);
 
-    return JSON.parse(responseText);
+    return JSON.parse(responseText) as unknown;
   }
 }
