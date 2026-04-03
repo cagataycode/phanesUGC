@@ -103,7 +103,9 @@ export class VideoGeneratorService {
     // Check if we have a recent successful attempt (within last 5 minutes)
     if (existingAttempts && existingAttempts.length > 0) {
       const recentAttempt = existingAttempts.find((attempt) => {
-        const ageMs = Date.now() - new Date(attempt.timestamp).getTime();
+        // Handle Firestore Timestamp objects (after round-trip from Firestore)
+        const timestamp = this.toDate(attempt.timestamp);
+        const ageMs = Date.now() - timestamp.getTime();
         return ageMs < 5 * 60 * 1000; // 5 minutes
       });
 
@@ -128,7 +130,7 @@ export class VideoGeneratorService {
             seed: prompt.generationConfig.seed ?? undefined,
             generationTimeSec: 0,
           },
-          generatedAt: new Date(recentAttempt.timestamp),
+          generatedAt: this.toDate(recentAttempt.timestamp),
         };
 
         return {
@@ -230,5 +232,25 @@ export class VideoGeneratorService {
     parts.push(`Aesthetic: ${p.style.aestheticReference}.`);
 
     return parts.join(' ');
+  }
+
+  /**
+   * Convert Firestore Timestamp to Date
+   * Handles Date, Firestore Timestamp, string, and number formats
+   */
+  private toDate(value: unknown): Date {
+    if (value instanceof Date) {
+      return value;
+    }
+    // Firestore Timestamp has toDate() method
+    if (value && typeof value === 'object' && 'toDate' in value) {
+      return (value as { toDate: () => Date }).toDate();
+    }
+    // Handle string or number timestamps
+    if (typeof value === 'string' || typeof value === 'number') {
+      return new Date(value);
+    }
+    // Fallback to current date if invalid
+    return new Date();
   }
 }

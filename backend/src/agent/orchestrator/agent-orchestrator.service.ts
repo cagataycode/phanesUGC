@@ -304,6 +304,7 @@ export class AgentOrchestratorService {
     // Update state with selected scenario and mark video generation as starting
     state.selectedScenarioId = scenarioId;
     state.videoGenerationStatus = 'in_progress'; // Set immediately to prevent race
+    state.videoGenerationStartedAt = new Date(); // Set start time
     this.transitionStage(state, 'scenario_selected');
     await this.saveState(state);
 
@@ -332,10 +333,15 @@ export class AgentOrchestratorService {
       return state.artifacts.finalOutput as FinalOutput;
     }
 
-    // Ensure status is set to in_progress
-    if (state.videoGenerationStatus !== 'in_progress') {
+    // Ensure status is set to in_progress and start timestamp exists
+    if (
+      state.videoGenerationStatus !== 'in_progress' ||
+      !state.videoGenerationStartedAt
+    ) {
       state.videoGenerationStatus = 'in_progress';
-      state.videoGenerationStartedAt = new Date();
+      if (!state.videoGenerationStartedAt) {
+        state.videoGenerationStartedAt = new Date();
+      }
       await this.saveState(state);
     }
 
@@ -575,8 +581,10 @@ export class AgentOrchestratorService {
       stage,
       getCurrentRetryCount: () => this.getCurrentRetryCount(jobId, businessId),
       onRetryAttempt: async (attemptNumber, error) => {
-        await this.incrementRetryCount(state);
+        // Increment retry count and record error
+        state.totalRetryCount++;
         this.recordError(state, state.stage, error);
+        // Single saveState call (incrementRetryCount was doing a redundant save)
         await this.saveState(state);
         this.logger.log(
           `[${jobId}] Retry attempt ${attemptNumber} for ${stage}, state saved`,
@@ -588,12 +596,12 @@ export class AgentOrchestratorService {
   /**
    * Record an error in the job state
    *
-   * Note: retryCount reflects the number of previously persisted errors for this stage,
-   * not the number of retry attempts made by RetryPolicy. RetryPolicy retries are logged
-   * but not recorded in state.errors until they fail completely.
+   * Note: With state persistence during retries (Phase 3), errors are now recorded
+   * on each retry attempt, not just final failures. The retryCount field reflects
+   * the number of previously persisted errors for this stage.
    *
-   * Example: If RetryPolicy retries 2 times and all fail, only 1 error is recorded with retryCount=0
-   * (or higher if this stage has failed before in the same job).
+   * Example: If RetryPolicy retries 1 time and both attempts fail, 2 errors are recorded
+   * (one with retryCount=0 for first attempt, one with retryCount=1 for retry).
    */
   private recordError(
     state: AgentJobState,
