@@ -44,10 +44,10 @@ export class RenderExecutorService {
     const { mkdtemp, rm } = await import('node:fs/promises');
     const { tmpdir } = await import('node:os');
     const path = await import('node:path');
-    
+
     const tempDir = await mkdtemp(path.join(tmpdir(), 'phanes-video-'));
     const localVideoPath = path.join(tempDir, 'source-video.mp4');
-    
+
     this.logger.debug(`Downloading source video to ${localVideoPath}`);
     await this.gcsStorage.downloadFile(objectPath, localVideoPath);
 
