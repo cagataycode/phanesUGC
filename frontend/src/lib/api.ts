@@ -20,7 +20,7 @@ export interface AdPromptInputs {
 }
 
 export interface AdVeoConfigInputs {
-  aspect_ratio: "9:16" | "1:1" | "16:9";
+  aspect_ratio: "9:16" | "16:9";
   duration_sec: 8 | 15 | 30 | 60;
   negative_prompt?: string;
   person_generation?: "allow_all" | "allow_adult";

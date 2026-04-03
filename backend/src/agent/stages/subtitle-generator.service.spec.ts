@@ -42,6 +42,7 @@ describe('SubtitleGeneratorService', () => {
         gcsPath: 'test/video.mp4',
         actualDurationSec: 8,
         resolution: { width: 1080, height: 1920 },
+        fps: 24,
         generatedAt: new Date(),
       };
 
@@ -81,6 +82,7 @@ describe('SubtitleGeneratorService', () => {
         gcsPath: 'test/video.mp4',
         actualDurationSec: 10, // Actual video is longer
         resolution: { width: 1080, height: 1920 },
+        fps: 24,
         generatedAt: new Date(),
       };
 
@@ -115,6 +117,7 @@ describe('SubtitleGeneratorService', () => {
         gcsPath: 'test/video.mp4',
         actualDurationSec: 8,
         resolution: { width: 1080, height: 1920 },
+        fps: 24,
         generatedAt: new Date(),
       };
 
@@ -150,6 +153,7 @@ describe('SubtitleGeneratorService', () => {
         gcsPath: 'test/video.mp4',
         actualDurationSec: 8,
         resolution: { width: 1080, height: 1920 },
+        fps: 24,
         generatedAt: new Date(),
       };
 
@@ -186,6 +190,7 @@ describe('SubtitleGeneratorService', () => {
         gcsPath: 'test/video.mp4',
         actualDurationSec: 8,
         resolution: { width: 1080, height: 1920 },
+        fps: 24,
         generatedAt: new Date(),
       };
 
@@ -226,6 +231,7 @@ describe('SubtitleGeneratorService', () => {
         gcsPath: 'test/path.mp4',
         actualDurationSec: 2,
         resolution: { width: 1080, height: 1920 },
+        fps: 24,
         generatedAt: new Date(),
       };
 

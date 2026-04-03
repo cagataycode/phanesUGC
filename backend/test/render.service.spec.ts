@@ -30,8 +30,8 @@ describe('RenderService', () => {
   it('prepares an empty phrases array when phrases are not supplied', () => {
     const request = renderService.prepareRenderRequest({
       videoUrl: 'https://example.com/video.mp4',
-      fps: 30,
-      durationInFrames: 90,
+      fps: 24,
+      durationInFrames: 192, // 8 seconds at 24 fps
       width: 1080,
       height: 1920,
       subtitleStyle: 'kinetic',
@@ -55,8 +55,8 @@ describe('RenderService', () => {
     const request = renderService.prepareRenderRequest({
       videoUrl: 'https://example.com/video.mp4',
       phrases,
-      fps: 30,
-      durationInFrames: 90,
+      fps: 24,
+      durationInFrames: 192,
       width: 1080,
       height: 1920,
       subtitleStyle: 'kinetic',
@@ -77,8 +77,8 @@ describe('RenderService', () => {
           lines: ['Make videos faster with AI'],
         },
       ],
-      fps: 30,
-      durationInFrames: 90,
+      fps: 24,
+      durationInFrames: 192,
       width: 1080,
       height: 1920,
       subtitleStyle: 'kinetic',
@@ -107,8 +107,8 @@ describe('RenderService', () => {
           lines: ['Hello world'],
         },
       ],
-      fps: 30,
-      durationInFrames: 30,
+      fps: 24,
+      durationInFrames: 192,
       width: 1080,
       height: 1920,
       subtitleStyle: 'kinetic',

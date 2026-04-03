@@ -64,6 +64,7 @@ export class VideoGeneratorService {
       gcsPath,
       actualDurationSec: prompt.durationSeconds, // Veo should match requested duration
       resolution,
+      fps: 24, // Veo 3.1 outputs 24 fps
       fileSizeBytes: 0, // Will be populated when we add metadata extraction
       veoOperationId: result.providerJobId,
       metadata: {
@@ -82,7 +83,7 @@ export class VideoGeneratorService {
   }
 
   /**
-   * Get expected resolution for aspect ratio
+   * Get expected resolution for aspect ratio (Veo 3.1 supports 16:9 and 9:16 only)
    */
   private getResolutionForAspectRatio(aspectRatio: string): {
     width: number;
@@ -93,9 +94,11 @@ export class VideoGeneratorService {
         return { width: 1080, height: 1920 };
       case '16:9':
         return { width: 1920, height: 1080 };
-      case '1:1':
-        return { width: 1080, height: 1080 };
       default:
+        // Default to portrait for unsupported aspect ratios
+        this.logger.warn(
+          `Unsupported aspect ratio ${aspectRatio}, defaulting to 9:16`,
+        );
         return { width: 1080, height: 1920 };
     }
   }

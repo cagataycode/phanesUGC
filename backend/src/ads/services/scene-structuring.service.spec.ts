@@ -387,7 +387,7 @@ describe('SceneStructuringService', () => {
           language: 'en',
         },
         veo_config: {
-          aspect_ratio: '1:1',
+          aspect_ratio: '9:16',
         },
       } as CreateAdDto;
 
@@ -396,7 +396,7 @@ describe('SceneStructuringService', () => {
         language: 'en',
         duration_sec: 8,
         platform: 'instagram',
-        aspect_ratio: '1:1',
+        aspect_ratio: '9:16',
       } as CreativeBrief;
 
       const minimalScript = {

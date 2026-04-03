@@ -64,7 +64,7 @@ import { Separator } from "@/components/ui/separator";
 const formSchema = z.object({
   prompt: z.string().min(5, "Prompt must be at least 5 characters."),
   platform: z.enum(["tiktok", "instagram", "youtube"]),
-  aspect_ratio: z.enum(["9:16", "1:1", "16:9"]),
+  aspect_ratio: z.enum(["9:16", "16:9"]),
   duration_sec: z.enum(["8", "15", "30", "60"]),
   language: z.enum(["en", "de"]),
   tone: z.string().optional(),
@@ -543,14 +543,6 @@ export function AdCreationForm() {
                               </FormControl>
                               <FormLabel className="font-normal">
                                 {t("fields.aspectRatio.options.9:16")}
-                              </FormLabel>
-                            </FormItem>
-                            <FormItem className="flex items-center space-x-2 space-y-0">
-                              <FormControl>
-                                <RadioGroupItem value="1:1" />
-                              </FormControl>
-                              <FormLabel className="font-normal">
-                                {t("fields.aspectRatio.options.1:1")}
                               </FormLabel>
                             </FormItem>
                             <FormItem className="flex items-center space-x-2 space-y-0">

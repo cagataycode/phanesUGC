@@ -107,6 +107,7 @@ describe('Agent Foundation - Scenario Generation', () => {
         gcsPath: 'gs://bucket/video.mp4',
         actualDurationSec: 8,
         resolution: { width: 1080, height: 1920 },
+        fps: 24,
         fileSizeBytes: 10 * 1024 * 1024,
         generatedAt: new Date(),
       };
@@ -123,6 +124,7 @@ describe('Agent Foundation - Scenario Generation', () => {
         gcsPath: 'gs://bucket/video.mp4',
         actualDurationSec: 12, // Too long
         resolution: { width: 1920, height: 1080 }, // Wrong aspect ratio
+        fps: 24,
         fileSizeBytes: 0, // Invalid size
         generatedAt: new Date(),
       };

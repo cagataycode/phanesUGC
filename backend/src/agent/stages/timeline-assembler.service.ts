@@ -21,7 +21,8 @@ export class TimelineAssemblerService {
   ): Promise<RenderTimeline> {
     this.logger.log(`Assembling render timeline for job ${jobId}`);
 
-    const fps = 30;
+    // Use Veo 3.1's native 24 fps
+    const fps = veoOutput.fps;
     const durationInFrames = Math.round(veoOutput.actualDurationSec * fps);
 
     const timeline: RenderTimeline = {

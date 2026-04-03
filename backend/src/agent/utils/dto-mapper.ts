@@ -113,10 +113,7 @@ export class DtoMapper {
       keyMessage: adsBrief.key_message || 'Discover our product',
       targetPlatform,
       targetDuration: adsBrief.duration_sec || 8,
-      targetAspectRatio: (adsBrief.aspect_ratio || '9:16') as
-        | '9:16'
-        | '16:9'
-        | '1:1',
+      targetAspectRatio: (adsBrief.aspect_ratio || '9:16') as '9:16' | '16:9',
       language: adsBrief.language || 'en',
       createdAt: new Date(),
     };
