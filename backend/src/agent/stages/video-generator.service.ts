@@ -236,21 +236,25 @@ export class VideoGeneratorService {
 
   /**
    * Convert Firestore Timestamp to Date
-   * Handles Date, Firestore Timestamp, string, and number formats
+   * Handles Date, Firestore Timestamp, string, and number formats.
+   * Returns the Unix epoch for invalid or missing values so callers do not
+   * mistakenly treat an unparseable timestamp as fresh.
    */
   private toDate(value: unknown): Date {
     if (value instanceof Date) {
-      return value;
+      return Number.isNaN(value.getTime()) ? new Date(0) : value;
     }
     // Firestore Timestamp has toDate() method
     if (value && typeof value === 'object' && 'toDate' in value) {
-      return (value as { toDate: () => Date }).toDate();
+      const date = (value as { toDate: () => Date }).toDate();
+      return Number.isNaN(date.getTime()) ? new Date(0) : date;
     }
     // Handle string or number timestamps
     if (typeof value === 'string' || typeof value === 'number') {
-      return new Date(value);
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? new Date(0) : date;
     }
-    // Fallback to current date if invalid
-    return new Date();
+    // Fallback to a non-fresh sentinel if invalid or missing
+    return new Date(0);
   }
 }

@@ -92,6 +92,18 @@ export class DtoMapper {
       targetPlatform = 'tiktok';
     }
 
+    // Validate and normalize aspect ratio (only 9:16 and 16:9 supported)
+    let targetAspectRatio: '9:16' | '16:9';
+    if (adsBrief.aspect_ratio === '16:9') {
+      targetAspectRatio = '16:9';
+    } else if (adsBrief.aspect_ratio === '1:1') {
+      // Legacy 1:1 format no longer supported, default to 9:16
+      targetAspectRatio = '9:16';
+    } else {
+      // Default to 9:16 for any other value
+      targetAspectRatio = '9:16';
+    }
+
     return {
       productName: adsBrief.product_name || productContext.name,
       productCategory: productContext.category,
@@ -113,7 +125,7 @@ export class DtoMapper {
       keyMessage: adsBrief.key_message || 'Discover our product',
       targetPlatform,
       targetDuration: adsBrief.duration_sec || 8,
-      targetAspectRatio: (adsBrief.aspect_ratio || '9:16') as '9:16' | '16:9',
+      targetAspectRatio,
       language: adsBrief.language || 'en',
       createdAt: new Date(),
     };

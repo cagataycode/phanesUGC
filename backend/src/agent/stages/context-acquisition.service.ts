@@ -78,7 +78,7 @@ export class ContextAcquisitionService {
     }
 
     // Case 2: Check cache first (idempotency)
-    if (cachedScrapeResults) {
+    if (cachedScrapeResults && Array.isArray(cachedScrapeResults)) {
       this.logger.log('Using cached scrape results (idempotency)');
       const scrapeResults = cachedScrapeResults as ScrapeResult[];
       const bestResult = this.selectBestScrapeResult(scrapeResults);

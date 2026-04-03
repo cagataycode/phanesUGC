@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import * as admin from 'firebase-admin';
 import { FirestoreService } from '../../firebase/firestore.service';
 import { AgentJobState, AgentStage } from './agent-state.model';
 import { InputNormalizerService } from '../stages/input-normalizer.service';
@@ -157,7 +158,13 @@ export class AgentOrchestratorService {
             state.businessId,
             state.artifacts.normalizedRequest as Partial<NormalizedRequest>,
           ),
-        this.createRetryContext(jobId, businessId, 'normalize', state),
+        this.createRetryContext(
+          jobId,
+          businessId,
+          'normalize',
+          state,
+          'normalized',
+        ),
       );
       this.transitionStage(state, 'normalized');
       state.artifacts.normalizedRequest = normalizedRequest;
@@ -179,6 +186,7 @@ export class AgentOrchestratorService {
             businessId,
             'context_acquisition',
             state,
+            'context_ready',
           ),
         );
         productContext = result.context;
@@ -201,7 +209,13 @@ export class AgentOrchestratorService {
       try {
         creativeBrief = await this.retryPolicy.execute(
           () => this.briefBuilder.build(normalizedRequest, productContext),
-          this.createRetryContext(jobId, businessId, 'brief_builder', state),
+          this.createRetryContext(
+            jobId,
+            businessId,
+            'brief_builder',
+            state,
+            'brief_ready',
+          ),
         );
       } catch (error) {
         // Fallback: Use template brief if generation fails
@@ -220,7 +234,13 @@ export class AgentOrchestratorService {
       this.logger.debug(`[${jobId}] Starting Stage 4: Generate scenarios`);
       const scenarioSet = await this.retryPolicy.execute(
         () => this.scenarioGenerator.generate(state.jobId, creativeBrief),
-        this.createRetryContext(jobId, businessId, 'scenario_generator', state),
+        this.createRetryContext(
+          jobId,
+          businessId,
+          'scenario_generator',
+          state,
+          'scenarios_ready',
+        ),
       );
       this.transitionStage(state, 'scenarios_ready');
       state.artifacts.scenarioSet = scenarioSet;
@@ -255,6 +275,7 @@ export class AgentOrchestratorService {
 
   /**
    * Select a scenario and trigger video generation
+   * Uses Firestore transaction to prevent race conditions
    */
   async selectScenario(
     jobId: string,
@@ -263,52 +284,75 @@ export class AgentOrchestratorService {
   ): Promise<void> {
     this.logger.log(`Scenario ${scenarioId} selected for job ${jobId}`);
 
-    const state = await this.loadState(jobId, businessId);
+    // Validate IDs before constructing path
+    this.validateId(jobId);
+    this.validateId(businessId);
 
-    // Validate scenario selection
-    if (state.stage !== 'scenarios_ready') {
-      throw new Error('Invalid job state for scenario selection');
-    }
+    const docPath = `businesses/${businessId}/agent_jobs/${jobId}`;
+    const docRef = this.firestore.doc(docPath);
 
-    if (state.scenarioExpiresAt && new Date() > state.scenarioExpiresAt) {
-      throw new Error('Scenario selection has expired');
-    }
+    // Use Firestore transaction for atomic read-check-write
+    await this.firestore.runTransaction(
+      async (transaction: admin.firestore.Transaction) => {
+        const doc = await transaction.get(docRef);
 
-    // Validate scenarioId is 1-4
-    if (!Number.isInteger(scenarioId) || scenarioId < 1 || scenarioId > 4) {
-      throw new Error('Invalid scenario selection');
-    }
+        if (!doc.exists) {
+          throw new Error('Job not found');
+        }
 
-    // Validate scenario exists in generated set
-    const scenarioSet = state.artifacts.scenarioSet as ScenarioSet;
-    if (!scenarioSet?.scenarios?.find((s) => s.scenarioId === scenarioId)) {
-      throw new Error('Selected scenario not found');
-    }
+        const data = doc.data() as AgentJobState;
 
-    // CRITICAL: Check if video generation is already running (race condition prevention)
-    if (state.videoGenerationStatus === 'in_progress') {
-      this.logger.warn(
-        `Video generation already in progress for job ${jobId}, ignoring duplicate request`,
-      );
-      throw new Error('Video generation already in progress');
-    }
+        // Validate scenario selection
+        if (data.stage !== 'scenarios_ready') {
+          throw new Error('Invalid job state for scenario selection');
+        }
 
-    // CRITICAL: Check if video generation is already completed
-    if (state.videoGenerationStatus === 'completed') {
-      this.logger.warn(
-        `Video generation already completed for job ${jobId}, ignoring duplicate request`,
-      );
-      throw new Error('Video generation already completed');
-    }
+        if (data.scenarioExpiresAt) {
+          const expiresAt = this.toDate(data.scenarioExpiresAt);
+          if (new Date() > expiresAt) {
+            throw new Error('Scenario selection has expired');
+          }
+        }
 
-    // Update state with selected scenario and mark video generation as starting
-    state.selectedScenarioId = scenarioId;
-    state.videoGenerationStatus = 'in_progress'; // Set immediately to prevent race
-    state.videoGenerationStartedAt = new Date(); // Set start time
-    this.transitionStage(state, 'scenario_selected');
-    await this.saveState(state);
+        // Validate scenarioId is 1-4
+        if (!Number.isInteger(scenarioId) || scenarioId < 1 || scenarioId > 4) {
+          throw new Error('Invalid scenario selection');
+        }
 
-    // Start video generation asynchronously
+        // Validate scenario exists in generated set
+        const scenarioSet = data.artifacts.scenarioSet as ScenarioSet;
+        if (!scenarioSet?.scenarios?.find((s) => s.scenarioId === scenarioId)) {
+          throw new Error('Selected scenario not found');
+        }
+
+        // CRITICAL: Check if video generation is already running (race condition prevention)
+        if (data.videoGenerationStatus === 'in_progress') {
+          this.logger.warn(
+            `Video generation already in progress for job ${jobId}, ignoring duplicate request`,
+          );
+          throw new Error('Video generation already in progress');
+        }
+
+        // CRITICAL: Check if video generation is already completed
+        if (data.videoGenerationStatus === 'completed') {
+          this.logger.warn(
+            `Video generation already completed for job ${jobId}, ignoring duplicate request`,
+          );
+          throw new Error('Video generation already completed');
+        }
+
+        // Atomic update: set selected scenario and mark as in_progress
+        transaction.update(docRef, {
+          selectedScenarioId: scenarioId,
+          videoGenerationStatus: 'in_progress',
+          videoGenerationStartedAt: new Date(),
+          stage: 'scenario_selected',
+          updatedAt: new Date(),
+        });
+      },
+    );
+
+    // Start video generation asynchronously (after transaction commits)
     void this.runVideoGeneration(jobId, businessId);
   }
 
@@ -360,7 +404,13 @@ export class AgentOrchestratorService {
             state.selectedScenarioId!,
             creativeBrief,
           ),
-        this.createRetryContext(jobId, businessId, 'script_generator', state),
+        this.createRetryContext(
+          jobId,
+          businessId,
+          'script_generator',
+          state,
+          'script_ready',
+        ),
       );
       this.transitionStage(state, 'script_ready');
       state.artifacts.adScript = adScript;
@@ -387,7 +437,13 @@ export class AgentOrchestratorService {
             productContext,
             normalizedRequest,
           ),
-        this.createRetryContext(jobId, businessId, 'veo_prompt_builder', state),
+        this.createRetryContext(
+          jobId,
+          businessId,
+          'veo_prompt_builder',
+          state,
+          'veo_prompt_ready',
+        ),
       );
       this.transitionStage(state, 'veo_prompt_ready');
       state.artifacts.veoPrompt = veoPrompt;
@@ -405,7 +461,13 @@ export class AgentOrchestratorService {
               timestamp: Date;
             }>,
           ),
-        this.createRetryContext(jobId, businessId, 'video_generator', state),
+        this.createRetryContext(
+          jobId,
+          businessId,
+          'video_generator',
+          state,
+          'veo_output_ready',
+        ),
       );
       const veoOutput = veoResult.output;
 
@@ -448,7 +510,13 @@ export class AgentOrchestratorService {
             veoOutput,
             normalizedRequest.subtitleStyle,
           ),
-        this.createRetryContext(jobId, businessId, 'subtitle_generator', state),
+        this.createRetryContext(
+          jobId,
+          businessId,
+          'subtitle_generator',
+          state,
+          'subtitles_ready',
+        ),
       );
       this.transitionStage(state, 'subtitles_ready');
       state.artifacts.subtitleData = subtitleData;
@@ -467,7 +535,13 @@ export class AgentOrchestratorService {
             subtitleData,
             state.artifacts.normalizedRequest as NormalizedRequest,
           ),
-        this.createRetryContext(jobId, businessId, 'timeline_assembler', state),
+        this.createRetryContext(
+          jobId,
+          businessId,
+          'timeline_assembler',
+          state,
+          'composition_ready',
+        ),
       );
       this.transitionStage(state, 'composition_ready');
       state.artifacts.renderTimeline = renderTimeline;
@@ -477,7 +551,13 @@ export class AgentOrchestratorService {
       this.transitionStage(state, 'rendering');
       const finalOutput = await this.retryPolicy.execute(
         () => this.renderExecutor.render(renderTimeline),
-        this.createRetryContext(jobId, businessId, 'render_executor', state),
+        this.createRetryContext(
+          jobId,
+          businessId,
+          'render_executor',
+          state,
+          'completed',
+        ),
       );
       this.transitionStage(state, 'completed');
 
@@ -568,8 +648,9 @@ export class AgentOrchestratorService {
   private createRetryContext(
     jobId: string,
     businessId: string,
-    stage: string,
+    stageName: string,
     state: AgentJobState,
+    targetStage: AgentStage,
   ): {
     jobId: string;
     stage: string;
@@ -578,16 +659,16 @@ export class AgentOrchestratorService {
   } {
     return {
       jobId,
-      stage,
+      stage: stageName,
       getCurrentRetryCount: () => this.getCurrentRetryCount(jobId, businessId),
       onRetryAttempt: async (attemptNumber, error) => {
-        // Increment retry count and record error
+        // Increment retry count and record error against the target stage
         state.totalRetryCount++;
-        this.recordError(state, state.stage, error);
-        // Single saveState call (incrementRetryCount was doing a redundant save)
+        this.recordError(state, targetStage, error);
+        // Single saveState call
         await this.saveState(state);
         this.logger.log(
-          `[${jobId}] Retry attempt ${attemptNumber} for ${stage}, state saved`,
+          `[${jobId}] Retry attempt ${attemptNumber} for ${stageName}, state saved`,
         );
       },
     };
