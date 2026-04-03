@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { GeminiService } from '../../ai/gemini.service';
+import { LlmService } from '../../ai/llm.service';
 import { CreativeBrief } from '../types/creative-brief';
 import { GeneratedScript } from '../types/generated-script';
 
@@ -50,15 +50,15 @@ Return ONLY a valid JSON object with this exact structure:
 export class ScriptGenerationService {
   private readonly logger = new Logger(ScriptGenerationService.name);
 
-  constructor(private readonly geminiService: GeminiService) {}
+  constructor(private readonly llmService: LlmService) {}
 
   async generate(brief: CreativeBrief): Promise<GeneratedScript> {
     const userPrompt = this.buildUserPrompt(brief);
 
-    this.logger.log('Generating script with Gemini');
+    this.logger.log('Generating script with LLM');
 
     try {
-      const script = (await this.geminiService.generateContent(
+      const script = (await this.llmService.generateContent(
         SCRIPT_GENERATION_SYSTEM_PROMPT,
         userPrompt,
       )) as GeneratedScript;
@@ -66,9 +66,9 @@ export class ScriptGenerationService {
       // Validate response
       if (!script || !script.full_text) {
         this.logger.error(
-          `Gemini returned invalid script: ${JSON.stringify(script)}`,
+          `LLM returned invalid script: ${JSON.stringify(script)}`,
         );
-        throw new Error('Gemini returned invalid script structure');
+        throw new Error('LLM returned invalid script structure');
       }
 
       this.logger.log(
@@ -78,11 +78,11 @@ export class ScriptGenerationService {
       return script;
     } catch (error) {
       this.logger.error(
-        `Gemini script generation failed: ${error instanceof Error ? error.message : String(error)}`,
+        `LLM script generation failed: ${error instanceof Error ? error.message : String(error)}`,
       );
       // Re-throw to fail the job rather than use bad fallback
       throw new Error(
-        `Failed to generate script with Gemini: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to generate script with LLM: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

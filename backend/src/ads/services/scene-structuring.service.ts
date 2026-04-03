@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { GeminiService } from '../../ai/gemini.service';
+import { LlmService } from '../../ai/llm.service';
 import { VeoScenePrompt } from '../types/veo-scene-prompt';
 import { CreateAdDto } from '../dto/create-ad.dto';
 import { CreativeBrief } from '../types/creative-brief';
@@ -177,7 +177,7 @@ ALL fields must have real values - NO "undefined" strings!`;
 export class SceneStructuringService {
   private readonly logger = new Logger(SceneStructuringService.name);
 
-  constructor(private readonly geminiService: GeminiService) {}
+  constructor(private readonly llmService: LlmService) {}
 
   async structureSingleScene(
     createAdDto: CreateAdDto,
@@ -186,30 +186,30 @@ export class SceneStructuringService {
   ): Promise<VeoScenePrompt> {
     const userPrompt = this.buildUserPrompt(createAdDto, brief, script);
 
-    this.logger.log('Structuring single 8-second scene with Gemini');
+    this.logger.log('Structuring single 8-second scene with LLM');
 
     let scene: VeoScenePrompt;
     try {
-      scene = (await this.geminiService.generateContent(
+      scene = (await this.llmService.generateContent(
         SINGLE_SCENE_STRUCTURING_SYSTEM_PROMPT,
         userPrompt,
       )) as VeoScenePrompt;
     } catch (error) {
       this.logger.error(
-        `Gemini scene structuring failed: ${error instanceof Error ? error.message : String(error)}`,
+        `LLM scene structuring failed: ${error instanceof Error ? error.message : String(error)}`,
       );
       throw new Error(
-        `Failed to structure scene with Gemini: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to structure scene with LLM: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
 
     // Validate that we got a proper response
     if (!scene || !scene.prompt) {
       this.logger.error(
-        `Gemini returned invalid scene structure: ${JSON.stringify(scene)}`,
+        `LLM returned invalid scene structure: ${JSON.stringify(scene)}`,
       );
       throw new Error(
-        'Gemini returned invalid scene structure - missing prompt field',
+        'LLM returned invalid scene structure - missing prompt field',
       );
     }
 

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { GeminiService } from '../../ai/gemini.service';
+import { LlmService } from '../../ai/llm.service';
 import { CreateAdDto } from '../dto/create-ad.dto';
 import { CreativeBrief } from '../types/creative-brief';
 
@@ -57,17 +57,17 @@ The system currently only supports 8-second ads. Always set duration_sec to 8.`;
 export class BriefGenerationService {
   private readonly logger = new Logger(BriefGenerationService.name);
 
-  constructor(private readonly geminiService: GeminiService) {}
+  constructor(private readonly llmService: LlmService) {}
 
   async generate(createAdDto: CreateAdDto): Promise<CreativeBrief> {
     const { prompt_inputs, veo_config } = createAdDto;
 
     const userPrompt = this.buildUserPrompt(createAdDto);
 
-    this.logger.log('Generating creative brief with Gemini');
+    this.logger.log('Generating creative brief with LLM');
 
     try {
-      const brief = (await this.geminiService.generateContent(
+      const brief = (await this.llmService.generateContent(
         BRIEF_GENERATION_SYSTEM_PROMPT,
         userPrompt,
       )) as CreativeBrief;
@@ -75,9 +75,9 @@ export class BriefGenerationService {
       // Validate response
       if (!brief || typeof brief !== 'object') {
         this.logger.error(
-          `Gemini returned invalid brief: ${JSON.stringify(brief)}`,
+          `LLM returned invalid brief: ${JSON.stringify(brief)}`,
         );
-        throw new Error('Gemini returned invalid brief structure');
+        throw new Error('LLM returned invalid brief structure');
       }
 
       // Ensure required fields from input are preserved
@@ -93,11 +93,11 @@ export class BriefGenerationService {
       return brief;
     } catch (error) {
       this.logger.error(
-        `Gemini brief generation failed: ${error instanceof Error ? error.message : String(error)}`,
+        `LLM brief generation failed: ${error instanceof Error ? error.message : String(error)}`,
       );
       // Re-throw to fail the job rather than use bad fallback
       throw new Error(
-        `Failed to generate brief with Gemini: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to generate brief with LLM: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SceneStructuringService } from './scene-structuring.service';
-import { GeminiService } from '../../ai/gemini.service';
+import { LlmService } from '../../ai/llm.service';
 import { CreateAdDto } from '../dto/create-ad.dto';
 import { CreativeBrief } from '../types/creative-brief';
 import { GeneratedScript } from '../types/generated-script';
@@ -8,7 +8,7 @@ import { VeoScenePrompt } from '../types/veo-scene-prompt';
 
 describe('SceneStructuringService', () => {
   let service: SceneStructuringService;
-  let geminiService: jest.Mocked<GeminiService>;
+  let llmService: jest.Mocked<LlmService>;
 
   const mockCreateAdDto: CreateAdDto = {
     prompt_inputs: {
@@ -49,7 +49,7 @@ describe('SceneStructuringService', () => {
     visual_description: 'Product showcase with dynamic camera movement',
   };
 
-  const mockGeminiResponse: VeoScenePrompt = {
+  const mockLLMResponse: VeoScenePrompt = {
     scene_id: 1,
     project_id: 'test-project',
     duration_seconds: 8,
@@ -120,7 +120,7 @@ describe('SceneStructuringService', () => {
   };
 
   beforeEach(async () => {
-    const mockGeminiService = {
+    const mockLlmService = {
       generateContent: jest.fn(),
     };
 
@@ -128,14 +128,14 @@ describe('SceneStructuringService', () => {
       providers: [
         SceneStructuringService,
         {
-          provide: GeminiService,
-          useValue: mockGeminiService,
+          provide: LlmService,
+          useValue: mockLlmService,
         },
       ],
     }).compile();
 
     service = module.get<SceneStructuringService>(SceneStructuringService);
-    geminiService = module.get(GeminiService);
+    llmService = module.get(LlmService);
   });
 
   afterEach(() => {
@@ -143,8 +143,8 @@ describe('SceneStructuringService', () => {
   });
 
   describe('structureSingleScene', () => {
-    it('should successfully structure a scene with Gemini', async () => {
-      geminiService.generateContent.mockResolvedValue(mockGeminiResponse);
+    it('should successfully structure a scene with LLM', async () => {
+      llmService.generateContent.mockResolvedValue(mockLLMResponse);
 
       const result = await service.structureSingleScene(
         mockCreateAdDto,
@@ -153,15 +153,15 @@ describe('SceneStructuringService', () => {
       );
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(geminiService.generateContent).toHaveBeenCalledTimes(1);
+      expect(llmService.generateContent).toHaveBeenCalledTimes(1);
       // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(geminiService.generateContent).toHaveBeenCalledWith(
+      expect(llmService.generateContent).toHaveBeenCalledWith(
         expect.any(String),
         expect.any(String),
       );
 
       // Verify the prompts contain expected content
-      const mockCalls = geminiService.generateContent.mock.calls;
+      const mockCalls = llmService.generateContent.mock.calls;
       expect(mockCalls[0][0]).toContain('You are a video ad scene director');
       expect(mockCalls[0][1]).toContain(
         'Generate a single 8-second scene prompt',
@@ -175,7 +175,7 @@ describe('SceneStructuringService', () => {
     });
 
     it('should validate and enrich the scene with correct values', async () => {
-      geminiService.generateContent.mockResolvedValue(mockGeminiResponse);
+      llmService.generateContent.mockResolvedValue(mockLLMResponse);
 
       const result = await service.structureSingleScene(
         mockCreateAdDto,
@@ -194,14 +194,14 @@ describe('SceneStructuringService', () => {
 
     it('should ensure CTA is enabled and populated', async () => {
       const responseWithoutCTA = {
-        ...mockGeminiResponse,
+        ...mockLLMResponse,
         prompt: {
-          ...mockGeminiResponse.prompt,
+          ...mockLLMResponse.prompt,
           cta: { enabled: false, text: '', url_hint: null },
         },
       };
 
-      geminiService.generateContent.mockResolvedValue(responseWithoutCTA);
+      llmService.generateContent.mockResolvedValue(responseWithoutCTA);
 
       const result = await service.structureSingleScene(
         mockCreateAdDto,
@@ -223,14 +223,14 @@ describe('SceneStructuringService', () => {
       };
 
       const responseWithoutCTA = {
-        ...mockGeminiResponse,
+        ...mockLLMResponse,
         prompt: {
-          ...mockGeminiResponse.prompt,
+          ...mockLLMResponse.prompt,
           cta: { enabled: false, text: '', url_hint: null },
         },
       };
 
-      geminiService.generateContent.mockResolvedValue(responseWithoutCTA);
+      llmService.generateContent.mockResolvedValue(responseWithoutCTA);
 
       const result = await service.structureSingleScene(
         dtoWithoutCTA,
@@ -243,17 +243,17 @@ describe('SceneStructuringService', () => {
 
     it('should ensure speech_text contains full script', async () => {
       const responseWithShortSpeech = {
-        ...mockGeminiResponse,
+        ...mockLLMResponse,
         prompt: {
-          ...mockGeminiResponse.prompt,
+          ...mockLLMResponse.prompt,
           audio: {
-            ...mockGeminiResponse.prompt.audio,
+            ...mockLLMResponse.prompt.audio,
             speech_text: 'Short',
           },
         },
       };
 
-      geminiService.generateContent.mockResolvedValue(responseWithShortSpeech);
+      llmService.generateContent.mockResolvedValue(responseWithShortSpeech);
 
       const result = await service.structureSingleScene(
         mockCreateAdDto,
@@ -265,7 +265,7 @@ describe('SceneStructuringService', () => {
     });
 
     it('should merge base negative prompt with user negative prompt', async () => {
-      geminiService.generateContent.mockResolvedValue(mockGeminiResponse);
+      llmService.generateContent.mockResolvedValue(mockLLMResponse);
 
       const result = await service.structureSingleScene(
         mockCreateAdDto,
@@ -279,18 +279,18 @@ describe('SceneStructuringService', () => {
       expect(result.negative_prompt).toContain('no blurry faces');
     });
 
-    it('should throw error if Gemini fails', async () => {
-      geminiService.generateContent.mockRejectedValue(
-        new Error('Gemini API error'),
+    it('should throw error if LLM fails', async () => {
+      llmService.generateContent.mockRejectedValue(
+        new Error('LLM API error'),
       );
 
       await expect(
         service.structureSingleScene(mockCreateAdDto, mockBrief, mockScript),
-      ).rejects.toThrow('Failed to structure scene with Gemini');
+      ).rejects.toThrow('Failed to structure scene with LLM');
     });
 
-    it('should throw error if Gemini returns invalid structure', async () => {
-      geminiService.generateContent.mockResolvedValue({
+    it('should throw error if LLM returns invalid structure', async () => {
+      llmService.generateContent.mockResolvedValue({
         scene_id: 1,
         // Missing prompt field
       } as any);
@@ -298,22 +298,22 @@ describe('SceneStructuringService', () => {
       await expect(
         service.structureSingleScene(mockCreateAdDto, mockBrief, mockScript),
       ).rejects.toThrow(
-        'Gemini returned invalid scene structure - missing prompt field',
+        'LLM returned invalid scene structure - missing prompt field',
       );
     });
 
-    it('should throw error if Gemini returns null', async () => {
-      geminiService.generateContent.mockResolvedValue(null as any);
+    it('should throw error if LLM returns null', async () => {
+      llmService.generateContent.mockResolvedValue(null as any);
 
       await expect(
         service.structureSingleScene(mockCreateAdDto, mockBrief, mockScript),
-      ).rejects.toThrow('Gemini returned invalid scene structure');
+      ).rejects.toThrow('LLM returned invalid scene structure');
     });
   });
 
   describe('buildUserPrompt', () => {
     it('should include all technical constraints in user prompt', async () => {
-      geminiService.generateContent.mockResolvedValue(mockGeminiResponse);
+      llmService.generateContent.mockResolvedValue(mockLLMResponse);
 
       await service.structureSingleScene(
         mockCreateAdDto,
@@ -321,7 +321,7 @@ describe('SceneStructuringService', () => {
         mockScript,
       );
 
-      const userPrompt = geminiService.generateContent.mock.calls[0][1];
+      const userPrompt = llmService.generateContent.mock.calls[0][1];
 
       expect(userPrompt).toContain('Platform: tiktok');
       expect(userPrompt).toContain('Aspect Ratio: 9:16');
@@ -330,7 +330,7 @@ describe('SceneStructuringService', () => {
     });
 
     it('should include product information in user prompt', async () => {
-      geminiService.generateContent.mockResolvedValue(mockGeminiResponse);
+      llmService.generateContent.mockResolvedValue(mockLLMResponse);
 
       await service.structureSingleScene(
         mockCreateAdDto,
@@ -338,7 +338,7 @@ describe('SceneStructuringService', () => {
         mockScript,
       );
 
-      const userPrompt = geminiService.generateContent.mock.calls[0][1];
+      const userPrompt = llmService.generateContent.mock.calls[0][1];
 
       expect(userPrompt).toContain('Wireless Earbuds Pro');
       expect(userPrompt).toContain(
@@ -348,7 +348,7 @@ describe('SceneStructuringService', () => {
     });
 
     it('should include creative direction in user prompt', async () => {
-      geminiService.generateContent.mockResolvedValue(mockGeminiResponse);
+      llmService.generateContent.mockResolvedValue(mockLLMResponse);
 
       await service.structureSingleScene(
         mockCreateAdDto,
@@ -356,7 +356,7 @@ describe('SceneStructuringService', () => {
         mockScript,
       );
 
-      const userPrompt = geminiService.generateContent.mock.calls[0][1];
+      const userPrompt = llmService.generateContent.mock.calls[0][1];
 
       expect(userPrompt).toContain('Tone: energetic');
       expect(userPrompt).toContain('Visual Style: cinematic');
@@ -364,7 +364,7 @@ describe('SceneStructuringService', () => {
     });
 
     it('should include full script in user prompt', async () => {
-      geminiService.generateContent.mockResolvedValue(mockGeminiResponse);
+      llmService.generateContent.mockResolvedValue(mockLLMResponse);
 
       await service.structureSingleScene(
         mockCreateAdDto,
@@ -372,7 +372,7 @@ describe('SceneStructuringService', () => {
         mockScript,
       );
 
-      const userPrompt = geminiService.generateContent.mock.calls[0][1];
+      const userPrompt = llmService.generateContent.mock.calls[0][1];
 
       expect(userPrompt).toContain(mockScript.title);
       expect(userPrompt).toContain(mockScript.hook);
@@ -403,7 +403,7 @@ describe('SceneStructuringService', () => {
         full_text: 'Simple ad text',
       } as GeneratedScript;
 
-      geminiService.generateContent.mockResolvedValue(mockGeminiResponse);
+      llmService.generateContent.mockResolvedValue(mockLLMResponse);
 
       await service.structureSingleScene(
         minimalDto,
@@ -411,7 +411,7 @@ describe('SceneStructuringService', () => {
         minimalScript,
       );
 
-      const userPrompt = geminiService.generateContent.mock.calls[0][1];
+      const userPrompt = llmService.generateContent.mock.calls[0][1];
 
       expect(userPrompt).toContain('Not provided');
       expect(userPrompt).toContain('not specified — generate one');
@@ -421,11 +421,11 @@ describe('SceneStructuringService', () => {
   describe('validateAndEnrich', () => {
     it('should force duration to 8 seconds', async () => {
       const responseWithWrongDuration = {
-        ...mockGeminiResponse,
+        ...mockLLMResponse,
         duration_seconds: 10,
       };
 
-      geminiService.generateContent.mockResolvedValue(
+      llmService.generateContent.mockResolvedValue(
         responseWithWrongDuration,
       );
 
@@ -440,11 +440,11 @@ describe('SceneStructuringService', () => {
 
     it('should set scene_id to 1', async () => {
       const responseWithWrongId = {
-        ...mockGeminiResponse,
+        ...mockLLMResponse,
         scene_id: 5,
       };
 
-      geminiService.generateContent.mockResolvedValue(responseWithWrongId);
+      llmService.generateContent.mockResolvedValue(responseWithWrongId);
 
       const result = await service.structureSingleScene(
         mockCreateAdDto,
@@ -456,7 +456,7 @@ describe('SceneStructuringService', () => {
     });
 
     it('should set correct generation config', async () => {
-      geminiService.generateContent.mockResolvedValue(mockGeminiResponse);
+      llmService.generateContent.mockResolvedValue(mockLLMResponse);
 
       const result = await service.structureSingleScene(
         mockCreateAdDto,
@@ -475,11 +475,11 @@ describe('SceneStructuringService', () => {
 
     it('should preserve existing negative prompt and add base', async () => {
       const responseWithCustomNegative = {
-        ...mockGeminiResponse,
+        ...mockLLMResponse,
         negative_prompt: 'no animals',
       };
 
-      geminiService.generateContent.mockResolvedValue(
+      llmService.generateContent.mockResolvedValue(
         responseWithCustomNegative,
       );
 

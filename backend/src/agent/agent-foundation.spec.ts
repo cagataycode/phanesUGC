@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { QualityGatesService } from './orchestrator/quality-gates.service';
 import { InputNormalizerService } from './stages/input-normalizer.service';
 import { ScenarioGeneratorService } from './stages/scenario-generator.service';
-import { GeminiService } from '../ai/gemini.service';
+import { LlmService } from '../ai/llm.service';
 import {
   isValidTransition,
   getPipelineStage,
@@ -165,6 +165,7 @@ describe('Agent Foundation - Scenario Generation', () => {
         providers: [
           InputNormalizerService,
           ScenarioGeneratorService,
+<<<<<<< HEAD
           {
             provide: GeminiService,
             useValue: {
@@ -212,10 +213,18 @@ describe('Agent Foundation - Scenario Generation', () => {
               ]),
             },
           },
+=======
+          LlmService,
+>>>>>>> a2bab17 (Phase 3: Update consumer services to use LlmService)
           {
             provide: ConfigService,
             useValue: {
               get: jest.fn((key: string) => {
+                if (key === 'AWS_ACCESS_KEY_ID') return 'test-access-key';
+                if (key === 'AWS_SECRET_ACCESS_KEY') return 'test-secret-key';
+                if (key === 'AWS_REGION') return 'us-east-1';
+                if (key === 'BEDROCK_MODEL_ID')
+                  return 'us.anthropic.claude-sonnet-4-6';
                 if (key === 'GEMINI_API_KEY') return 'test-api-key';
                 return null;
               }),
