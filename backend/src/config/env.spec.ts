@@ -10,6 +10,8 @@ describe('Environment Configuration Validation (env.ts)', () => {
     GCS_LOCATION: 'us-central1',
     GCP_PROJECT_ID: 'test-gcp-project',
     VERTEX_AI_LOCATION: 'us-central1',
+    AWS_ACCESS_KEY_ID: 'test-access-key',
+    AWS_SECRET_ACCESS_KEY: 'test-secret-key',
     GEMINI_API_KEY: 'test-gemini-key',
   };
 
@@ -21,10 +23,14 @@ describe('Environment Configuration Validation (env.ts)', () => {
     expect(validated.NODE_ENV).toBe('development');
     expect(validated.API_PREFIX).toBe('api');
     expect(validated.VERTEX_AI_MODEL_ID).toBe('veo-3.1-fast-generate-001');
+    expect(validated.AWS_REGION).toBe('us-east-1');
+    expect(validated.BEDROCK_MODEL_ID).toBe('us.anthropic.claude-sonnet-4-6');
 
     // Check that explicitly provided values are retained
     expect(validated.FIREBASE_PROJECT_ID).toBe('test-project');
     expect(validated.FIREBASE_CLIENT_EMAIL).toBe('test@example.com');
+    expect(validated.AWS_ACCESS_KEY_ID).toBe('test-access-key');
+    expect(validated.AWS_SECRET_ACCESS_KEY).toBe('test-secret-key');
   });
 
   it('should coerce PORT to a number', () => {
@@ -36,9 +42,9 @@ describe('Environment Configuration Validation (env.ts)', () => {
 
   it('should throw an error if a required field is missing', () => {
     const invalidConfig: Record<string, unknown> = { ...validConfig };
-    delete invalidConfig.GEMINI_API_KEY;
+    delete invalidConfig.AWS_ACCESS_KEY_ID;
 
-    expect(() => validateEnv(invalidConfig)).toThrow(/GEMINI_API_KEY/);
+    expect(() => validateEnv(invalidConfig)).toThrow(/AWS_ACCESS_KEY_ID/);
   });
 
   it('should throw an error if an email is invalid', () => {
@@ -47,5 +53,20 @@ describe('Environment Configuration Validation (env.ts)', () => {
       FIREBASE_CLIENT_EMAIL: 'not-an-email',
     };
     expect(() => validateEnv(invalidConfig)).toThrow(/Invalid email/);
+  });
+
+  it('should allow GEMINI_API_KEY to be optional (for fallback)', () => {
+    const configWithoutGemini = { ...validConfig };
+    delete configWithoutGemini.GEMINI_API_KEY;
+
+    const validated = validateEnv(configWithoutGemini);
+    expect(validated.GEMINI_API_KEY).toBeUndefined();
+  });
+
+  it('should require AWS credentials', () => {
+    const configWithoutAWS = { ...validConfig };
+    delete configWithoutAWS.AWS_ACCESS_KEY_ID;
+
+    expect(() => validateEnv(configWithoutAWS)).toThrow(/AWS_ACCESS_KEY_ID/);
   });
 });

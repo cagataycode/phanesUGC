@@ -27,6 +27,7 @@
     "security:report": "mkdir -p tmp && npm audit --json > tmp/security-audit.json"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.716.0",
     "@google-cloud/storage": "^7.19.0",
     "@google/genai": "^1.46.0",
     "@google/generative-ai": "^0.24.1",

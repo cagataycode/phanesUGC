@@ -11,7 +11,16 @@ export const envSchema = z.object({
   VERTEX_AI_MODEL_ID: z.string().min(1).default('veo-3.1-fast-generate-001'),
   VERTEX_OUTPUT_GCS_URI: z.string().min(1).optional(),
   VERTEX_AI_API_KEY: z.string().min(1).optional(),
-  GEMINI_API_KEY: z.string().min(1), // Required for brief/script/scene generation
+  // AWS Bedrock Configuration (Primary LLM Provider)
+  AWS_ACCESS_KEY_ID: z.string().min(1),
+  AWS_SECRET_ACCESS_KEY: z.string().min(1),
+  AWS_REGION: z.string().min(1).default('us-east-1'),
+  BEDROCK_MODEL_ID: z
+    .string()
+    .min(1)
+    .default('us.anthropic.claude-sonnet-4-6'),
+  // Gemini API (Fallback LLM Provider)
+  GEMINI_API_KEY: z.string().min(1).optional(), // Now optional - used as fallback
   PORT: z.coerce.number().int().positive().default(3000),
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
