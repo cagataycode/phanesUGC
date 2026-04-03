@@ -41,7 +41,7 @@ export class RenderExecutorService {
       : gcsPath;
 
     // Download video locally for faster Remotion rendering
-    const { mkdtemp, rm } = await import('node:fs/promises');
+    const { mkdtemp, rm, copyFile } = await import('node:fs/promises');
     const { tmpdir } = await import('node:os');
     const path = await import('node:path');
 
@@ -51,9 +51,20 @@ export class RenderExecutorService {
     this.logger.debug(`Downloading source video to ${localVideoPath}`);
     await this.gcsStorage.downloadFile(objectPath, localVideoPath);
 
-    // Prepare render request with local file path
+    // Copy video to Remotion's public folder with unique name
+    // Remotion only supports files in public/ folder via staticFile()
+    const publicDir = path.resolve(process.cwd(), 'src/render/remotion/public');
+    const publicVideoFilename = `${timeline.jobId}-source.mp4`;
+    const publicVideoPath = path.join(publicDir, publicVideoFilename);
+
+    this.logger.debug(
+      `Copying source video to Remotion public folder: ${publicVideoPath}`,
+    );
+    await copyFile(localVideoPath, publicVideoPath);
+
+    // Prepare render request with just the filename (Remotion will resolve from public/)
     const renderRequest = {
-      videoUrl: localVideoPath,
+      videoUrl: publicVideoFilename,
       phrases: timeline.subtitles.enabled ? phrases : [],
       fps: timeline.output.fps,
       durationInFrames: timeline.output.durationInFrames,
@@ -115,6 +126,16 @@ export class RenderExecutorService {
       } catch (error) {
         this.logger.error(
           `Failed to cleanup temp video directory: ${tempDir}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
+      // Cleanup public folder video
+      try {
+        await rm(publicVideoPath, { force: true });
+        this.logger.debug(`Cleaned up public folder video: ${publicVideoPath}`);
+      } catch (error) {
+        this.logger.error(
+          `Failed to cleanup public folder video: ${publicVideoPath}`,
           error instanceof Error ? error.stack : undefined,
         );
       }

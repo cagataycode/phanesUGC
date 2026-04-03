@@ -44,15 +44,11 @@ export const StandardSubtitledVideo: React.FC<RenderRequest> = ({
   fps,
 }) => {
   const resolvedVideoUrl = useMemo(() => {
-    // Handle HTTP/HTTPS URLs
+    // Handle HTTP/HTTPS URLs directly
     if (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) {
       return videoUrl;
     }
-    // Handle absolute paths (e.g., /var/folders/... or C:\...)
-    if (videoUrl.startsWith('/') || /^[A-Za-z]:/.test(videoUrl)) {
-      return videoUrl;
-    }
-    // Handle relative paths - use staticFile for public/ folder
+    // All other paths are treated as files in public/ folder
     return staticFile(videoUrl);
   }, [videoUrl]);
 
