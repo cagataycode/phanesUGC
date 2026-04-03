@@ -86,6 +86,10 @@ export class RenderExecutorService {
         'video/mp4',
       );
 
+      // Get file size from the uploaded file
+      const { statSync } = await import('node:fs');
+      const fileSizeBytes = statSync(outputPath).size;
+
       // Create signed URL for the final video
       const finalVideoUrl =
         await this.gcsStorage.createSignedVideoUrl(finalGcsPath);
@@ -98,7 +102,7 @@ export class RenderExecutorService {
           durationSec: timeline.videoSource.durationSec,
           width: timeline.output.width,
           height: timeline.output.height,
-          fileSizeBytes: 0, // File size retrieved by OutputValidator
+          fileSizeBytes,
           fps: timeline.output.fps,
         },
         subtitles: timeline.subtitles.segments.map((seg) => ({
