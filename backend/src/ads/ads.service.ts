@@ -102,8 +102,8 @@ export class AdsService {
       },
     });
 
-    // Start Phase 2 (video generation) asynchronously
-    void this.pollVideoGenerationStatus(wizardDto.businessId, jobId);
+    // Start video generation for wizard job (scenario already selected)
+    void this.agentOrchestrator.runVideoGeneration(jobId, wizardDto.businessId);
 
     return {
       id: jobId,

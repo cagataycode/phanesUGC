@@ -59,6 +59,7 @@ export class RenderService {
       serveUrl: bundleLocation,
       id: REMOTION_COMPOSITION_ID,
       inputProps: preparedRequest,
+      timeoutInMilliseconds: this.renderTimeoutMs,
     });
 
     return {
@@ -82,6 +83,7 @@ export class RenderService {
       codec: 'h264',
       outputLocation,
       inputProps: prepared.inputProps,
+      timeoutInMilliseconds: this.renderTimeoutMs,
       chromiumOptions: {
         disableWebSecurity: true,
         gl: 'angle',
