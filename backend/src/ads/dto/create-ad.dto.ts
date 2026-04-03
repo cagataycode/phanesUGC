@@ -19,7 +19,7 @@ export class CreateAdDto {
     subtitle_style?: 'standard' | 'kinetic';
   };
   veo_config!: {
-    aspect_ratio: '16:9' | '9:16';
+    aspect_ratio: '16:9' | '9:16' | '1:1';
     duration_sec: 8; // MVP: Only 8 seconds supported
     negative_prompt?: string;
     person_generation?: 'allow_all' | 'allow_adult';

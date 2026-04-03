@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CreateAdDto } from './dto/create-ad.dto';
+import { WizardSubmitDto } from './dto/wizard.dto';
 import { JobStoreService } from './services/job-store.service';
 import { AgentOrchestratorService } from '../agent/orchestrator/agent-orchestrator.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
@@ -42,7 +43,71 @@ export class AdsService {
 
     return {
       id: jobId,
-      status: 'created', // Maintain backward compatibility
+      status: 'phase1_started',
+    };
+  }
+
+  /**
+   * Create a job from wizard-generated content
+   * Skips Phase 1 and goes directly to Phase 2 (video generation)
+   */
+  async createWizardJob(
+    wizardDto: WizardSubmitDto,
+  ): Promise<{ id: string; status: string }> {
+    const durationSec =
+      (wizardDto.scene as { duration_seconds?: number })?.duration_seconds || 8;
+
+    const jobId = await this.jobStoreService.create(wizardDto.businessId, {
+      businessId: wizardDto.businessId,
+      productId: wizardDto.productId,
+      createdBy: wizardDto.createdBy || 'wizard',
+      prompt: wizardDto.prompt,
+      platform: wizardDto.platform,
+      aspectRatio: wizardDto.aspect_ratio,
+      durationSec,
+    });
+
+    // Initialize agent job with wizard-generated content
+    await this.agentOrchestrator.initializeFromWizard(
+      jobId,
+      wizardDto.businessId,
+      {
+        prompt: wizardDto.prompt,
+        platform: wizardDto.platform,
+        language: wizardDto.language,
+        tone: wizardDto.tone,
+        targetAudience: wizardDto.target_audience,
+        cta: wizardDto.cta,
+        aspectRatio: wizardDto.aspect_ratio,
+        subtitleStyle: wizardDto.subtitle_style,
+        brief: wizardDto.brief,
+        script: wizardDto.script,
+        scene: wizardDto.scene,
+      },
+    );
+
+    // Update job status to show Phase 1 is complete
+    await this.jobStoreService.update(wizardDto.businessId, jobId, {
+      status: 'phase2_started',
+      progress: 50,
+      stages: {
+        normalize: 'done',
+        scrape: 'done',
+        brief: 'done',
+        scenarios: 'done',
+        script: 'running',
+        veo: 'pending',
+        subtitles: 'pending',
+        render: 'pending',
+      },
+    });
+
+    // Start Phase 2 (video generation) asynchronously
+    void this.pollVideoGenerationStatus(wizardDto.businessId, jobId);
+
+    return {
+      id: jobId,
+      status: 'phase2_started',
     };
   }
 
@@ -64,12 +129,12 @@ export class AdsService {
       });
 
       // Run agent scenario generation
-      const scenarioSet = await this.agentOrchestrator.runScenarioGeneration(
+
+      const scenarioSet = (await this.agentOrchestrator.runScenarioGeneration(
         jobId,
         createAdDto.businessId,
-      );
+      )) as unknown as { scenarios: unknown[]; expiresAt: Date };
 
-      // Store scenarios in job
       await this.jobStoreService.update(createAdDto.businessId, jobId, {
         status: 'scenarios_ready',
         progress: 40,
@@ -163,7 +228,6 @@ export class AdsService {
         );
 
         if (agentState.videoGenerationStatus === 'completed') {
-          // Video generation completed successfully
           const finalOutput = agentState.artifacts.finalOutput as {
             gcsPath: string;
           };
@@ -172,9 +236,16 @@ export class AdsService {
             status: 'completed',
             progress: 100,
             output: {
-              videoStorageKey: finalOutput.gcsPath,
+              videoStorageKey: finalOutput.gcsPath.replace(
+                /^gs:\/\/[^/]+\//,
+                '',
+              ),
             },
             'metadata.finalOutput': finalOutput,
+            'stages.normalize': 'done',
+            'stages.scrape': 'done',
+            'stages.brief': 'done',
+            'stages.scenarios': 'done',
             'stages.script': 'done',
             'stages.veo': 'done',
             'stages.subtitles': 'done',

@@ -42,7 +42,7 @@ export interface CreativeBrief {
   targetDuration: number;
 
   /** Target aspect ratio (Veo 3.1 supports 16:9 and 9:16 only) */
-  targetAspectRatio: '9:16' | '16:9';
+  targetAspectRatio: '9:16' | '16:9' | '1:1';
 
   /** Language for the ad */
   language: string;

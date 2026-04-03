@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AdsController } from './ads.controller';
+import { WizardController } from './wizard.controller';
 import { AdsService } from './ads.service';
 import { JobStoreService } from './services/job-store.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
@@ -8,7 +9,7 @@ import { AgentModule } from '../agent/agent.module';
 
 @Module({
   imports: [AuthModule, AgentModule],
-  controllers: [AdsController],
+  controllers: [AdsController, WizardController],
   providers: [AdsService, JobStoreService, GcsStorageService],
   exports: [AdsService, JobStoreService],
 })

@@ -104,6 +104,11 @@ import { SceneStructuringService } from '../ads/services/scene-structuring.servi
     ScriptGenerationService,
     SceneStructuringService,
   ],
-  exports: [AgentOrchestratorService],
+  exports: [
+    AgentOrchestratorService,
+    BriefBuilderService,
+    ScriptGeneratorService,
+    VeoPromptBuilderService,
+  ],
 })
 export class AgentModule {}

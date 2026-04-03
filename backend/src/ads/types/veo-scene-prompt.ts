@@ -2,7 +2,7 @@ export interface VeoScenePrompt {
   scene_id: number;
   project_id: string;
   duration_seconds: number;
-  aspect_ratio: '9:16' | '16:9';
+  aspect_ratio: '9:16' | '16:9' | '1:1';
 
   prompt: {
     intent: string;
