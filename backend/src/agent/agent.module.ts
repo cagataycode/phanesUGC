@@ -60,9 +60,10 @@ import { SceneStructuringService } from '../ads/services/scene-structuring.servi
       provide: RetryPolicy,
       useFactory: () =>
         new RetryPolicy({
-          maxRetries: AgentConstants.MAX_RETRIES,
+          maxRetries: 1, // 1 retry per stage (down from 3)
           initialDelayMs: AgentConstants.RETRY_DELAY_MS,
           backoffMultiplier: AgentConstants.RETRY_BACKOFF_MULTIPLIER,
+          globalRetryBudget: 2, // Max 2 retries across entire job
           retryableErrors: [
             'timeout',
             'rate limit',

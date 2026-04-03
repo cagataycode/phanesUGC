@@ -12,11 +12,13 @@ export interface RetryConfig {
   initialDelayMs: number;
   backoffMultiplier: number;
   retryableErrors: string[]; // Error message patterns
+  globalRetryBudget?: number; // Max retries across all stages in a job
 }
 
 export interface RetryContext {
   jobId: string;
   stage: string;
+  getCurrentRetryCount?: () => Promise<number>; // Function to get current job-wide retry count
 }
 
 export class RetryPolicy {
@@ -35,6 +37,22 @@ export class RetryPolicy {
     while (attempt <= this.config.maxRetries) {
       try {
         if (attempt > 0) {
+          // Check global retry budget before retrying
+          if (
+            this.config.globalRetryBudget !== undefined &&
+            context.getCurrentRetryCount
+          ) {
+            const currentRetryCount = await context.getCurrentRetryCount();
+            if (currentRetryCount >= this.config.globalRetryBudget) {
+              this.logger.error(
+                `Global retry budget (${this.config.globalRetryBudget}) exceeded for job ${context.jobId}. Current retries: ${currentRetryCount}`,
+              );
+              throw new Error(
+                `Global retry budget exceeded (${currentRetryCount}/${this.config.globalRetryBudget})`,
+              );
+            }
+          }
+
           const delay = this.calculateDelay(attempt);
           this.logger.log(
             `Retry attempt ${attempt}/${this.config.maxRetries} for job ${context.jobId} stage ${context.stage} after ${delay}ms`,

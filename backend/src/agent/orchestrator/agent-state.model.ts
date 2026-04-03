@@ -68,6 +68,9 @@ export interface AgentJobState {
     retryCount: number;
   }>;
 
+  /** Global retry tracking */
+  totalRetryCount: number;
+
   /** Quality reports */
   qualityReports: Array<{
     gate: string;

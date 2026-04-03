@@ -104,6 +104,7 @@ export class AgentOrchestratorService {
         normalizedRequest,
       },
       errors: [],
+      totalRetryCount: 0,
       qualityReports: [],
       createdAt: now,
       updatedAt: now,
@@ -157,7 +158,12 @@ export class AgentOrchestratorService {
             state.businessId,
             state.artifacts.normalizedRequest as Partial<NormalizedRequest>,
           ),
-        { jobId, stage: 'normalize' },
+        {
+          jobId,
+          stage: 'normalize',
+          getCurrentRetryCount: () =>
+            this.getCurrentRetryCount(jobId, businessId),
+        },
       );
       state.artifacts.normalizedRequest = normalizedRequest;
       this.logger.debug(`[${jobId}] Stage 1 complete, saving state`);
@@ -170,7 +176,12 @@ export class AgentOrchestratorService {
       try {
         productContext = await this.retryPolicy.execute(
           () => this.contextAcquisition.acquire(normalizedRequest),
-          { jobId, stage: 'context_acquisition' },
+          {
+            jobId,
+            stage: 'context_acquisition',
+            getCurrentRetryCount: () =>
+              this.getCurrentRetryCount(jobId, businessId),
+          },
         );
       } catch (error) {
         // Fallback: Use manual inputs if scraping fails
@@ -190,7 +201,12 @@ export class AgentOrchestratorService {
       try {
         creativeBrief = await this.retryPolicy.execute(
           () => this.briefBuilder.build(normalizedRequest, productContext),
-          { jobId, stage: 'brief_builder' },
+          {
+            jobId,
+            stage: 'brief_builder',
+            getCurrentRetryCount: () =>
+              this.getCurrentRetryCount(jobId, businessId),
+          },
         );
       } catch (error) {
         // Fallback: Use template brief if generation fails
@@ -211,7 +227,12 @@ export class AgentOrchestratorService {
       try {
         scenarioSet = await this.retryPolicy.execute(
           () => this.scenarioGenerator.generate(state.jobId, creativeBrief),
-          { jobId, stage: 'scenario_generator' },
+          {
+            jobId,
+            stage: 'scenario_generator',
+            getCurrentRetryCount: () =>
+              this.getCurrentRetryCount(jobId, businessId),
+          },
         );
       } catch (error) {
         // Fallback: Use default scenarios if generation fails
@@ -328,7 +349,12 @@ export class AgentOrchestratorService {
             state.selectedScenarioId!,
             creativeBrief,
           ),
-        { jobId, stage: 'script_generator' },
+        {
+          jobId,
+          stage: 'script_generator',
+          getCurrentRetryCount: () =>
+            this.getCurrentRetryCount(jobId, businessId),
+        },
       );
       state.artifacts.adScript = adScript;
 
@@ -355,7 +381,12 @@ export class AgentOrchestratorService {
             productContext,
             normalizedRequest,
           ),
-        { jobId, stage: 'veo_prompt_builder' },
+        {
+          jobId,
+          stage: 'veo_prompt_builder',
+          getCurrentRetryCount: () =>
+            this.getCurrentRetryCount(jobId, businessId),
+        },
       );
       state.artifacts.veoPrompt = veoPrompt;
       await this.saveState(state);
@@ -364,7 +395,12 @@ export class AgentOrchestratorService {
       this.transitionStage(state, 'veo_generating');
       const veoOutput = await this.retryPolicy.execute(
         () => this.videoGenerator.generate(veoPrompt),
-        { jobId, stage: 'video_generator' },
+        {
+          jobId,
+          stage: 'video_generator',
+          getCurrentRetryCount: () =>
+            this.getCurrentRetryCount(jobId, businessId),
+        },
       );
       this.transitionStage(state, 'veo_output_ready');
       state.artifacts.veoOutput = veoOutput;
@@ -388,7 +424,12 @@ export class AgentOrchestratorService {
             veoOutput,
             normalizedRequest.subtitleStyle,
           ),
-        { jobId, stage: 'subtitle_generator' },
+        {
+          jobId,
+          stage: 'subtitle_generator',
+          getCurrentRetryCount: () =>
+            this.getCurrentRetryCount(jobId, businessId),
+        },
       );
       state.artifacts.subtitleData = subtitleData;
 
@@ -407,7 +448,12 @@ export class AgentOrchestratorService {
             subtitleData,
             state.artifacts.normalizedRequest as NormalizedRequest,
           ),
-        { jobId, stage: 'timeline_assembler' },
+        {
+          jobId,
+          stage: 'timeline_assembler',
+          getCurrentRetryCount: () =>
+            this.getCurrentRetryCount(jobId, businessId),
+        },
       );
       state.artifacts.renderTimeline = renderTimeline;
       await this.saveState(state);
@@ -416,7 +462,12 @@ export class AgentOrchestratorService {
       this.transitionStage(state, 'rendering');
       const finalOutput = await this.retryPolicy.execute(
         () => this.renderExecutor.render(renderTimeline),
-        { jobId, stage: 'render_executor' },
+        {
+          jobId,
+          stage: 'render_executor',
+          getCurrentRetryCount: () =>
+            this.getCurrentRetryCount(jobId, businessId),
+        },
       );
       this.transitionStage(state, 'completed');
 
@@ -480,6 +531,25 @@ export class AgentOrchestratorService {
     this.logger.debug(`Job ${state.jobId}: ${state.stage} → ${newStage}`);
     state.stage = newStage;
     state.updatedAt = new Date();
+  }
+
+  /**
+   * Get current retry count for a job
+   */
+  private async getCurrentRetryCount(
+    jobId: string,
+    businessId: string,
+  ): Promise<number> {
+    const state = await this.loadState(jobId, businessId);
+    return state.totalRetryCount;
+  }
+
+  /**
+   * Increment retry count and save state
+   */
+  private async incrementRetryCount(state: AgentJobState): Promise<void> {
+    state.totalRetryCount++;
+    await this.saveState(state);
   }
 
   /**
