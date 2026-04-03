@@ -106,6 +106,9 @@ export class AdsService {
     // Start video generation for wizard job (scenario already selected)
     void this.agentOrchestrator.runVideoGeneration(jobId, wizardDto.businessId);
 
+    // Start polling for video generation completion
+    void this.pollVideoGenerationStatus(jobId, wizardDto.businessId);
+
     return {
       id: jobId,
       status: 'phase2_started',
