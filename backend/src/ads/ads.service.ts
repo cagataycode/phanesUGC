@@ -107,7 +107,7 @@ export class AdsService {
     void this.agentOrchestrator.runVideoGeneration(jobId, wizardDto.businessId);
 
     // Start polling for video generation completion
-    void this.pollVideoGenerationStatus(jobId, wizardDto.businessId);
+    void this.pollVideoGenerationStatus(wizardDto.businessId, jobId);
 
     return {
       id: jobId,
