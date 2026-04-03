@@ -300,12 +300,25 @@ export class AgentOrchestratorService {
       throw new Error('Selected scenario not found');
     }
 
-    // Check if video generation is already running
+    // CRITICAL: Check if video generation is already running (race condition prevention)
     if (state.videoGenerationStatus === 'in_progress') {
+      this.logger.warn(
+        `Video generation already in progress for job ${jobId}, ignoring duplicate request`,
+      );
       throw new Error('Video generation already in progress');
     }
 
+    // CRITICAL: Check if video generation is already completed
+    if (state.videoGenerationStatus === 'completed') {
+      this.logger.warn(
+        `Video generation already completed for job ${jobId}, ignoring duplicate request`,
+      );
+      throw new Error('Video generation already completed');
+    }
+
+    // Update state with selected scenario and mark video generation as starting
     state.selectedScenarioId = scenarioId;
+    state.videoGenerationStatus = 'in_progress'; // Set immediately to prevent race
     this.transitionStage(state, 'scenario_selected');
     await this.saveState(state);
 
@@ -325,9 +338,21 @@ export class AgentOrchestratorService {
     this.logger.log(`Starting video generation for job ${jobId}`);
 
     const state = await this.loadState(jobId, businessId);
-    state.videoGenerationStatus = 'in_progress';
-    state.videoGenerationStartedAt = new Date();
-    await this.saveState(state);
+
+    // Double-check status (defense in depth)
+    if (state.videoGenerationStatus === 'completed') {
+      this.logger.warn(
+        `Video generation already completed for job ${jobId}, skipping`,
+      );
+      return state.artifacts.finalOutput as FinalOutput;
+    }
+
+    // Ensure status is set to in_progress
+    if (state.videoGenerationStatus !== 'in_progress') {
+      state.videoGenerationStatus = 'in_progress';
+      state.videoGenerationStartedAt = new Date();
+      await this.saveState(state);
+    }
 
     try {
       // Validate selected scenario
