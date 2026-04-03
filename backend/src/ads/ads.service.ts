@@ -4,6 +4,7 @@ import { WizardSubmitDto } from './dto/wizard.dto';
 import { JobStoreService } from './services/job-store.service';
 import { AgentOrchestratorService } from '../agent/orchestrator/agent-orchestrator.service';
 import { GcsStorageService } from '../storage/gcs-storage.service';
+import { FinalOutput } from '../agent/contracts/final-output';
 
 @Injectable()
 export class AdsService {
@@ -228,9 +229,15 @@ export class AdsService {
         );
 
         if (agentState.videoGenerationStatus === 'completed') {
-          const finalOutput = agentState.artifacts.finalOutput as {
-            gcsPath: string;
-          };
+          const finalOutput = agentState.artifacts
+            .finalOutput as FinalOutput | null;
+
+          if (!finalOutput) {
+            this.logger.error(
+              `Final output missing for completed job ${jobId}`,
+            );
+            return;
+          }
 
           await this.jobStoreService.update(businessId, jobId, {
             status: 'completed',
@@ -252,7 +259,9 @@ export class AdsService {
             'stages.render': 'done',
           });
 
-          this.logger.log(`Video generation completed for job ${jobId}`);
+          this.logger.log(
+            `Video generation completed for job ${jobId}. Video URL: ${finalOutput.videoUrl}, GCS Path: ${finalOutput.gcsPath}`,
+          );
           return;
         } else if (agentState.videoGenerationStatus === 'failed') {
           // Video generation failed
