@@ -216,27 +216,12 @@ export class AgentOrchestratorService {
       this.logger.debug(`[${jobId}] Stage 3 complete, saving state`);
       await this.saveState(state);
 
-      // Stage 4: Generate 4 scenarios (with fallback)
+      // Stage 4: Generate 4 scenarios (no fallback - fail if generation fails)
       this.logger.debug(`[${jobId}] Starting Stage 4: Generate scenarios`);
-      let scenarioSet: ScenarioSet;
-      try {
-        scenarioSet = await this.retryPolicy.execute(
-          () => this.scenarioGenerator.generate(state.jobId, creativeBrief),
-          this.createRetryContext(
-            jobId,
-            businessId,
-            'scenario_generator',
-            state,
-          ),
-        );
-      } catch (error) {
-        // Fallback: Use default scenarios if generation fails
-        scenarioSet = await this.fallbackPolicy.handleScenarioFailure(
-          state.jobId,
-          creativeBrief,
-          error,
-        );
-      }
+      const scenarioSet = await this.retryPolicy.execute(
+        () => this.scenarioGenerator.generate(state.jobId, creativeBrief),
+        this.createRetryContext(jobId, businessId, 'scenario_generator', state),
+      );
       this.transitionStage(state, 'scenarios_ready');
       state.artifacts.scenarioSet = scenarioSet;
 
