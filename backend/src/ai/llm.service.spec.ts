@@ -2,13 +2,18 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { LlmService } from './llm.service';
 import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Mock AWS SDK
 jest.mock('@aws-sdk/client-bedrock-runtime');
 
+// Mock Google Generative AI
+jest.mock('@google/generative-ai');
+
 describe('LlmService', () => {
   let service: LlmService;
   let mockBedrockSend: jest.Mock;
+  let mockGeminiGenerateContent: jest.Mock;
 
   const mockConfig = {
     AWS_ACCESS_KEY_ID: 'test-access-key',
@@ -20,10 +25,18 @@ describe('LlmService', () => {
 
   beforeEach(async () => {
     mockBedrockSend = jest.fn();
+    mockGeminiGenerateContent = jest.fn();
 
     // Mock BedrockRuntimeClient
     (BedrockRuntimeClient as jest.Mock).mockImplementation(() => ({
       send: mockBedrockSend,
+    }));
+
+    // Mock GoogleGenerativeAI
+    (GoogleGenerativeAI as jest.Mock).mockImplementation(() => ({
+      getGenerativeModel: jest.fn(() => ({
+        generateContent: mockGeminiGenerateContent,
+      })),
     }));
 
     const module: TestingModule = await Test.createTestingModule({
@@ -32,8 +45,9 @@ describe('LlmService', () => {
         {
           provide: ConfigService,
           useValue: {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-            get: jest.fn((key: string) => mockConfig[key]),
+            get: jest.fn(
+              (key: string) => mockConfig[key as keyof typeof mockConfig],
+            ),
           },
         },
       ],
@@ -70,7 +84,7 @@ describe('LlmService', () => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         new LlmService({
           get: jest.fn((key: string) => configWithoutCreds[key]),
-        } as any);
+        } as ConfigService<any>);
       }).not.toThrow();
     });
   });
@@ -154,18 +168,30 @@ describe('LlmService', () => {
       // Mock Bedrock failure
       mockBedrockSend.mockRejectedValue(new Error('Bedrock API error'));
 
-      // We need to mock the Gemini client, but since it's initialized in constructor,
-      // we'll test the error handling path
-      await expect(service.generateContent('system', 'user')).rejects.toThrow(
-        /LLM generation failed/,
+      // Mock successful Gemini response
+      const mockGeminiResponse = {
+        response: {
+          text: () => JSON.stringify({ result: 'gemini fallback response' }),
+        },
+      };
+      mockGeminiGenerateContent.mockResolvedValue(mockGeminiResponse);
+
+      const result = await service.generateContent(
+        'You are a helpful assistant',
+        'Generate a test response',
       );
+
+      expect(result).toEqual({ result: 'gemini fallback response' });
+      expect(mockBedrockSend).toHaveBeenCalledTimes(1);
+      expect(mockGeminiGenerateContent).toHaveBeenCalledTimes(1);
     });
 
     it('should throw error when both providers fail', async () => {
       mockBedrockSend.mockRejectedValue(new Error('Bedrock failed'));
+      mockGeminiGenerateContent.mockRejectedValue(new Error('Gemini failed'));
 
       await expect(service.generateContent('system', 'user')).rejects.toThrow(
-        /LLM generation failed/,
+        /LLM generation failed on all providers/,
       );
     });
   });

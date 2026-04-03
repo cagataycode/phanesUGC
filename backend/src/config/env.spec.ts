@@ -48,6 +48,25 @@ describe('Environment Configuration Validation (env.ts)', () => {
     expect(() => validateEnv(invalidConfig)).toThrow(/Invalid email/);
   });
 
+  it('should throw an error if a required field is missing', () => {
+    const invalidConfig: Record<string, unknown> = { ...validConfig };
+    delete invalidConfig.FIREBASE_PROJECT_ID;
+
+    expect(() => validateEnv(invalidConfig)).toThrow(/FIREBASE_PROJECT_ID/);
+  });
+
+  it('should throw an error if only one AWS credential is provided', () => {
+    const invalidConfig = {
+      ...validConfig,
+      AWS_ACCESS_KEY_ID: 'test-key',
+    };
+    delete invalidConfig.AWS_SECRET_ACCESS_KEY;
+
+    expect(() => validateEnv(invalidConfig)).toThrow(
+      /AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must both be provided or both be omitted/,
+    );
+  });
+
   it('should allow GEMINI_API_KEY to be optional (for fallback)', () => {
     const configWithoutGemini = { ...validConfig };
     delete configWithoutGemini.GEMINI_API_KEY;

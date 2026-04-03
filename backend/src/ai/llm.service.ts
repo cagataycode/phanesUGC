@@ -48,10 +48,12 @@ export class LlmService {
     const awsSecretAccessKey = this.configService.get('AWS_SECRET_ACCESS_KEY', {
       infer: true,
     });
-    const awsRegion = this.configService.get('AWS_REGION', { infer: true }) || 'us-east-1';
-    this.bedrockModelId = this.configService.get('BEDROCK_MODEL_ID', {
-      infer: true,
-    }) || 'us.anthropic.claude-sonnet-4-6';
+    const awsRegion =
+      this.configService.get('AWS_REGION', { infer: true }) || 'us-east-1';
+    this.bedrockModelId =
+      this.configService.get('BEDROCK_MODEL_ID', {
+        infer: true,
+      }) || 'us.anthropic.claude-sonnet-4-6';
 
     // Configure Bedrock client with explicit credentials if provided,
     // otherwise use AWS SDK default credential chain (IAM roles, etc.)
@@ -61,6 +63,17 @@ export class LlmService {
     } = {
       region: awsRegion,
     };
+
+    // Check for partial credentials (misconfiguration)
+    if (
+      (awsAccessKeyId && !awsSecretAccessKey) ||
+      (!awsAccessKeyId && awsSecretAccessKey)
+    ) {
+      this.logger.warn(
+        'Partial AWS credentials detected (only one of AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY provided). ' +
+          'Falling back to default credential chain. Provide both or neither.',
+      );
+    }
 
     if (awsAccessKeyId && awsSecretAccessKey) {
       bedrockConfig.credentials = {
