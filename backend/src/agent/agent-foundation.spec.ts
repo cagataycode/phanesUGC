@@ -302,33 +302,37 @@ describe('Agent Foundation - Scenario Generation', () => {
       }
     });
 
-    it('should generate 4 scenarios', async () => {
-      const brief = {
-        productName: 'Test Product',
-        offer: 'Great offer',
-        audience: 'Everyone',
-        painPoints: [],
-        keyBenefits: ['Benefit 1'],
-        tone: 'enthusiastic' as const,
-        cta: 'Buy now',
-        visualStyle: 'dynamic' as const,
-        keyMessage: 'Test message',
-        targetPlatform: 'tiktok' as const,
-        targetDuration: 8,
-        targetAspectRatio: '9:16' as const,
-        language: 'en',
-        createdAt: new Date(),
-      };
+    it(
+      'should generate 4 scenarios',
+      async () => {
+        const brief = {
+          productName: 'Test Product',
+          offer: 'Great offer',
+          audience: 'Everyone',
+          painPoints: [],
+          keyBenefits: ['Benefit 1'],
+          tone: 'enthusiastic' as const,
+          cta: 'Buy now',
+          visualStyle: 'dynamic' as const,
+          keyMessage: 'Test message',
+          targetPlatform: 'tiktok' as const,
+          targetDuration: 8,
+          targetAspectRatio: '9:16' as const,
+          language: 'en',
+          createdAt: new Date(),
+        };
 
-      const scenarioSet = await scenarioGenerator.generate('job-1', brief);
+        const scenarioSet = await scenarioGenerator.generate('job-1', brief);
 
-      expect(scenarioSet.scenarios).toHaveLength(4);
-      expect(scenarioSet.scenarios[0].scenarioId).toBe(1);
-      expect(scenarioSet.scenarios[1].scenarioId).toBe(2);
-      expect(scenarioSet.scenarios[2].scenarioId).toBe(3);
-      expect(scenarioSet.scenarios[3].scenarioId).toBe(4);
-      expect(scenarioSet.expiresAt).toBeInstanceOf(Date);
-    });
+        expect(scenarioSet.scenarios).toHaveLength(4);
+        expect(scenarioSet.scenarios[0].scenarioId).toBe(1);
+        expect(scenarioSet.scenarios[1].scenarioId).toBe(2);
+        expect(scenarioSet.scenarios[2].scenarioId).toBe(3);
+        expect(scenarioSet.scenarios[3].scenarioId).toBe(4);
+        expect(scenarioSet.expiresAt).toBeInstanceOf(Date);
+      },
+      10000,
+    ); // Increase timeout to 10s for LLM API call
   });
 
   describe('Contract Interfaces', () => {
