@@ -77,41 +77,24 @@ export class RenderService {
       `Starting Remotion render: ${prepared.inputProps.width}x${prepared.inputProps.height}, ${prepared.inputProps.fps}fps, ${prepared.inputProps.durationInFrames} frames`,
     );
 
-    const renderPromise = renderMedia({
-      serveUrl: prepared.bundleLocation,
-      composition: prepared.composition,
-      codec: 'h264',
-      outputLocation,
-      inputProps: prepared.inputProps,
-      timeoutInMilliseconds: this.renderTimeoutMs,
-      chromiumOptions: {
-        disableWebSecurity: true,
-        gl: 'angle',
-      },
-    });
-
-    let timeoutHandle: NodeJS.Timeout | undefined;
-    const timeoutPromise = new Promise((_, reject) => {
-      timeoutHandle = setTimeout(() => {
-        reject(
-          new Error(
-            `Remotion render timed out after ${this.renderTimeoutMs}ms`,
-          ),
-        );
-      }, this.renderTimeoutMs);
-    });
-
     try {
-      await Promise.race([renderPromise, timeoutPromise]);
+      await renderMedia({
+        serveUrl: prepared.bundleLocation,
+        composition: prepared.composition,
+        codec: 'h264',
+        outputLocation,
+        inputProps: prepared.inputProps,
+        timeoutInMilliseconds: this.renderTimeoutMs,
+        chromiumOptions: {
+          disableWebSecurity: true,
+          gl: 'angle',
+        },
+      });
     } catch (error) {
       this.logger.error(
         `Render failed or timed out: ${error instanceof Error ? error.message : String(error)}`,
       );
       throw error;
-    } finally {
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-      }
     }
 
     const duration = Date.now() - startTime;

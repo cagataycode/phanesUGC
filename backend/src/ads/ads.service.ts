@@ -263,7 +263,7 @@ export class AdsService {
           });
 
           this.logger.log(
-            `Video generation completed for job ${jobId}. Video URL: ${finalOutput.videoUrl}, GCS Path: ${finalOutput.gcsPath}`,
+            `Video generation completed for job ${jobId}. GCS Path: ${finalOutput.gcsPath}`,
           );
           return;
         } else if (agentState.videoGenerationStatus === 'failed') {
