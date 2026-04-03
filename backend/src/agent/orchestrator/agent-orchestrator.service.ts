@@ -150,7 +150,6 @@ export class AgentOrchestratorService {
 
       // Stage 1: Normalize input
       this.logger.debug(`[${jobId}] Starting Stage 1: Normalize input`);
-      this.transitionStage(state, 'normalized');
       const normalizedRequest = await this.retryPolicy.execute(
         () =>
           this.inputNormalizer.normalize(
@@ -160,13 +159,13 @@ export class AgentOrchestratorService {
           ),
         this.createRetryContext(jobId, businessId, 'normalize', state),
       );
+      this.transitionStage(state, 'normalized');
       state.artifacts.normalizedRequest = normalizedRequest;
       this.logger.debug(`[${jobId}] Stage 1 complete, saving state`);
       await this.saveState(state);
 
       // Stage 2: Acquire product context (with fallback and idempotency)
       this.logger.debug(`[${jobId}] Starting Stage 2: Acquire product context`);
-      this.transitionStage(state, 'context_ready');
       let productContext: ProductContext;
       try {
         const result = await this.retryPolicy.execute(
@@ -191,13 +190,13 @@ export class AgentOrchestratorService {
           error,
         );
       }
+      this.transitionStage(state, 'context_ready');
       state.artifacts.productContext = productContext;
       this.logger.debug(`[${jobId}] Stage 2 complete, saving state`);
       await this.saveState(state);
 
       // Stage 3: Build creative brief (with fallback)
       this.logger.debug(`[${jobId}] Starting Stage 3: Build creative brief`);
-      this.transitionStage(state, 'brief_ready');
       let creativeBrief: CreativeBrief;
       try {
         creativeBrief = await this.retryPolicy.execute(
@@ -212,13 +211,13 @@ export class AgentOrchestratorService {
           error,
         );
       }
+      this.transitionStage(state, 'brief_ready');
       state.artifacts.creativeBrief = creativeBrief;
       this.logger.debug(`[${jobId}] Stage 3 complete, saving state`);
       await this.saveState(state);
 
       // Stage 4: Generate 4 scenarios (with fallback)
       this.logger.debug(`[${jobId}] Starting Stage 4: Generate scenarios`);
-      this.transitionStage(state, 'scenarios_ready');
       let scenarioSet: ScenarioSet;
       try {
         scenarioSet = await this.retryPolicy.execute(
@@ -238,6 +237,7 @@ export class AgentOrchestratorService {
           error,
         );
       }
+      this.transitionStage(state, 'scenarios_ready');
       state.artifacts.scenarioSet = scenarioSet;
 
       // Set scenario expiry
@@ -336,7 +336,6 @@ export class AgentOrchestratorService {
       }
 
       // Stage 5: Generate script
-      this.transitionStage(state, 'script_ready');
       const creativeBrief = state.artifacts.creativeBrief as CreativeBrief;
       const adScript = await this.retryPolicy.execute(
         () =>
@@ -347,6 +346,7 @@ export class AgentOrchestratorService {
           ),
         this.createRetryContext(jobId, businessId, 'script_generator', state),
       );
+      this.transitionStage(state, 'script_ready');
       state.artifacts.adScript = adScript;
 
       // Quality gate: Script
@@ -358,7 +358,6 @@ export class AgentOrchestratorService {
       await this.saveState(state);
 
       // Stage 6: Build Veo prompt
-      this.transitionStage(state, 'veo_prompt_ready');
       const normalizedRequest = state.artifacts
         .normalizedRequest as NormalizedRequest;
       const productContext = state.artifacts.productContext as ProductContext;
@@ -374,6 +373,7 @@ export class AgentOrchestratorService {
           ),
         this.createRetryContext(jobId, businessId, 'veo_prompt_builder', state),
       );
+      this.transitionStage(state, 'veo_prompt_ready');
       state.artifacts.veoPrompt = veoPrompt;
       await this.saveState(state);
 
@@ -424,7 +424,6 @@ export class AgentOrchestratorService {
       await this.saveState(state);
 
       // Stage 8: Generate subtitles (parallel with Veo, then scale)
-      this.transitionStage(state, 'subtitles_ready');
       const subtitleData = await this.retryPolicy.execute(
         () =>
           this.subtitleGenerator.generate(
@@ -435,6 +434,7 @@ export class AgentOrchestratorService {
           ),
         this.createRetryContext(jobId, businessId, 'subtitle_generator', state),
       );
+      this.transitionStage(state, 'subtitles_ready');
       state.artifacts.subtitleData = subtitleData;
 
       // Quality gate: Subtitles
@@ -443,7 +443,6 @@ export class AgentOrchestratorService {
       await this.saveState(state);
 
       // Stage 9: Assemble render timeline
-      this.transitionStage(state, 'composition_ready');
       const renderTimeline = await this.retryPolicy.execute(
         () =>
           this.timelineAssembler.assemble(
@@ -454,6 +453,7 @@ export class AgentOrchestratorService {
           ),
         this.createRetryContext(jobId, businessId, 'timeline_assembler', state),
       );
+      this.transitionStage(state, 'composition_ready');
       state.artifacts.renderTimeline = renderTimeline;
       await this.saveState(state);
 
