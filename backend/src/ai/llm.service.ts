@@ -71,17 +71,6 @@ export class LlmService {
       region: awsRegion,
     };
 
-    // Check for partial credentials (misconfiguration)
-    if (
-      (awsAccessKeyId && !awsSecretAccessKey) ||
-      (!awsAccessKeyId && awsSecretAccessKey)
-    ) {
-      this.logger.warn(
-        'Partial AWS credentials detected (only one of AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY provided). ' +
-          'Falling back to default credential chain. Provide both or neither.',
-      );
-    }
-
     if (awsAccessKeyId && awsSecretAccessKey) {
       bedrockConfig.credentials = {
         accessKeyId: awsAccessKeyId,
@@ -257,10 +246,11 @@ export class LlmService {
     let jsonText: string = textContent.text.trim();
 
     // Remove markdown code blocks (```json ... ``` or ``` ... ```)
+    // Handle both Unix (\n) and Windows (\r\n) line endings
     if (jsonText.startsWith('```')) {
       jsonText = jsonText
-        .replace(/^```(?:json)?\n?/, '')
-        .replace(/\n?```$/, '');
+        .replace(/^```(?:json)?(?:\r?\n)?/, '')
+        .replace(/(?:\r?\n)?```\s*$/, '');
     }
 
     return JSON.parse(jsonText) as unknown;

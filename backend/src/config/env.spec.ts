@@ -86,4 +86,25 @@ describe('Environment Configuration Validation (env.ts)', () => {
     expect(validated.AWS_REGION).toBe('us-east-1'); // Region still has default
     expect(validated.BEDROCK_MODEL_ID).toBe('us.anthropic.claude-sonnet-4-6');
   });
+
+  it('should throw an error if AWS_SESSION_TOKEN is provided without access key and secret', () => {
+    const invalidConfig: Record<string, unknown> = { ...validConfig };
+    delete invalidConfig.AWS_ACCESS_KEY_ID;
+    delete invalidConfig.AWS_SECRET_ACCESS_KEY;
+    invalidConfig.AWS_SESSION_TOKEN = 'test-session-token';
+
+    expect(() => validateEnv(invalidConfig)).toThrow(
+      /AWS_SESSION_TOKEN may only be provided when both are set/,
+    );
+  });
+
+  it('should allow AWS_SESSION_TOKEN when both access key and secret are provided', () => {
+    const configWithSessionToken = {
+      ...validConfig,
+      AWS_SESSION_TOKEN: 'test-session-token',
+    };
+
+    const validated = validateEnv(configWithSessionToken);
+    expect(validated.AWS_SESSION_TOKEN).toBe('test-session-token');
+  });
 });

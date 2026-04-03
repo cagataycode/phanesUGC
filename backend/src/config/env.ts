@@ -39,14 +39,26 @@ export const envSchema = z
   })
   .refine(
     (data) => {
-      // AWS credentials must be both present or both absent
+      // AWS explicit credentials must be internally consistent:
+      // - access key and secret key must be both present or both absent
+      // - session token may only be provided when both access key and secret key are provided
       const hasAccessKey = !!data.AWS_ACCESS_KEY_ID;
       const hasSecretKey = !!data.AWS_SECRET_ACCESS_KEY;
-      return hasAccessKey === hasSecretKey;
+      const hasSessionToken = !!data.AWS_SESSION_TOKEN;
+
+      if (hasAccessKey !== hasSecretKey) {
+        return false;
+      }
+
+      if (hasSessionToken && (!hasAccessKey || !hasSecretKey)) {
+        return false;
+      }
+
+      return true;
     },
     {
       message:
-        'AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must both be provided or both be omitted',
+        'AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must both be provided or both be omitted, and AWS_SESSION_TOKEN may only be provided when both are set',
       path: ['AWS_ACCESS_KEY_ID'],
     },
   );
