@@ -159,7 +159,7 @@ const veoPromptString = this.buildPromptFromScript(createAdDto, script);
 - Faster debugging
 - Architecture supports multi-scene expansion later
 
-**Future multi-scene:** Update script generation → `voiceoverLines[]`, scene structuring → `VeoScenePrompt[]`, add parallel Veo calls, add FFmpeg stitching.
+**Future multi-scene:** Update script generation → `voiceoverLines[]`, scene structuring → `VeoScenePrompt[]`, add parallel Veo calls.
 
 ---
 
