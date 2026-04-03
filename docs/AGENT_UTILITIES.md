@@ -299,8 +299,8 @@ import type { AgentPlatform, AdsPlatform } from '../utils';
 
 All utilities have comprehensive unit tests:
 
-- `platform-mapper.spec.ts` - 8 tests covering all conversions and validations
-- `dto-mapper.spec.ts` - 16 tests covering all DTO conversions
+- `platform-mapper.spec.ts` - 19 tests covering conversions, validations, and safe methods
+- `dto-mapper.spec.ts` - 9 tests covering all DTO conversions
 
 Run tests:
 
