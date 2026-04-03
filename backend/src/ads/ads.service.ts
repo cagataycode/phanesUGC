@@ -37,8 +37,8 @@ export class AdsService {
       createAdDto,
     );
 
-    // Start Phase 1 (scenario generation) asynchronously
-    void this.runPhase1(jobId, createAdDto);
+    // Start scenario generation asynchronously
+    void this.runScenarioGeneration(jobId, createAdDto);
 
     return {
       id: jobId,
@@ -47,9 +47,9 @@ export class AdsService {
   }
 
   /**
-   * Run Phase 1 - Generate scenarios
+   * Run Scenario Generation - Generate scenarios
    */
-  private async runPhase1(
+  private async runScenarioGeneration(
     jobId: string,
     createAdDto: CreateAdDto,
   ): Promise<void> {
@@ -63,8 +63,8 @@ export class AdsService {
         'stages.scenarios': 'pending',
       });
 
-      // Run agent Phase 1
-      const scenarioSet = await this.agentOrchestrator.runPhase1(
+      // Run agent scenario generation
+      const scenarioSet = await this.agentOrchestrator.runScenarioGeneration(
         jobId,
         createAdDto.businessId,
       );
@@ -83,10 +83,15 @@ export class AdsService {
         'stages.scenarios': 'done',
       });
 
-      this.logger.log(`Phase 1 completed for job ${jobId} - 4 scenarios ready`);
+      this.logger.log(
+        `Scenario generation completed for job ${jobId} - 4 scenarios ready`,
+      );
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Phase 1 failed';
-      this.logger.error(`Phase 1 failed for job ${jobId}: ${message}`);
+      const message =
+        error instanceof Error ? error.message : 'Scenario generation failed';
+      this.logger.error(
+        `Scenario generation failed for job ${jobId}: ${message}`,
+      );
 
       await this.jobStoreService.update(createAdDto.businessId, jobId, {
         status: 'failed',
@@ -97,7 +102,7 @@ export class AdsService {
   }
 
   /**
-   * Select scenario and start Phase 2
+   * Select scenario and start Video generation
    */
   async selectScenario(
     businessId: string,
@@ -131,17 +136,20 @@ export class AdsService {
       'stages.render': 'pending',
     });
 
-    // Start Phase 2 asynchronously
-    void this.runPhase2(businessId, jobId);
+    // Start Video generation asynchronously
+    void this.runVideoGeneration(businessId, jobId);
   }
 
   /**
-   * Run Phase 2 - Generate video for selected scenario
+   * Run Video generation - Generate video for selected scenario
    */
-  private async runPhase2(businessId: string, jobId: string): Promise<void> {
+  private async runVideoGeneration(
+    businessId: string,
+    jobId: string,
+  ): Promise<void> {
     try {
-      // Run agent Phase 2
-      const finalOutput = await this.agentOrchestrator.runPhase2(
+      // Run agent Video generation
+      const finalOutput = await this.agentOrchestrator.runVideoGeneration(
         jobId,
         businessId,
       );
@@ -164,10 +172,11 @@ export class AdsService {
         'stages.render': 'done',
       });
 
-      this.logger.log(`Phase 2 completed for job ${jobId}`);
+      this.logger.log(`Video generation completed for job ${jobId}`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Phase 2 failed';
-      this.logger.error(`Phase 2 failed for job ${jobId}: ${message}`);
+      const message =
+        error instanceof Error ? error.message : 'Video generation failed';
+      this.logger.error(`Video generation failed for job ${jobId}: ${message}`);
 
       await this.jobStoreService.update(businessId, jobId, {
         status: 'failed',
@@ -208,14 +217,14 @@ export class AdsService {
         )
       : undefined;
 
-    // Return scenarios if in Phase 1
+    // Return scenarios if in Scenario generation
     const scenarios = job.metadata?.scenarios || null;
 
     return {
       video_url,
       source_video_url,
       thumbnail_url,
-      scenarios, // NEW: Include scenarios for Phase 1
+      scenarios, // NEW: Include scenarios for Scenario generation
       script: (job.script as unknown as Record<string, unknown>) ?? null,
       creativeBrief: job.creativeBrief ?? null,
       subtitles: job.subtitleSegments ?? [],

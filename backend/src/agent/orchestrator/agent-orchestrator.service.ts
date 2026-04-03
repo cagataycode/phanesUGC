@@ -25,9 +25,9 @@ import { RetryPolicy, FallbackPolicy } from '../policies';
 /**
  * AgentOrchestratorService - Main pipeline controller
  *
- * Orchestrates the two-phase agent pipeline:
- * - Phase 1: Fast scenario generation (< 30s)
- * - Phase 2: Full video generation after user selection (< 10 min)
+ * Orchestrates the two-stage agent pipeline:
+ * - Scenario Generation: Fast scenario generation (< 30s)
+ * - Video Generation: Full video generation after user selection (< 10 min)
  */
 @Injectable()
 export class AgentOrchestratorService {
@@ -98,8 +98,8 @@ export class AgentOrchestratorService {
       jobId,
       businessId,
       stage: 'created',
-      phase1Status: 'pending',
-      phase2Status: 'pending',
+      scenarioGenerationStatus: 'pending',
+      videoGenerationStatus: 'pending',
       artifacts: {
         normalizedRequest,
       },
@@ -126,16 +126,19 @@ export class AgentOrchestratorService {
   }
 
   /**
-   * Run Phase 1 - Fast scenario generation
+   * Run Scenario Generation - Fast scenario generation
    *
    * Returns 4 scenarios for user selection
    */
-  async runPhase1(jobId: string, businessId: string): Promise<ScenarioSet> {
-    this.logger.log(`Starting Phase 1 for job ${jobId}`);
+  async runScenarioGeneration(
+    jobId: string,
+    businessId: string,
+  ): Promise<ScenarioSet> {
+    this.logger.log(`Starting scenario generation for job ${jobId}`);
 
     const state = await this.loadState(jobId, businessId);
-    state.phase1Status = 'in_progress';
-    state.phase1StartedAt = new Date();
+    state.scenarioGenerationStatus = 'in_progress';
+    state.scenarioGenerationStartedAt = new Date();
     await this.saveState(state);
 
     try {
@@ -225,18 +228,18 @@ export class AgentOrchestratorService {
       expiresAt.setHours(expiresAt.getHours() + this.SCENARIO_EXPIRY_HOURS);
       state.scenarioExpiresAt = expiresAt;
 
-      state.phase1Status = 'completed';
-      state.phase1CompletedAt = new Date();
+      state.scenarioGenerationStatus = 'completed';
+      state.scenarioGenerationCompletedAt = new Date();
       await this.saveState(state);
 
-      this.logger.log(`Phase 1 completed for job ${jobId}`);
+      this.logger.log(`Scenario generation completed for job ${jobId}`);
       return scenarioSet;
     } catch (error) {
-      state.phase1Status = 'failed';
+      state.scenarioGenerationStatus = 'failed';
       this.recordError(state, state.stage, error);
 
       // Log full error details for debugging
-      this.logger.error(`Phase 1 failed for job ${jobId}:`, {
+      this.logger.error(`Scenario generation failed for job ${jobId}:`, {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         stage: state.stage,
@@ -249,7 +252,7 @@ export class AgentOrchestratorService {
   }
 
   /**
-   * Select a scenario and trigger Phase 2
+   * Select a scenario and trigger video generation
    */
   async selectScenario(
     jobId: string,
@@ -280,8 +283,8 @@ export class AgentOrchestratorService {
       throw new Error('Selected scenario not found');
     }
 
-    // Check if Phase 2 is already running
-    if (state.phase2Status === 'in_progress') {
+    // Check if video generation is already running
+    if (state.videoGenerationStatus === 'in_progress') {
       throw new Error('Video generation already in progress');
     }
 
@@ -289,21 +292,24 @@ export class AgentOrchestratorService {
     this.transitionStage(state, 'scenario_selected');
     await this.saveState(state);
 
-    // Start Phase 2 asynchronously
-    void this.runPhase2(jobId, businessId);
+    // Start video generation asynchronously
+    void this.runVideoGeneration(jobId, businessId);
   }
 
   /**
-   * Run Phase 2 - Full video generation
+   * Run Video Generation - Full video generation
    *
    * Generates the final video for the selected scenario
    */
-  async runPhase2(jobId: string, businessId: string): Promise<FinalOutput> {
-    this.logger.log(`Starting Phase 2 for job ${jobId}`);
+  async runVideoGeneration(
+    jobId: string,
+    businessId: string,
+  ): Promise<FinalOutput> {
+    this.logger.log(`Starting video generation for job ${jobId}`);
 
     const state = await this.loadState(jobId, businessId);
-    state.phase2Status = 'in_progress';
-    state.phase2StartedAt = new Date();
+    state.videoGenerationStatus = 'in_progress';
+    state.videoGenerationStartedAt = new Date();
     await this.saveState(state);
 
     try {
@@ -445,14 +451,14 @@ export class AgentOrchestratorService {
       finalOutput.qualityReports = state.qualityReports;
 
       state.artifacts.finalOutput = finalOutput;
-      state.phase2Status = 'completed';
-      state.phase2CompletedAt = new Date();
+      state.videoGenerationStatus = 'completed';
+      state.videoGenerationCompletedAt = new Date();
       await this.saveState(state);
 
-      this.logger.log(`Phase 2 completed for job ${jobId}`);
+      this.logger.log(`Video generation completed for job ${jobId}`);
       return finalOutput;
     } catch (error) {
-      state.phase2Status = 'failed';
+      state.videoGenerationStatus = 'failed';
       this.transitionStage(state, 'failed');
       this.recordError(state, state.stage, error);
       await this.saveState(state);
@@ -521,10 +527,10 @@ export class AgentOrchestratorService {
         ...state,
         createdAt: state.createdAt,
         updatedAt: state.updatedAt,
-        phase1StartedAt: state.phase1StartedAt,
-        phase1CompletedAt: state.phase1CompletedAt,
-        phase2StartedAt: state.phase2StartedAt,
-        phase2CompletedAt: state.phase2CompletedAt,
+        scenarioGenerationStartedAt: state.scenarioGenerationStartedAt,
+        scenarioGenerationCompletedAt: state.scenarioGenerationCompletedAt,
+        videoGenerationStartedAt: state.videoGenerationStartedAt,
+        videoGenerationCompletedAt: state.videoGenerationCompletedAt,
         scenarioExpiresAt: state.scenarioExpiresAt,
         errors: state.errors.map((e) => ({
           ...e,
@@ -579,17 +585,17 @@ export class AgentOrchestratorService {
       ...data,
       createdAt: this.toDate(data.createdAt),
       updatedAt: this.toDate(data.updatedAt),
-      phase1StartedAt: data.phase1StartedAt
-        ? this.toDate(data.phase1StartedAt)
+      scenarioGenerationStartedAt: data.scenarioGenerationStartedAt
+        ? this.toDate(data.scenarioGenerationStartedAt)
         : undefined,
-      phase1CompletedAt: data.phase1CompletedAt
-        ? this.toDate(data.phase1CompletedAt)
+      scenarioGenerationCompletedAt: data.scenarioGenerationCompletedAt
+        ? this.toDate(data.scenarioGenerationCompletedAt)
         : undefined,
-      phase2StartedAt: data.phase2StartedAt
-        ? this.toDate(data.phase2StartedAt)
+      videoGenerationStartedAt: data.videoGenerationStartedAt
+        ? this.toDate(data.videoGenerationStartedAt)
         : undefined,
-      phase2CompletedAt: data.phase2CompletedAt
-        ? this.toDate(data.phase2CompletedAt)
+      videoGenerationCompletedAt: data.videoGenerationCompletedAt
+        ? this.toDate(data.videoGenerationCompletedAt)
         : undefined,
       scenarioExpiresAt: data.scenarioExpiresAt
         ? this.toDate(data.scenarioExpiresAt)

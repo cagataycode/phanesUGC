@@ -32,8 +32,8 @@ import { SceneStructuringService } from '../ads/services/scene-structuring.servi
  * AgentModule - AI Ad Agent orchestration system
  *
  * Implements a two-phase pipeline:
- * - Phase 1: Fast scenario generation (< 30s)
- * - Phase 2: Full video generation after user selection (< 10 min)
+ * - Scenario generation: Fast scenario generation (< 30s)
+ * - Video generation: Full video generation after user selection (< 10 min)
  *
  * Uses existing ads services for brief, script, and scene generation
  * to avoid duplication and maintain consistency.
