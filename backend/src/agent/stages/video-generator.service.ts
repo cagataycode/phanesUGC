@@ -83,6 +83,73 @@ export class VideoGeneratorService {
   }
 
   /**
+   * Generate video with idempotency support
+   * Checks for existing attempts before calling Veo
+   */
+  async generateWithIdempotency(
+    prompt: VeoPrompt,
+    existingAttempts?: Array<{
+      attemptId: string;
+      gcsPath: string;
+      timestamp: Date;
+    }>,
+  ): Promise<{
+    output: VeoOutput;
+    attemptId: string;
+    isReused: boolean;
+  }> {
+    const attemptId = `${prompt.projectId}-${prompt.sceneId}-${Date.now()}`;
+
+    // Check if we have a recent successful attempt (within last 5 minutes)
+    if (existingAttempts && existingAttempts.length > 0) {
+      const recentAttempt = existingAttempts.find((attempt) => {
+        const ageMs = Date.now() - new Date(attempt.timestamp).getTime();
+        return ageMs < 5 * 60 * 1000; // 5 minutes
+      });
+
+      if (recentAttempt) {
+        this.logger.log(
+          `Reusing existing Veo output from attempt ${recentAttempt.attemptId} (idempotency)`,
+        );
+
+        // Reconstruct VeoOutput from cached attempt
+        const resolution = this.getResolutionForAspectRatio(prompt.aspectRatio);
+        const output: VeoOutput = {
+          jobId: prompt.projectId,
+          sceneId: prompt.sceneId,
+          gcsPath: recentAttempt.gcsPath,
+          actualDurationSec: prompt.durationSeconds,
+          resolution,
+          fps: 24,
+          fileSizeBytes: 0,
+          veoOperationId: recentAttempt.attemptId,
+          metadata: {
+            model: prompt.generationConfig.model,
+            seed: prompt.generationConfig.seed ?? undefined,
+            generationTimeSec: 0,
+          },
+          generatedAt: new Date(recentAttempt.timestamp),
+        };
+
+        return {
+          output,
+          attemptId: recentAttempt.attemptId,
+          isReused: true,
+        };
+      }
+    }
+
+    // No recent attempt found, generate new video
+    const output = await this.generate(prompt);
+
+    return {
+      output,
+      attemptId,
+      isReused: false,
+    };
+  }
+
+  /**
    * Get expected resolution for aspect ratio (Veo 3.1 supports 16:9 and 9:16 only)
    */
   private getResolutionForAspectRatio(aspectRatio: string): {

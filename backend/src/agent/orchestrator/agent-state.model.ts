@@ -58,6 +58,18 @@ export interface AgentJobState {
     subtitleData?: unknown;
     renderTimeline?: unknown;
     finalOutput?: unknown;
+    // Idempotency tracking
+    scrapeResults?: unknown; // Cached scrape results to prevent duplicate scraping
+    veoAttempts?: Array<{
+      attemptId: string;
+      gcsPath: string;
+      timestamp: Date;
+    }>; // Track Veo generation attempts
+    renderAttempts?: Array<{
+      attemptId: string;
+      gcsPath: string;
+      timestamp: Date;
+    }>; // Track render attempts
   };
 
   /** Error tracking */

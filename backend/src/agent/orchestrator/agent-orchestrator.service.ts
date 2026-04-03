@@ -169,13 +169,17 @@ export class AgentOrchestratorService {
       this.logger.debug(`[${jobId}] Stage 1 complete, saving state`);
       await this.saveState(state);
 
-      // Stage 2: Acquire product context (with fallback)
+      // Stage 2: Acquire product context (with fallback and idempotency)
       this.logger.debug(`[${jobId}] Starting Stage 2: Acquire product context`);
       this.transitionStage(state, 'context_ready');
       let productContext: ProductContext;
       try {
-        productContext = await this.retryPolicy.execute(
-          () => this.contextAcquisition.acquire(normalizedRequest),
+        const result = await this.retryPolicy.execute(
+          () =>
+            this.contextAcquisition.acquireWithCache(
+              normalizedRequest,
+              state.artifacts.scrapeResults,
+            ),
           {
             jobId,
             stage: 'context_acquisition',
@@ -183,6 +187,8 @@ export class AgentOrchestratorService {
               this.getCurrentRetryCount(jobId, businessId),
           },
         );
+        productContext = result.context;
+        state.artifacts.scrapeResults = result.scrapeResults;
       } catch (error) {
         // Fallback: Use manual inputs if scraping fails
         productContext = this.fallbackPolicy.handleScrapingFailure(
@@ -391,10 +397,18 @@ export class AgentOrchestratorService {
       state.artifacts.veoPrompt = veoPrompt;
       await this.saveState(state);
 
-      // Stage 7: Generate video with Veo (no fallback - critical stage)
+      // Stage 7: Generate video with Veo (no fallback - critical stage, with idempotency)
       this.transitionStage(state, 'veo_generating');
-      const veoOutput = await this.retryPolicy.execute(
-        () => this.videoGenerator.generate(veoPrompt),
+      const veoResult = await this.retryPolicy.execute(
+        () =>
+          this.videoGenerator.generateWithIdempotency(
+            veoPrompt,
+            state.artifacts.veoAttempts as Array<{
+              attemptId: string;
+              gcsPath: string;
+              timestamp: Date;
+            }>,
+          ),
         {
           jobId,
           stage: 'video_generator',
@@ -402,6 +416,26 @@ export class AgentOrchestratorService {
             this.getCurrentRetryCount(jobId, businessId),
         },
       );
+      const veoOutput = veoResult.output;
+
+      // Track attempt for idempotency
+      if (!state.artifacts.veoAttempts) {
+        state.artifacts.veoAttempts = [];
+      }
+      if (!veoResult.isReused) {
+        (
+          state.artifacts.veoAttempts as Array<{
+            attemptId: string;
+            gcsPath: string;
+            timestamp: Date;
+          }>
+        ).push({
+          attemptId: veoResult.attemptId,
+          gcsPath: veoOutput.gcsPath,
+          timestamp: new Date(),
+        });
+      }
+
       this.transitionStage(state, 'veo_output_ready');
       state.artifacts.veoOutput = veoOutput;
 

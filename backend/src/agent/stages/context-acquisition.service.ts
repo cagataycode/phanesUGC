@@ -57,6 +57,84 @@ export class ContextAcquisitionService {
   }
 
   /**
+   * Acquire context with idempotency support
+   * Checks for cached scrape results before scraping
+   */
+  async acquireWithCache(
+    request: NormalizedRequest,
+    cachedScrapeResults?: unknown,
+  ): Promise<{ context: ProductContext; scrapeResults: unknown }> {
+    this.logger.log(`Acquiring context for job ${request.jobId}`);
+
+    const hasUrls = request.product?.urls && request.product.urls.length > 0;
+
+    // Case 1: No URLs provided - use manual input only
+    if (!hasUrls) {
+      this.logger.debug('No URLs provided, using manual input only');
+      return {
+        context: this.buildManualContext(request),
+        scrapeResults: null,
+      };
+    }
+
+    // Case 2: Check cache first (idempotency)
+    if (cachedScrapeResults) {
+      this.logger.log('Using cached scrape results (idempotency)');
+      const scrapeResults = cachedScrapeResults as ScrapeResult[];
+      const bestResult = this.selectBestScrapeResult(scrapeResults);
+
+      if (bestResult && bestResult.status !== 'failed') {
+        return {
+          context: this.mergeScrapedAndManual(
+            request,
+            bestResult,
+            scrapeResults,
+          ),
+          scrapeResults: cachedScrapeResults,
+        };
+      }
+    }
+
+    // Case 3: URLs provided - scrape and merge with manual
+    try {
+      const scrapeResults = await this.scraper.scrapeMany(
+        request.product!.urls!,
+        {
+          usePlaywrightFallback: true,
+          extractBrandColors: true,
+          timeoutMs: 15000,
+        },
+      );
+
+      // Find the best scrape result (success > partial > failed)
+      const bestResult = this.selectBestScrapeResult(scrapeResults);
+
+      if (!bestResult || bestResult.status === 'failed') {
+        this.logger.warn('All scrapes failed, falling back to manual input');
+        return {
+          context: this.buildManualContext(request),
+          scrapeResults,
+        };
+      }
+
+      // Merge scraped data with manual input
+      return {
+        context: this.mergeScrapedAndManual(request, bestResult, scrapeResults),
+        scrapeResults,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Scraping failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      // Fallback to manual input on scraping error
+      return {
+        context: this.buildManualContext(request),
+        scrapeResults: null,
+      };
+    }
+  }
+
+  /**
    * Build context from manual input only
    */
   private buildManualContext(request: NormalizedRequest): ProductContext {
