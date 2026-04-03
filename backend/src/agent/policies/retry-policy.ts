@@ -19,6 +19,7 @@ export interface RetryContext {
   jobId: string;
   stage: string;
   getCurrentRetryCount?: () => Promise<number>; // Function to get current job-wide retry count
+  onRetryAttempt?: (attemptNumber: number, error: unknown) => Promise<void>; // Callback before each retry
 }
 
 export class RetryPolicy {
@@ -58,6 +59,11 @@ export class RetryPolicy {
             `Retry attempt ${attempt}/${this.config.maxRetries} for job ${context.jobId} stage ${context.stage} after ${delay}ms`,
           );
           await this.sleep(delay);
+
+          // Increment retry count before retrying (for state persistence)
+          if (context.onRetryAttempt) {
+            await context.onRetryAttempt(attempt, lastError);
+          }
         }
 
         return await fn();

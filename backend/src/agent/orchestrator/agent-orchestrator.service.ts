@@ -158,12 +158,7 @@ export class AgentOrchestratorService {
             state.businessId,
             state.artifacts.normalizedRequest as Partial<NormalizedRequest>,
           ),
-        {
-          jobId,
-          stage: 'normalize',
-          getCurrentRetryCount: () =>
-            this.getCurrentRetryCount(jobId, businessId),
-        },
+        this.createRetryContext(jobId, businessId, 'normalize', state),
       );
       state.artifacts.normalizedRequest = normalizedRequest;
       this.logger.debug(`[${jobId}] Stage 1 complete, saving state`);
@@ -180,12 +175,12 @@ export class AgentOrchestratorService {
               normalizedRequest,
               state.artifacts.scrapeResults,
             ),
-          {
+          this.createRetryContext(
             jobId,
-            stage: 'context_acquisition',
-            getCurrentRetryCount: () =>
-              this.getCurrentRetryCount(jobId, businessId),
-          },
+            businessId,
+            'context_acquisition',
+            state,
+          ),
         );
         productContext = result.context;
         state.artifacts.scrapeResults = result.scrapeResults;
@@ -207,12 +202,7 @@ export class AgentOrchestratorService {
       try {
         creativeBrief = await this.retryPolicy.execute(
           () => this.briefBuilder.build(normalizedRequest, productContext),
-          {
-            jobId,
-            stage: 'brief_builder',
-            getCurrentRetryCount: () =>
-              this.getCurrentRetryCount(jobId, businessId),
-          },
+          this.createRetryContext(jobId, businessId, 'brief_builder', state),
         );
       } catch (error) {
         // Fallback: Use template brief if generation fails
@@ -233,12 +223,12 @@ export class AgentOrchestratorService {
       try {
         scenarioSet = await this.retryPolicy.execute(
           () => this.scenarioGenerator.generate(state.jobId, creativeBrief),
-          {
+          this.createRetryContext(
             jobId,
-            stage: 'scenario_generator',
-            getCurrentRetryCount: () =>
-              this.getCurrentRetryCount(jobId, businessId),
-          },
+            businessId,
+            'scenario_generator',
+            state,
+          ),
         );
       } catch (error) {
         // Fallback: Use default scenarios if generation fails
@@ -355,12 +345,7 @@ export class AgentOrchestratorService {
             state.selectedScenarioId!,
             creativeBrief,
           ),
-        {
-          jobId,
-          stage: 'script_generator',
-          getCurrentRetryCount: () =>
-            this.getCurrentRetryCount(jobId, businessId),
-        },
+        this.createRetryContext(jobId, businessId, 'script_generator', state),
       );
       state.artifacts.adScript = adScript;
 
@@ -387,12 +372,7 @@ export class AgentOrchestratorService {
             productContext,
             normalizedRequest,
           ),
-        {
-          jobId,
-          stage: 'veo_prompt_builder',
-          getCurrentRetryCount: () =>
-            this.getCurrentRetryCount(jobId, businessId),
-        },
+        this.createRetryContext(jobId, businessId, 'veo_prompt_builder', state),
       );
       state.artifacts.veoPrompt = veoPrompt;
       await this.saveState(state);
@@ -409,12 +389,7 @@ export class AgentOrchestratorService {
               timestamp: Date;
             }>,
           ),
-        {
-          jobId,
-          stage: 'video_generator',
-          getCurrentRetryCount: () =>
-            this.getCurrentRetryCount(jobId, businessId),
-        },
+        this.createRetryContext(jobId, businessId, 'video_generator', state),
       );
       const veoOutput = veoResult.output;
 
@@ -458,12 +433,7 @@ export class AgentOrchestratorService {
             veoOutput,
             normalizedRequest.subtitleStyle,
           ),
-        {
-          jobId,
-          stage: 'subtitle_generator',
-          getCurrentRetryCount: () =>
-            this.getCurrentRetryCount(jobId, businessId),
-        },
+        this.createRetryContext(jobId, businessId, 'subtitle_generator', state),
       );
       state.artifacts.subtitleData = subtitleData;
 
@@ -482,12 +452,7 @@ export class AgentOrchestratorService {
             subtitleData,
             state.artifacts.normalizedRequest as NormalizedRequest,
           ),
-        {
-          jobId,
-          stage: 'timeline_assembler',
-          getCurrentRetryCount: () =>
-            this.getCurrentRetryCount(jobId, businessId),
-        },
+        this.createRetryContext(jobId, businessId, 'timeline_assembler', state),
       );
       state.artifacts.renderTimeline = renderTimeline;
       await this.saveState(state);
@@ -496,12 +461,7 @@ export class AgentOrchestratorService {
       this.transitionStage(state, 'rendering');
       const finalOutput = await this.retryPolicy.execute(
         () => this.renderExecutor.render(renderTimeline),
-        {
-          jobId,
-          stage: 'render_executor',
-          getCurrentRetryCount: () =>
-            this.getCurrentRetryCount(jobId, businessId),
-        },
+        this.createRetryContext(jobId, businessId, 'render_executor', state),
       );
       this.transitionStage(state, 'completed');
 
@@ -584,6 +544,35 @@ export class AgentOrchestratorService {
   private async incrementRetryCount(state: AgentJobState): Promise<void> {
     state.totalRetryCount++;
     await this.saveState(state);
+  }
+
+  /**
+   * Create retry context with state persistence
+   */
+  private createRetryContext(
+    jobId: string,
+    businessId: string,
+    stage: string,
+    state: AgentJobState,
+  ): {
+    jobId: string;
+    stage: string;
+    getCurrentRetryCount: () => Promise<number>;
+    onRetryAttempt: (attemptNumber: number, error: unknown) => Promise<void>;
+  } {
+    return {
+      jobId,
+      stage,
+      getCurrentRetryCount: () => this.getCurrentRetryCount(jobId, businessId),
+      onRetryAttempt: async (attemptNumber, error) => {
+        await this.incrementRetryCount(state);
+        this.recordError(state, state.stage, error);
+        await this.saveState(state);
+        this.logger.log(
+          `[${jobId}] Retry attempt ${attemptNumber} for ${stage}, state saved`,
+        );
+      },
+    };
   }
 
   /**
