@@ -48,10 +48,10 @@ export class LlmService {
     const awsSecretAccessKey = this.configService.get('AWS_SECRET_ACCESS_KEY', {
       infer: true,
     });
-    const awsRegion = this.configService.get('AWS_REGION', { infer: true });
+    const awsRegion = this.configService.get('AWS_REGION', { infer: true }) || 'us-east-1';
     this.bedrockModelId = this.configService.get('BEDROCK_MODEL_ID', {
       infer: true,
-    })!;
+    }) || 'us.anthropic.claude-sonnet-4-6';
 
     // Configure Bedrock client with explicit credentials if provided,
     // otherwise use AWS SDK default credential chain (IAM roles, etc.)
