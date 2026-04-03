@@ -37,11 +37,11 @@ export interface AgentJobState {
   /** Current stage */
   stage: AgentStage;
 
-  /** Phase 1 status */
-  phase1Status: PhaseStatus;
+  /** Scenario generation status */
+  scenarioGenerationStatus: PhaseStatus;
 
-  /** Phase 2 status */
-  phase2Status: PhaseStatus;
+  /** Video generation status */
+  videoGenerationStatus: PhaseStatus;
 
   /** Selected scenario ID (set by user) */
   selectedScenarioId?: number;
@@ -58,6 +58,18 @@ export interface AgentJobState {
     subtitleData?: unknown;
     renderTimeline?: unknown;
     finalOutput?: unknown;
+    // Idempotency tracking
+    scrapeResults?: unknown; // Cached scrape results to prevent duplicate scraping
+    veoAttempts?: Array<{
+      attemptId: string;
+      gcsPath: string;
+      timestamp: Date;
+    }>; // Track Veo generation attempts
+    renderAttempts?: Array<{
+      attemptId: string;
+      gcsPath: string;
+      timestamp: Date;
+    }>; // Track render attempts
   };
 
   /** Error tracking */
@@ -67,6 +79,9 @@ export interface AgentJobState {
     timestamp: Date;
     retryCount: number;
   }>;
+
+  /** Global retry tracking */
+  totalRetryCount: number;
 
   /** Quality reports */
   qualityReports: Array<{
@@ -78,10 +93,10 @@ export interface AgentJobState {
 
   /** Timestamps */
   createdAt: Date;
-  phase1StartedAt?: Date;
-  phase1CompletedAt?: Date;
-  phase2StartedAt?: Date;
-  phase2CompletedAt?: Date;
+  scenarioGenerationStartedAt?: Date;
+  scenarioGenerationCompletedAt?: Date;
+  videoGenerationStartedAt?: Date;
+  videoGenerationCompletedAt?: Date;
   updatedAt: Date;
 
   /** Expiry for scenario selection */
@@ -111,9 +126,9 @@ export const STAGE_TRANSITIONS: Record<AgentStage, AgentStage[]> = {
 };
 
 /**
- * Phase 1 stages (fast, returns scenarios)
+ * Scenario generation stages (fast, returns scenarios for user selection)
  */
-export const PHASE_1_STAGES: AgentStage[] = [
+export const SCENARIO_GENERATION_STAGES: AgentStage[] = [
   'created',
   'platform_ready',
   'normalized',
@@ -123,9 +138,9 @@ export const PHASE_1_STAGES: AgentStage[] = [
 ];
 
 /**
- * Phase 2 stages (slow, generates video)
+ * Video generation stages (slow, generates final video after user selection)
  */
-export const PHASE_2_STAGES: AgentStage[] = [
+export const VIDEO_GENERATION_STAGES: AgentStage[] = [
   'scenario_selected',
   'script_ready',
   'veo_prompt_ready',
@@ -145,10 +160,12 @@ export function isValidTransition(from: AgentStage, to: AgentStage): boolean {
 }
 
 /**
- * Get the phase for a given stage
+ * Get the pipeline stage for a given stage
  */
-export function getPhase(stage: AgentStage): 1 | 2 | null {
-  if (PHASE_1_STAGES.includes(stage)) return 1;
-  if (PHASE_2_STAGES.includes(stage)) return 2;
+export function getPipelineStage(
+  stage: AgentStage,
+): 'scenario_generation' | 'video_generation' | null {
+  if (SCENARIO_GENERATION_STAGES.includes(stage)) return 'scenario_generation';
+  if (VIDEO_GENERATION_STAGES.includes(stage)) return 'video_generation';
   return null;
 }

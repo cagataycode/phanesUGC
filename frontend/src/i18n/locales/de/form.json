@@ -51,7 +51,6 @@
       "label": "Seitenverhältnis",
       "options": {
         "9:16": "9:16 (Vertikal)",
-        "1:1": "1:1 (Quadratisch)",
         "16:9": "16:9 (Horizontal)"
       }
     },

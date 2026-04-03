@@ -100,4 +100,10 @@ export class FirestoreService implements OnModuleInit {
     const snapshot = await query.get();
     return snapshot.docs.map((doc) => doc.data());
   }
+
+  async runTransaction<T>(
+    updateFunction: (transaction: admin.firestore.Transaction) => Promise<T>,
+  ): Promise<T> {
+    return this.db.runTransaction(updateFunction);
+  }
 }

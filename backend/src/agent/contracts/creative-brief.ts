@@ -41,7 +41,7 @@ export interface CreativeBrief {
   /** Target video duration in seconds */
   targetDuration: number;
 
-  /** Target aspect ratio */
+  /** Target aspect ratio (Veo 3.1 supports 16:9 and 9:16 only) */
   targetAspectRatio: '9:16' | '16:9' | '1:1';
 
   /** Language for the ad */

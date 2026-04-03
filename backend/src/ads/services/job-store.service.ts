@@ -21,10 +21,10 @@ export interface ProjectStage {
 }
 
 export interface AdJobMetadata {
-  scenarios?: Scenario[]; // Phase 1: Generated scenarios
-  scenarioExpiresAt?: Date; // Phase 1: When scenarios expire
-  selectedScenarioId?: number; // Phase 2: User's choice
-  finalOutput?: FinalOutput; // Phase 2: Final output from agent
+  scenarios?: Scenario[]; // Scenario generation: Generated scenarios
+  scenarioExpiresAt?: Date; // Scenario generation: When scenarios expire
+  selectedScenarioId?: number; // Video generation: User's choice
+  finalOutput?: FinalOutput; // Video generation: Final output from agent
   scenePrompt?: {
     intent: string;
     visualStyle: string;

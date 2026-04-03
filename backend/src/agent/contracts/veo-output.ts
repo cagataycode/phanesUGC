@@ -2,6 +2,7 @@
  * VeoOutput - Result from Veo 3.1 video generation
  *
  * Contains the generated video reference and metadata.
+ * Veo 3.1 outputs: 24 fps, 1080p, MP4 format
  */
 export interface VeoOutput {
   /** Job identifier */
@@ -21,6 +22,9 @@ export interface VeoOutput {
     width: number;
     height: number;
   };
+
+  /** Frame rate (Veo 3.1 outputs 24 fps) */
+  fps: number;
 
   /** File size in bytes */
   fileSizeBytes: number;

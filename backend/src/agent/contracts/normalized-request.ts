@@ -17,7 +17,7 @@ export interface NormalizedRequest {
   /** Target platform for the ad */
   platform: 'tiktok' | 'instagram_reels' | 'youtube_shorts';
 
-  /** Video aspect ratio */
+  /** Video aspect ratio (Veo 3.1 supports 16:9 and 9:16 only) */
   aspectRatio: '9:16' | '16:9' | '1:1';
 
   /** Video duration in seconds (MVP: always 8) */

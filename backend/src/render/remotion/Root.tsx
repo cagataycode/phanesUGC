@@ -9,7 +9,7 @@ import { StandardSubtitledVideo } from './compositions/StandardSubtitledVideo';
 const defaultProps: RenderRequest = {
   videoUrl: '',
   phrases: [],
-  fps: 30,
+  fps: 24,
   durationInFrames: 1,
   width: 1080,
   height: 1920,
@@ -34,7 +34,7 @@ export const RemotionRoot = () => {
       calculateMetadata={({ props }) => {
         return {
           durationInFrames: props.durationInFrames || 1,
-          fps: props.fps || 30,
+          fps: props.fps || 24,
           width: props.width || 1080,
           height: props.height || 1920,
         };
