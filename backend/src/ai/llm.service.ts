@@ -48,6 +48,9 @@ export class LlmService {
     const awsSecretAccessKey = this.configService.get('AWS_SECRET_ACCESS_KEY', {
       infer: true,
     });
+    const awsSessionToken = this.configService.get('AWS_SESSION_TOKEN', {
+      infer: true,
+    });
     const awsRegion =
       this.configService.get('AWS_REGION', { infer: true }) || 'us-east-1';
     this.bedrockModelId =
@@ -59,7 +62,11 @@ export class LlmService {
     // otherwise use AWS SDK default credential chain (IAM roles, etc.)
     const bedrockConfig: {
       region: string;
-      credentials?: { accessKeyId: string; secretAccessKey: string };
+      credentials?: {
+        accessKeyId: string;
+        secretAccessKey: string;
+        sessionToken?: string;
+      };
     } = {
       region: awsRegion,
     };
@@ -80,9 +87,18 @@ export class LlmService {
         accessKeyId: awsAccessKeyId,
         secretAccessKey: awsSecretAccessKey,
       };
-      this.logger.log(
-        `AWS Bedrock initialized with explicit credentials for model ${this.bedrockModelId} in region ${awsRegion}`,
-      );
+
+      // Add session token if provided (required for temporary credentials from STS/SSO)
+      if (awsSessionToken) {
+        bedrockConfig.credentials.sessionToken = awsSessionToken;
+        this.logger.log(
+          `AWS Bedrock initialized with temporary credentials (session token) for model ${this.bedrockModelId} in region ${awsRegion}`,
+        );
+      } else {
+        this.logger.log(
+          `AWS Bedrock initialized with explicit credentials for model ${this.bedrockModelId} in region ${awsRegion}`,
+        );
+      }
     } else {
       this.logger.log(
         `AWS Bedrock initialized using default credential chain for model ${this.bedrockModelId} in region ${awsRegion}`,

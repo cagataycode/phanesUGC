@@ -2,14 +2,11 @@
  * Integration test for AWS Bedrock Claude with LlmService
  * 
  * This script tests the real AWS Bedrock API integration
- * Run with: npx ts-node scripts/test-bedrock-integration.ts
+ * Run with: npx ts-node --env-file=.env scripts/test-bedrock-integration.ts
+ * Or: export environment variables and run: npx ts-node scripts/test-bedrock-integration.ts
  */
 
-import * as dotenv from 'dotenv';
 import { LlmService } from '../src/ai/llm.service';
-
-// Load environment variables from .env file
-dotenv.config();
 
 // Mock ConfigService with real environment variables
 class TestConfigService {

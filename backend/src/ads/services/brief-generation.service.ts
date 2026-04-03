@@ -95,7 +95,7 @@ export class BriefGenerationService {
       this.logger.error(
         `LLM brief generation failed: ${error instanceof Error ? error.message : String(error)}`,
       );
-      // Re-throw to fail the job rather than use bad fallback
+      // Re-throw to fail the job after LlmService has already exhausted its internal provider fallback
       throw new Error(
         `Failed to generate brief with LLM: ${error instanceof Error ? error.message : String(error)}`,
       );

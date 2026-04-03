@@ -15,8 +15,10 @@ export const envSchema = z
     // AWS Bedrock Configuration (Primary LLM Provider)
     // Credentials are optional - if not provided, AWS SDK will use default credential chain
     // (IAM roles, instance profiles, etc.)
+    // For temporary credentials (STS/SSO), provide all three: ACCESS_KEY_ID, SECRET_ACCESS_KEY, and SESSION_TOKEN
     AWS_ACCESS_KEY_ID: z.string().min(1).optional(),
     AWS_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+    AWS_SESSION_TOKEN: z.string().min(1).optional(),
     AWS_REGION: z.string().min(1).default('us-east-1'),
     BEDROCK_MODEL_ID: z
       .string()
