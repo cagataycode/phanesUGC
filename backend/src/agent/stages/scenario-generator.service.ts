@@ -1,18 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CreativeBrief } from '../contracts/creative-brief';
 import { Scenario, ScenarioSet } from '../contracts/scenario';
-import { GeminiService } from '../../ai/gemini.service';
+import { LlmService } from '../../ai/llm.service';
 
 /**
  * ScenarioGeneratorService - Generates 4 creative scenarios using AI
  *
- * Uses Gemini to produce 4 distinct creative directions from the brief
+ * Uses LLM to produce 4 distinct creative directions from the brief
  */
 @Injectable()
 export class ScenarioGeneratorService {
   private readonly logger = new Logger(ScenarioGeneratorService.name);
 
-  constructor(private readonly gemini: GeminiService) {}
+  constructor(private readonly llm: LlmService) {}
 
   async generate(jobId: string, brief: CreativeBrief): Promise<ScenarioSet> {
     this.logger.log(`Generating scenarios for job ${jobId}`);
@@ -21,10 +21,7 @@ export class ScenarioGeneratorService {
     const userPrompt = this.buildUserPrompt(brief);
 
     try {
-      const response = await this.gemini.generateContent(
-        systemPrompt,
-        userPrompt,
-      );
+      const response = await this.llm.generateContent(systemPrompt, userPrompt);
 
       const scenarios = this.parseResponse(response);
       const now = new Date();

@@ -20,7 +20,7 @@ import { FirebaseModule } from '../firebase/firebase.module';
 import { StorageModule } from '../storage/storage.module';
 import { ScraperModule } from '../scraper/scraper.module';
 import { RenderModule } from '../render/render.module';
-import { GeminiService } from '../ai/gemini.service';
+import { LlmService } from '../ai/llm.service';
 import { VertexAiService } from '../ai/vertex-ai.service';
 
 // Import existing ads services that the adapters use
@@ -48,7 +48,7 @@ import { SceneStructuringService } from '../ads/services/scene-structuring.servi
   ],
   providers: [
     // AI Services
-    GeminiService,
+    LlmService,
     VertexAiService,
 
     // Core orchestrator

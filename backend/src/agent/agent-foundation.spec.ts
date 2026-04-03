@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { QualityGatesService } from './orchestrator/quality-gates.service';
 import { InputNormalizerService } from './stages/input-normalizer.service';
 import { ScenarioGeneratorService } from './stages/scenario-generator.service';
-import { GeminiService } from '../ai/gemini.service';
+import { LlmService } from '../ai/llm.service';
 import {
   isValidTransition,
   getPipelineStage,
@@ -159,63 +159,60 @@ describe('Agent Foundation - Scenario Generation', () => {
   describe('Stage Services', () => {
     let inputNormalizer: InputNormalizerService;
     let scenarioGenerator: ScenarioGeneratorService;
+    let mockLlmService: { generateContent: jest.Mock };
 
     beforeEach(async () => {
+      // Mock LlmService to avoid real API calls
+      mockLlmService = {
+        generateContent: jest.fn().mockResolvedValue([
+          {
+            scenarioId: 1,
+            title: 'Test Scenario 1',
+            hook: 'Test hook 1',
+            angle: 'Test angle 1',
+            tone: 'enthusiastic',
+          },
+          {
+            scenarioId: 2,
+            title: 'Test Scenario 2',
+            hook: 'Test hook 2',
+            angle: 'Test angle 2',
+            tone: 'serious',
+          },
+          {
+            scenarioId: 3,
+            title: 'Test Scenario 3',
+            hook: 'Test hook 3',
+            angle: 'Test angle 3',
+            tone: 'funny',
+          },
+          {
+            scenarioId: 4,
+            title: 'Test Scenario 4',
+            hook: 'Test hook 4',
+            angle: 'Test angle 4',
+            tone: 'inspirational',
+          },
+        ]),
+      };
+
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           InputNormalizerService,
           ScenarioGeneratorService,
           {
-            provide: GeminiService,
-            useValue: {
-              generateContent: jest.fn().mockResolvedValue([
-                {
-                  scenarioId: 1,
-                  title: 'Problem/Solution',
-                  hook: 'Hook 1',
-                  angle: 'problem/solution',
-                  tone: 'serious',
-                  visualDirection: 'Show problem',
-                  ctaText: 'Buy now',
-                  summary: 'Summary 1',
-                },
-                {
-                  scenarioId: 2,
-                  title: 'Social Proof',
-                  hook: 'Hook 2',
-                  angle: 'social proof',
-                  tone: 'aspirational',
-                  visualDirection: 'Show testimonials',
-                  ctaText: 'Join now',
-                  summary: 'Summary 2',
-                },
-                {
-                  scenarioId: 3,
-                  title: 'Urgency',
-                  hook: 'Hook 3',
-                  angle: 'urgency',
-                  tone: 'urgent',
-                  visualDirection: 'Fast-paced',
-                  ctaText: 'Act now',
-                  summary: 'Summary 3',
-                },
-                {
-                  scenarioId: 4,
-                  title: 'Educational',
-                  hook: 'Hook 4',
-                  angle: 'educational',
-                  tone: 'educational',
-                  visualDirection: 'Step-by-step',
-                  ctaText: 'Learn more',
-                  summary: 'Summary 4',
-                },
-              ]),
-            },
+            provide: LlmService,
+            useValue: mockLlmService,
           },
           {
             provide: ConfigService,
             useValue: {
               get: jest.fn((key: string) => {
+                if (key === 'AWS_ACCESS_KEY_ID') return 'test-access-key';
+                if (key === 'AWS_SECRET_ACCESS_KEY') return 'test-secret-key';
+                if (key === 'AWS_REGION') return 'us-east-1';
+                if (key === 'BEDROCK_MODEL_ID')
+                  return 'us.anthropic.claude-sonnet-4-6';
                 if (key === 'GEMINI_API_KEY') return 'test-api-key';
                 return null;
               }),
@@ -319,6 +316,7 @@ describe('Agent Foundation - Scenario Generation', () => {
       expect(scenarioSet.scenarios[2].scenarioId).toBe(3);
       expect(scenarioSet.scenarios[3].scenarioId).toBe(4);
       expect(scenarioSet.expiresAt).toBeInstanceOf(Date);
+      expect(mockLlmService.generateContent).toHaveBeenCalled();
     });
   });
 

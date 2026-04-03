@@ -435,7 +435,7 @@ export class AgentOrchestratorService {
       this.logger.debug(`[${jobId}] Stage 3 complete, saving state`);
       await this.saveState(state);
 
-      // Stage 4: Generate 4 scenarios (no fallback - fail if generation fails)
+      // Stage 4: Generate 4 scenarios (generator has internal fallback on errors)
       this.logger.debug(`[${jobId}] Starting Stage 4: Generate scenarios`);
       const scenarioSet = await this.retryPolicy.execute(
         () => this.scenarioGenerator.generate(state.jobId, creativeBrief),
@@ -837,14 +837,6 @@ export class AgentOrchestratorService {
   ): Promise<number> {
     const state = await this.loadState(jobId, businessId);
     return state.totalRetryCount;
-  }
-
-  /**
-   * Increment retry count and save state
-   */
-  private async incrementRetryCount(state: AgentJobState): Promise<void> {
-    state.totalRetryCount++;
-    await this.saveState(state);
   }
 
   /**
