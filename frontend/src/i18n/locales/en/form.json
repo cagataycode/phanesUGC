@@ -51,7 +51,6 @@
       "label": "Aspect Ratio",
       "options": {
         "9:16": "9:16 (Vertical)",
-        "1:1": "1:1 (Square)",
         "16:9": "16:9 (Horizontal)"
       }
     },

@@ -7,14 +7,14 @@ import { ScenarioGeneratorService } from './stages/scenario-generator.service';
 import { GeminiService } from '../ai/gemini.service';
 import {
   isValidTransition,
-  getPhase,
-  PHASE_1_STAGES,
-  PHASE_2_STAGES,
+  getPipelineStage,
+  SCENARIO_GENERATION_STAGES,
+  VIDEO_GENERATION_STAGES,
 } from './orchestrator/agent-state.model';
 import { AdScript } from './contracts/ad-script';
 import { VeoOutput } from './contracts/veo-output';
 
-describe('Agent Foundation - Phase 1', () => {
+describe('Agent Foundation - Scenario Generation', () => {
   describe('State Machine', () => {
     it('should validate stage transitions', () => {
       expect(isValidTransition('created', 'platform_ready')).toBe(true);
@@ -26,23 +26,23 @@ describe('Agent Foundation - Phase 1', () => {
       expect(isValidTransition('normalized', 'script_ready')).toBe(false);
     });
 
-    it('should identify phase for each stage', () => {
-      expect(getPhase('created')).toBe(1);
-      expect(getPhase('normalized')).toBe(1);
-      expect(getPhase('scenarios_ready')).toBe(1);
-      expect(getPhase('scenario_selected')).toBe(2);
-      expect(getPhase('script_ready')).toBe(2);
-      expect(getPhase('completed')).toBe(2);
+    it('should identify pipeline stage for each stage', () => {
+      expect(getPipelineStage('created')).toBe('scenario_generation');
+      expect(getPipelineStage('normalized')).toBe('scenario_generation');
+      expect(getPipelineStage('scenarios_ready')).toBe('scenario_generation');
+      expect(getPipelineStage('scenario_selected')).toBe('video_generation');
+      expect(getPipelineStage('script_ready')).toBe('video_generation');
+      expect(getPipelineStage('completed')).toBe('video_generation');
     });
 
-    it('should have correct phase stage lists', () => {
-      expect(PHASE_1_STAGES).toContain('created');
-      expect(PHASE_1_STAGES).toContain('scenarios_ready');
-      expect(PHASE_1_STAGES).not.toContain('script_ready');
+    it('should have correct pipeline stage lists', () => {
+      expect(SCENARIO_GENERATION_STAGES).toContain('created');
+      expect(SCENARIO_GENERATION_STAGES).toContain('scenarios_ready');
+      expect(SCENARIO_GENERATION_STAGES).not.toContain('script_ready');
 
-      expect(PHASE_2_STAGES).toContain('scenario_selected');
-      expect(PHASE_2_STAGES).toContain('completed');
-      expect(PHASE_2_STAGES).not.toContain('normalized');
+      expect(VIDEO_GENERATION_STAGES).toContain('scenario_selected');
+      expect(VIDEO_GENERATION_STAGES).toContain('completed');
+      expect(VIDEO_GENERATION_STAGES).not.toContain('normalized');
     });
   });
 
@@ -107,6 +107,7 @@ describe('Agent Foundation - Phase 1', () => {
         gcsPath: 'gs://bucket/video.mp4',
         actualDurationSec: 8,
         resolution: { width: 1080, height: 1920 },
+        fps: 24,
         fileSizeBytes: 10 * 1024 * 1024,
         generatedAt: new Date(),
       };
@@ -123,6 +124,7 @@ describe('Agent Foundation - Phase 1', () => {
         gcsPath: 'gs://bucket/video.mp4',
         actualDurationSec: 12, // Too long
         resolution: { width: 1920, height: 1080 }, // Wrong aspect ratio
+        fps: 24,
         fileSizeBytes: 0, // Invalid size
         generatedAt: new Date(),
       };

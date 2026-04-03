@@ -20,24 +20,24 @@ describe('subtitle-timeline', () => {
   ];
 
   it('detects active phrase at start', () => {
-    const state = getSubtitleTimelineState({ frame: 0, fps: 30, phrases });
+    const state = getSubtitleTimelineState({ frame: 0, fps: 24, phrases });
     expect(state.activePhrase?.id).toBe('p1');
     expect(state.activePhraseIndex).toBe(0);
   });
 
   it('detects active phrase in middle', () => {
-    const state = getSubtitleTimelineState({ frame: 18, fps: 30, phrases }); // 0.6s
+    const state = getSubtitleTimelineState({ frame: 14, fps: 24, phrases }); // 0.58s at 24fps
     expect(state.activePhrase?.id).toBe('p1');
   });
 
   it('returns null when time is between phrases', () => {
-    const state = getSubtitleTimelineState({ frame: 36, fps: 30, phrases }); // 1.2s
+    const state = getSubtitleTimelineState({ frame: 29, fps: 24, phrases }); // 1.2s at 24fps
     expect(state.activePhrase).toBeNull();
     expect(state.activePhraseIndex).toBe(-1);
   });
 
   it('handles second phrase correctly', () => {
-    const state = getSubtitleTimelineState({ frame: 51, fps: 30, phrases }); // 1.7s
+    const state = getSubtitleTimelineState({ frame: 41, fps: 24, phrases }); // 1.7s at 24fps
     expect(state.activePhrase?.id).toBe('p2');
     expect(state.activePhraseIndex).toBe(1);
   });

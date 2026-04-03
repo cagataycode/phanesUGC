@@ -37,8 +37,8 @@ export class AdsService {
       createAdDto,
     );
 
-    // Start Phase 1 (scenario generation) asynchronously
-    void this.runPhase1(jobId, createAdDto);
+    // Start scenario generation asynchronously
+    void this.runScenarioGeneration(jobId, createAdDto);
 
     return {
       id: jobId,
@@ -47,9 +47,9 @@ export class AdsService {
   }
 
   /**
-   * Run Phase 1 - Generate scenarios
+   * Run Scenario Generation - Generate scenarios
    */
-  private async runPhase1(
+  private async runScenarioGeneration(
     jobId: string,
     createAdDto: CreateAdDto,
   ): Promise<void> {
@@ -63,8 +63,8 @@ export class AdsService {
         'stages.scenarios': 'pending',
       });
 
-      // Run agent Phase 1
-      const scenarioSet = await this.agentOrchestrator.runPhase1(
+      // Run agent scenario generation
+      const scenarioSet = await this.agentOrchestrator.runScenarioGeneration(
         jobId,
         createAdDto.businessId,
       );
@@ -83,10 +83,15 @@ export class AdsService {
         'stages.scenarios': 'done',
       });
 
-      this.logger.log(`Phase 1 completed for job ${jobId} - 4 scenarios ready`);
+      this.logger.log(
+        `Scenario generation completed for job ${jobId} - 4 scenarios ready`,
+      );
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Phase 1 failed';
-      this.logger.error(`Phase 1 failed for job ${jobId}: ${message}`);
+      const message =
+        error instanceof Error ? error.message : 'Scenario generation failed';
+      this.logger.error(
+        `Scenario generation failed for job ${jobId}: ${message}`,
+      );
 
       await this.jobStoreService.update(createAdDto.businessId, jobId, {
         status: 'failed',
@@ -97,7 +102,8 @@ export class AdsService {
   }
 
   /**
-   * Select scenario and start Phase 2
+   * Select scenario and start Video generation
+   * Note: AgentOrchestrator.selectScenario() triggers video generation internally
    */
   async selectScenario(
     businessId: string,
@@ -110,10 +116,10 @@ export class AdsService {
       throw new Error('Job is not ready for scenario selection');
     }
 
-    // Select scenario in agent
+    // Select scenario in agent (this triggers video generation internally)
     await this.agentOrchestrator.selectScenario(jobId, businessId, scenarioId);
 
-    // Update job status
+    // Update job status to reflect video generation has started
     await this.jobStoreService.update(businessId, jobId, {
       status: 'phase2_started',
       progress: 50,
@@ -131,50 +137,84 @@ export class AdsService {
       'stages.render': 'pending',
     });
 
-    // Start Phase 2 asynchronously
-    void this.runPhase2(businessId, jobId);
+    // Note: Video generation is already running asynchronously in the orchestrator
+    // We poll the agent state to update job status when it completes
+    void this.pollVideoGenerationStatus(businessId, jobId);
   }
 
   /**
-   * Run Phase 2 - Generate video for selected scenario
+   * Poll agent state and update job status when video generation completes
    */
-  private async runPhase2(businessId: string, jobId: string): Promise<void> {
-    try {
-      // Run agent Phase 2
-      const finalOutput = await this.agentOrchestrator.runPhase2(
-        jobId,
-        businessId,
-      );
+  private async pollVideoGenerationStatus(
+    businessId: string,
+    jobId: string,
+  ): Promise<void> {
+    const maxAttempts = 120; // 10 minutes with 5s intervals
+    let attempts = 0;
 
-      // Store final output in job
-      await this.jobStoreService.update(businessId, jobId, {
-        status: 'completed',
-        progress: 100,
-        output: {
-          videoStorageKey: finalOutput.gcsPath, // Already in objectPath format
-        },
-        'metadata.finalOutput': finalOutput,
-        'stages.normalize': 'done',
-        'stages.scrape': 'done',
-        'stages.brief': 'done',
-        'stages.scenarios': 'done',
-        'stages.script': 'done',
-        'stages.veo': 'done',
-        'stages.subtitles': 'done',
-        'stages.render': 'done',
-      });
+    while (attempts < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
+      attempts++;
 
-      this.logger.log(`Phase 2 completed for job ${jobId}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Phase 2 failed';
-      this.logger.error(`Phase 2 failed for job ${jobId}: ${message}`);
+      try {
+        const agentState = await this.agentOrchestrator.getJobState(
+          jobId,
+          businessId,
+        );
 
-      await this.jobStoreService.update(businessId, jobId, {
-        status: 'failed',
-        error: message,
-        failedStage: 'video_generation',
-      });
+        if (agentState.videoGenerationStatus === 'completed') {
+          // Video generation completed successfully
+          const finalOutput = agentState.artifacts.finalOutput as {
+            gcsPath: string;
+          };
+
+          await this.jobStoreService.update(businessId, jobId, {
+            status: 'completed',
+            progress: 100,
+            output: {
+              videoStorageKey: finalOutput.gcsPath,
+            },
+            'metadata.finalOutput': finalOutput,
+            'stages.script': 'done',
+            'stages.veo': 'done',
+            'stages.subtitles': 'done',
+            'stages.render': 'done',
+          });
+
+          this.logger.log(`Video generation completed for job ${jobId}`);
+          return;
+        } else if (agentState.videoGenerationStatus === 'failed') {
+          // Video generation failed
+          const lastError =
+            agentState.errors.length > 0
+              ? agentState.errors[agentState.errors.length - 1].message
+              : 'Video generation failed';
+
+          await this.jobStoreService.update(businessId, jobId, {
+            status: 'failed',
+            error: lastError,
+            failedStage: 'video_generation',
+          });
+
+          this.logger.error(
+            `Video generation failed for job ${jobId}: ${lastError}`,
+          );
+          return;
+        }
+
+        // Still in progress, continue polling
+      } catch (error) {
+        this.logger.error(
+          `Error polling video generation status for job ${jobId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        // Continue polling despite errors
+      }
     }
+
+    // Timeout after max attempts
+    this.logger.warn(
+      `Video generation polling timed out for job ${jobId} after ${maxAttempts * 5} seconds`,
+    );
   }
 
   async getJob(businessId: string, projectId: string) {
@@ -208,14 +248,14 @@ export class AdsService {
         )
       : undefined;
 
-    // Return scenarios if in Phase 1
+    // Return scenarios if in Scenario generation
     const scenarios = job.metadata?.scenarios || null;
 
     return {
       video_url,
       source_video_url,
       thumbnail_url,
-      scenarios, // NEW: Include scenarios for Phase 1
+      scenarios, // NEW: Include scenarios for Scenario generation
       script: (job.script as unknown as Record<string, unknown>) ?? null,
       creativeBrief: job.creativeBrief ?? null,
       subtitles: job.subtitleSegments ?? [],

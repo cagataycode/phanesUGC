@@ -14,8 +14,8 @@ export interface VeoPrompt {
   /** Video duration in seconds */
   durationSeconds: number;
 
-  /** Aspect ratio */
-  aspectRatio: '9:16' | '16:9' | '1:1';
+  /** Aspect ratio (Veo 3.1 supports 16:9 and 9:16 only) */
+  aspectRatio: '9:16' | '16:9';
 
   /** Core creative prompt */
   prompt: {

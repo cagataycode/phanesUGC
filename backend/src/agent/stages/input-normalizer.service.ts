@@ -15,7 +15,7 @@ export class InputNormalizerService {
     'instagram_reels',
     'youtube_shorts',
   ] as const;
-  private readonly VALID_ASPECT_RATIOS = ['9:16', '16:9', '1:1'] as const;
+  private readonly VALID_ASPECT_RATIOS = ['9:16', '16:9'] as const;
   private readonly MAX_PROMPT_LENGTH = 2000;
   private readonly MAX_URLS = 10;
   private readonly MAX_DESCRIPTION_LENGTH = 5000;
@@ -107,14 +107,14 @@ export class InputNormalizerService {
     return platform as 'tiktok' | 'instagram_reels' | 'youtube_shorts';
   }
 
-  private validateAspectRatio(aspectRatio: unknown): '9:16' | '16:9' | '1:1' {
+  private validateAspectRatio(aspectRatio: unknown): '9:16' | '16:9' {
     if (!aspectRatio) {
       return '9:16'; // Default
     }
     if (!this.VALID_ASPECT_RATIOS.includes(aspectRatio as never)) {
       throw new BadRequestException('Invalid aspect ratio');
     }
-    return aspectRatio as '9:16' | '16:9' | '1:1';
+    return aspectRatio as '9:16' | '16:9';
   }
 
   private validateLanguage(language: unknown): string {

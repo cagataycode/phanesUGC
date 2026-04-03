@@ -103,3 +103,33 @@ describe('PlatformMapper', () => {
     });
   });
 });
+
+describe('toAdsFormatSafe', () => {
+  it('should convert valid agent platforms', () => {
+    expect(PlatformMapper.toAdsFormatSafe('tiktok')).toBe('tiktok');
+    expect(PlatformMapper.toAdsFormatSafe('instagram_reels')).toBe('instagram');
+    expect(PlatformMapper.toAdsFormatSafe('youtube_shorts')).toBe('youtube');
+  });
+
+  it('should default to tiktok for invalid platforms', () => {
+    expect(PlatformMapper.toAdsFormatSafe('invalid')).toBe('tiktok');
+    expect(PlatformMapper.toAdsFormatSafe('facebook')).toBe('tiktok');
+    expect(PlatformMapper.toAdsFormatSafe('')).toBe('tiktok');
+  });
+});
+
+describe('toAgentFormatSafe', () => {
+  it('should convert valid ads platforms', () => {
+    expect(PlatformMapper.toAgentFormatSafe('tiktok')).toBe('tiktok');
+    expect(PlatformMapper.toAgentFormatSafe('instagram')).toBe(
+      'instagram_reels',
+    );
+    expect(PlatformMapper.toAgentFormatSafe('youtube')).toBe('youtube_shorts');
+  });
+
+  it('should default to tiktok for invalid platforms', () => {
+    expect(PlatformMapper.toAgentFormatSafe('invalid')).toBe('tiktok');
+    expect(PlatformMapper.toAgentFormatSafe('facebook')).toBe('tiktok');
+    expect(PlatformMapper.toAgentFormatSafe('')).toBe('tiktok');
+  });
+});
