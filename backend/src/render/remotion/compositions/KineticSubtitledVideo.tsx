@@ -83,6 +83,10 @@ export const KineticSubtitledVideo: React.FC<RenderRequest> = ({
         <Video
           src={resolvedVideoUrl}
           style={{ width: '100%', height: '100%' }}
+          onError={(e) => {
+            console.error('Video loading error:', e);
+            throw new Error(`Failed to load video: ${resolvedVideoUrl}`);
+          }}
         />
       </Sequence>
       {captionPresentation ? (

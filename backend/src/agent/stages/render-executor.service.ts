@@ -33,18 +33,27 @@ export class RenderExecutorService {
       }),
     );
 
-    // Get signed URL for the video source
+    // Get object path for the video source
     // Handle both full GCS URIs (gs://bucket/path) and plain object paths (path)
     const gcsPath = timeline.videoSource.gcsPath;
     const objectPath = gcsPath.startsWith('gs://')
       ? gcsPath.replace('gs://', '').split('/').slice(1).join('/')
       : gcsPath;
 
-    const videoUrl = await this.gcsStorage.createSignedVideoUrl(objectPath);
+    // Download video locally for faster Remotion rendering
+    const { mkdtemp, rm } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const path = await import('node:path');
+    
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'phanes-video-'));
+    const localVideoPath = path.join(tempDir, 'source-video.mp4');
+    
+    this.logger.debug(`Downloading source video to ${localVideoPath}`);
+    await this.gcsStorage.downloadFile(objectPath, localVideoPath);
 
-    // Prepare render request
+    // Prepare render request with local file path
     const renderRequest = {
-      videoUrl,
+      videoUrl: localVideoPath,
       phrases: timeline.subtitles.enabled ? phrases : [],
       fps: timeline.output.fps,
       durationInFrames: timeline.output.durationInFrames,
@@ -98,8 +107,17 @@ export class RenderExecutorService {
 
       return output;
     } finally {
-      // Cleanup temp file
+      // Cleanup temp files
       await cleanup();
+      try {
+        await rm(tempDir, { recursive: true, force: true });
+        this.logger.debug(`Cleaned up temp video directory: ${tempDir}`);
+      } catch (error) {
+        this.logger.error(
+          `Failed to cleanup temp video directory: ${tempDir}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
     }
   }
 }
