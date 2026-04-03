@@ -61,16 +61,17 @@ describe('LlmService', () => {
       });
     });
 
-    it('should throw error if AWS credentials are missing', () => {
-      const invalidConfig: Record<string, string> = { ...mockConfig };
-      delete invalidConfig.AWS_ACCESS_KEY_ID;
+    it('should initialize without explicit credentials (using default credential chain)', () => {
+      const configWithoutCreds: Record<string, string> = { ...mockConfig };
+      delete configWithoutCreds.AWS_ACCESS_KEY_ID;
+      delete configWithoutCreds.AWS_SECRET_ACCESS_KEY;
 
       expect(() => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         new LlmService({
-          get: jest.fn((key: string) => invalidConfig[key]),
+          get: jest.fn((key: string) => configWithoutCreds[key]),
         } as any);
-      }).toThrow(/AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are required/);
+      }).not.toThrow();
     });
   });
 

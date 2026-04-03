@@ -12,8 +12,10 @@ export const envSchema = z.object({
   VERTEX_OUTPUT_GCS_URI: z.string().min(1).optional(),
   VERTEX_AI_API_KEY: z.string().min(1).optional(),
   // AWS Bedrock Configuration (Primary LLM Provider)
-  AWS_ACCESS_KEY_ID: z.string().min(1),
-  AWS_SECRET_ACCESS_KEY: z.string().min(1),
+  // Credentials are optional - if not provided, AWS SDK will use default credential chain
+  // (IAM roles, instance profiles, etc.)
+  AWS_ACCESS_KEY_ID: z.string().min(1).optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().min(1).optional(),
   AWS_REGION: z.string().min(1).default('us-east-1'),
   BEDROCK_MODEL_ID: z.string().min(1).default('us.anthropic.claude-sonnet-4-6'),
   // Gemini API (Fallback LLM Provider)

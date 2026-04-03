@@ -53,23 +53,30 @@ export class LlmService {
       infer: true,
     })!;
 
-    if (!awsAccessKeyId || !awsSecretAccessKey) {
-      throw new Error(
-        'AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are required for Bedrock',
+    // Configure Bedrock client with explicit credentials if provided,
+    // otherwise use AWS SDK default credential chain (IAM roles, etc.)
+    const bedrockConfig: {
+      region: string;
+      credentials?: { accessKeyId: string; secretAccessKey: string };
+    } = {
+      region: awsRegion,
+    };
+
+    if (awsAccessKeyId && awsSecretAccessKey) {
+      bedrockConfig.credentials = {
+        accessKeyId: awsAccessKeyId,
+        secretAccessKey: awsSecretAccessKey,
+      };
+      this.logger.log(
+        `AWS Bedrock initialized with explicit credentials for model ${this.bedrockModelId} in region ${awsRegion}`,
+      );
+    } else {
+      this.logger.log(
+        `AWS Bedrock initialized using default credential chain for model ${this.bedrockModelId} in region ${awsRegion}`,
       );
     }
 
-    this.bedrockClient = new BedrockRuntimeClient({
-      region: awsRegion,
-      credentials: {
-        accessKeyId: awsAccessKeyId,
-        secretAccessKey: awsSecretAccessKey,
-      },
-    });
-
-    this.logger.log(
-      `AWS Bedrock initialized with model ${this.bedrockModelId} in region ${awsRegion}`,
-    );
+    this.bedrockClient = new BedrockRuntimeClient(bedrockConfig);
 
     // Initialize Gemini (Fallback Provider) - Optional
     const geminiApiKey = this.configService.get('GEMINI_API_KEY', {
@@ -147,7 +154,10 @@ export class LlmService {
   }
 
   /**
-   * Generate content using AWS Bedrock Claude with Structured Outputs
+   * Generate content using AWS Bedrock Claude
+   *
+   * Note: Uses Claude's native JSON mode without strict schema enforcement.
+   * The system prompt should specify the expected JSON structure.
    */
   private async generateWithBedrock(
     systemPrompt: string,

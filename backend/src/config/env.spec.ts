@@ -40,13 +40,6 @@ describe('Environment Configuration Validation (env.ts)', () => {
     expect(typeof validated.PORT).toBe('number');
   });
 
-  it('should throw an error if a required field is missing', () => {
-    const invalidConfig: Record<string, unknown> = { ...validConfig };
-    delete invalidConfig.AWS_ACCESS_KEY_ID;
-
-    expect(() => validateEnv(invalidConfig)).toThrow(/AWS_ACCESS_KEY_ID/);
-  });
-
   it('should throw an error if an email is invalid', () => {
     const invalidConfig = {
       ...validConfig,
@@ -63,10 +56,15 @@ describe('Environment Configuration Validation (env.ts)', () => {
     expect(validated.GEMINI_API_KEY).toBeUndefined();
   });
 
-  it('should require AWS credentials', () => {
-    const configWithoutAWS = { ...validConfig };
-    delete configWithoutAWS.AWS_ACCESS_KEY_ID;
+  it('should allow AWS credentials to be optional (for IAM role auth)', () => {
+    const configWithoutAWSCreds: Record<string, unknown> = { ...validConfig };
+    delete configWithoutAWSCreds.AWS_ACCESS_KEY_ID;
+    delete configWithoutAWSCreds.AWS_SECRET_ACCESS_KEY;
 
-    expect(() => validateEnv(configWithoutAWS)).toThrow(/AWS_ACCESS_KEY_ID/);
+    const validated = validateEnv(configWithoutAWSCreds);
+    expect(validated.AWS_ACCESS_KEY_ID).toBeUndefined();
+    expect(validated.AWS_SECRET_ACCESS_KEY).toBeUndefined();
+    expect(validated.AWS_REGION).toBe('us-east-1'); // Region still has default
+    expect(validated.BEDROCK_MODEL_ID).toBe('us.anthropic.claude-sonnet-4-6');
   });
 });
