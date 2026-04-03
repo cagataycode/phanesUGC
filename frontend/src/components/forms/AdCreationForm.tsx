@@ -308,15 +308,13 @@ export function AdCreationForm() {
     }
   }
 
-  const activeTesterEmail = user?.email ?? "Not signed in";
-
   return (
     <div className="space-y-4">
       {/* <div className="rounded-2xl border border-foreground/10 bg-background/60 px-4 py-3 text-left shadow-sm backdrop-blur-sm">
         <p className="text-sm font-semibold text-foreground/90">Auth session</p>
         <p className="mt-1 text-sm text-foreground/70">
           {isAuthenticated
-            ? `Signed in as ${activeTesterEmail}. Workspace: ${businessId}.`
+            ? `Signed in as ${user?.email ?? "Not signed in"}. Workspace: ${businessId}.`
             : "Not signed in. Please sign in to generate ads."}
         </p>
       </div> */}
