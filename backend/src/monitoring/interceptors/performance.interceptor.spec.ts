@@ -146,20 +146,23 @@ describe('PerformanceInterceptor', () => {
         next: () => {
           done.fail('Should not emit next');
         },
-        error: (err) => {
-          // Verify error was tracked
-          expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
-            'test-controller',
-            'testHandler',
-            expect.any(Number),
-            {
-              correlationId: 'test-correlation-id',
-            },
-            'failure',
-          );
-          // Verify error was re-thrown
-          expect(err).toBe(error);
-          done();
+        error: (err: Error) => {
+          // finalize() runs after the error notification, so wait a tick
+          setImmediate(() => {
+            // Verify error was tracked
+            expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
+              'test-controller',
+              'testHandler',
+              expect.any(Number),
+              {
+                correlationId: 'test-correlation-id',
+              },
+              'failure',
+            );
+            // Verify error was re-thrown
+            expect(err).toBe(error);
+            done();
+          });
         },
         complete: () => {
           done.fail('Should not complete');
@@ -321,9 +324,12 @@ describe('PerformanceInterceptor', () => {
         next: () => {
           done.fail('Should not emit next');
         },
-        error: (err) => {
-          expect(err).toBe(error);
-          done();
+        error: (err: Error) => {
+          // finalize() runs after error, so wait a tick
+          setImmediate(() => {
+            expect(err).toBe(error);
+            done();
+          });
         },
         complete: () => {
           done.fail('Should not complete');
