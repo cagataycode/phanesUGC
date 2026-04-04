@@ -6,57 +6,24 @@ import {
   Post,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { AdsService } from './ads.service';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { WizardSubmitSchema } from './dto/wizard.dto';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
-import { PerformanceMonitorService } from '../monitoring/performance-monitor.service';
-import { StructuredLoggerService } from '../monitoring/structured-logger.service';
+import { PerformanceInterceptor } from '../monitoring/interceptors/performance.interceptor';
 
 @Controller('ads')
 @UseGuards(FirebaseAuthGuard, RolesGuard)
+@UseInterceptors(PerformanceInterceptor)
 export class AdsController {
-  constructor(
-    private readonly adsService: AdsService,
-    private readonly performanceMonitor: PerformanceMonitorService,
-    private readonly structuredLogger: StructuredLoggerService,
-  ) {}
+  constructor(private readonly adsService: AdsService) {}
 
   @Post()
   async createJob(@Body() createAdDto: CreateAdDto) {
-    const startTime = Date.now();
-    const correlationId = this.structuredLogger.generateCorrelationId();
-
-    try {
-      const result = await this.adsService.createJob(createAdDto);
-
-      const latency = Date.now() - startTime;
-      this.performanceMonitor.trackLatency(
-        'ads-controller',
-        'create-job',
-        latency,
-        {
-          correlationId,
-          businessId: createAdDto.businessId,
-          platform: createAdDto.prompt_inputs.platform,
-        },
-        'success',
-      );
-
-      return result;
-    } catch (error) {
-      const latency = Date.now() - startTime;
-      this.performanceMonitor.trackLatency(
-        'ads-controller',
-        'create-job',
-        latency,
-        { correlationId, businessId: createAdDto.businessId },
-        'failure',
-      );
-      throw error;
-    }
+    return this.adsService.createJob(createAdDto);
   }
 
   @Get()
@@ -69,33 +36,7 @@ export class AdsController {
     @Param('id') id: string,
     @Query('businessId') businessId: string,
   ) {
-    const startTime = Date.now();
-    const correlationId = this.structuredLogger.generateCorrelationId();
-
-    try {
-      const result = await this.adsService.getJob(businessId, id);
-
-      const latency = Date.now() - startTime;
-      this.performanceMonitor.trackLatency(
-        'ads-controller',
-        'get-job',
-        latency,
-        { correlationId, businessId, jobId: id },
-        'success',
-      );
-
-      return result;
-    } catch (error) {
-      const latency = Date.now() - startTime;
-      this.performanceMonitor.trackLatency(
-        'ads-controller',
-        'get-job',
-        latency,
-        { correlationId, businessId, jobId: id },
-        'failure',
-      );
-      throw error;
-    }
+    return this.adsService.getJob(businessId, id);
   }
 
   @Get(':id/result')
@@ -103,33 +44,7 @@ export class AdsController {
     @Param('id') id: string,
     @Query('businessId') businessId: string,
   ) {
-    const startTime = Date.now();
-    const correlationId = this.structuredLogger.generateCorrelationId();
-
-    try {
-      const result = await this.adsService.getJobResult(businessId, id);
-
-      const latency = Date.now() - startTime;
-      this.performanceMonitor.trackLatency(
-        'ads-controller',
-        'get-job-result',
-        latency,
-        { correlationId, businessId, jobId: id },
-        'success',
-      );
-
-      return result;
-    } catch (error) {
-      const latency = Date.now() - startTime;
-      this.performanceMonitor.trackLatency(
-        'ads-controller',
-        'get-job-result',
-        latency,
-        { correlationId, businessId, jobId: id },
-        'failure',
-      );
-      throw error;
-    }
+    return this.adsService.getJobResult(businessId, id);
   }
 
   @Post(':id/select')
@@ -138,64 +53,13 @@ export class AdsController {
     @Body() body: { scenarioId: number },
     @Query('businessId') businessId: string,
   ) {
-    const startTime = Date.now();
-    const correlationId = this.structuredLogger.generateCorrelationId();
-
-    try {
-      await this.adsService.selectScenario(businessId, id, body.scenarioId);
-
-      const latency = Date.now() - startTime;
-      this.performanceMonitor.trackLatency(
-        'ads-controller',
-        'select-scenario',
-        latency,
-        { correlationId, businessId, jobId: id, scenarioId: body.scenarioId },
-        'success',
-      );
-
-      return { id, status: 'phase2_started' };
-    } catch (error) {
-      const latency = Date.now() - startTime;
-      this.performanceMonitor.trackLatency(
-        'ads-controller',
-        'select-scenario',
-        latency,
-        { correlationId, businessId, jobId: id },
-        'failure',
-      );
-      throw error;
-    }
+    await this.adsService.selectScenario(businessId, id, body.scenarioId);
+    return { id, status: 'phase2_started' };
   }
 
   @Post('wizard')
   async createWizardJob(@Body() wizardDto: Record<string, unknown>) {
-    const startTime = Date.now();
-    const correlationId = this.structuredLogger.generateCorrelationId();
-
-    try {
-      const parsed = WizardSubmitSchema.parse(wizardDto);
-      const result = await this.adsService.createWizardJob(parsed);
-
-      const latency = Date.now() - startTime;
-      this.performanceMonitor.trackLatency(
-        'ads-controller',
-        'create-wizard-job',
-        latency,
-        { correlationId, businessId: parsed.businessId },
-        'success',
-      );
-
-      return result;
-    } catch (error) {
-      const latency = Date.now() - startTime;
-      this.performanceMonitor.trackLatency(
-        'ads-controller',
-        'create-wizard-job',
-        latency,
-        { correlationId },
-        'failure',
-      );
-      throw error;
-    }
+    const parsed = WizardSubmitSchema.parse(wizardDto);
+    return this.adsService.createWizardJob(parsed);
   }
 }
