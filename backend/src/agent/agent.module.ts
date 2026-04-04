@@ -20,6 +20,7 @@ import { FirebaseModule } from '../firebase/firebase.module';
 import { StorageModule } from '../storage/storage.module';
 import { ScraperModule } from '../scraper/scraper.module';
 import { RenderModule } from '../render/render.module';
+import { CostModule } from '../cost/cost.module';
 import { LlmService } from '../ai/llm.service';
 import { VertexAiService } from '../ai/vertex-ai.service';
 
@@ -45,6 +46,7 @@ import { SceneStructuringService } from '../ads/services/scene-structuring.servi
     StorageModule,
     ScraperModule,
     RenderModule,
+    CostModule,
   ],
   providers: [
     // AI Services

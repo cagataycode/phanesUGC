@@ -475,7 +475,12 @@ export class AgentOrchestratorService {
 
       // Stage 4: Generate 4 scenarios (generator has internal fallback on errors)
       const scenarioSet = await this.retryPolicy.execute(
-        () => this.scenarioGenerator.generate(state.jobId, creativeBrief),
+        () =>
+          this.scenarioGenerator.generate(
+            state.jobId,
+            creativeBrief,
+            state.businessId,
+          ),
         this.createRetryContext(
           jobId,
           businessId,

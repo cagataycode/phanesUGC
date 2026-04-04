@@ -44,28 +44,28 @@
 
 ## Phase 2: Cost & Quota Management
 
-- [ ] 2.1 Create cost tracking module
-  - [ ] 2.1.1 Create `backend/src/cost/cost.module.ts`
-  - [ ] 2.1.2 Create `backend/src/cost/cost-tracker.service.ts`
-  - [ ] 2.1.3 Create `backend/src/cost/pricing-config.ts`
+- [x] 2.1 Create cost tracking module
+  - [x] 2.1.1 Create `backend/src/cost/cost.module.ts`
+  - [x] 2.1.2 Create `backend/src/cost/cost-tracker.service.ts`
+  - [x] 2.1.3 Create `backend/src/cost/pricing-config.ts`
 
-- [ ] 2.2 Implement CostTracker service
-  - [ ] 2.2.1 Add pricing constants (Veo Fast $0.15/sec, Standard $0.40/sec, Claude/Gemini token rates)
-  - [ ] 2.2.2 Implement calculateVeoCost method
-  - [ ] 2.2.3 Implement calculateClaudeCost method
-  - [ ] 2.2.4 Implement calculateGeminiCost method
-  - [ ] 2.2.5 Implement trackApiCall method (store in Firestore)
-  - [ ] 2.2.6 Implement getJobCost method
-  - [ ] 2.2.7 Implement getBusinessMonthlyCost method
-  - [ ] 2.2.8 Write unit tests for cost calculations
+- [x] 2.2 Implement CostTracker service
+  - [x] 2.2.1 Add pricing constants (Veo Fast $0.15/sec, Standard $0.40/sec, Claude/Gemini token rates)
+  - [x] 2.2.2 Implement calculateVeoCost method
+  - [x] 2.2.3 Implement calculateClaudeCost method
+  - [x] 2.2.4 Implement calculateGeminiCost method
+  - [x] 2.2.5 Implement trackApiCall method (store in Firestore)
+  - [x] 2.2.6 Implement getJobCost method
+  - [x] 2.2.7 Implement getBusinessMonthlyCost method
+  - [x] 2.2.8 Write unit tests for cost calculations
 
-- [ ] 2.3 Integrate cost tracking into pipeline
-  - [ ] 2.3.1 Add costBreakdown and apiCalls fields to AgentJobState
-  - [ ] 2.3.2 Track Veo costs in VideoGeneratorService
-  - [ ] 2.3.3 Track Claude costs in LLMService
-  - [ ] 2.3.4 Track Gemini costs in LLMService (fallback)
-  - [ ] 2.3.5 Calculate total job cost in AgentOrchestratorService
-  - [ ] 2.3.6 Store cost data in Firestore project document
+- [x] 2.3 Integrate cost tracking into pipeline
+  - [x] 2.3.1 Add costBreakdown and apiCalls fields to AgentJobState
+  - [x] 2.3.2 Track Veo costs in VideoGeneratorService
+  - [x] 2.3.3 Track Claude costs in LLMService
+  - [x] 2.3.4 Track Gemini costs in LLMService (fallback)
+  - [x] 2.3.5 Calculate total job cost in AgentOrchestratorService
+  - [x] 2.3.6 Store cost data in Firestore project document
 
 - [ ] 2.4 Create quota management module
   - [ ] 2.4.1 Create `backend/src/quota/quota.module.ts`

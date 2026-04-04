@@ -13,15 +13,22 @@ import {
 import { Env } from '../config/env';
 import { StructuredLoggerService } from '../monitoring/structured-logger.service';
 import { PerformanceMonitorService } from '../monitoring/performance-monitor.service';
+import { CostTrackerService } from '../cost/cost-tracker.service';
 
 interface BedrockResponseContent {
   type: string;
   text?: string;
 }
 
+interface BedrockUsage {
+  input_tokens: number;
+  output_tokens: number;
+}
+
 interface BedrockResponse {
   content: BedrockResponseContent[];
   stop_reason: string;
+  usage: BedrockUsage;
 }
 
 /**
@@ -46,6 +53,7 @@ export class LlmService {
     private readonly configService: ConfigService<Env>,
     private readonly structuredLogger: StructuredLoggerService,
     private readonly performanceMonitor: PerformanceMonitorService,
+    private readonly costTracker: CostTrackerService,
   ) {
     // Initialize AWS Bedrock (Primary Provider)
     const awsAccessKeyId = this.configService.get('AWS_ACCESS_KEY_ID', {
@@ -131,12 +139,17 @@ export class LlmService {
    *
    * @param systemPrompt - Instructions defining the LLM's role and output format
    * @param userPrompt - The specific content request
+   * @param correlationId - Correlation ID for tracking
+   * @param jobId - Job ID for cost tracking (optional)
+   * @param businessId - Business ID for cost tracking (optional)
    * @returns Parsed JSON object matching the expected schema
    */
   async generateContent(
     systemPrompt: string,
     userPrompt: string,
     correlationId?: string,
+    jobId?: string,
+    businessId?: string,
   ): Promise<unknown> {
     const context = {
       correlationId: correlationId || 'unknown',
@@ -145,7 +158,13 @@ export class LlmService {
 
     // Try AWS Bedrock first (Primary Provider)
     try {
-      return await this.generateWithBedrock(systemPrompt, userPrompt, context);
+      return await this.generateWithBedrock(
+        systemPrompt,
+        userPrompt,
+        context,
+        jobId,
+        businessId,
+      );
     } catch (bedrockError) {
       const bedrockMessage =
         bedrockError instanceof Error
@@ -172,6 +191,8 @@ export class LlmService {
             systemPrompt,
             userPrompt,
             context,
+            jobId,
+            businessId,
           );
         } catch (geminiError) {
           const geminiMessage =
@@ -220,6 +241,8 @@ export class LlmService {
     systemPrompt: string,
     userPrompt: string,
     context: { correlationId: string; service: string },
+    jobId?: string,
+    businessId?: string,
   ): Promise<unknown> {
     this.logger.debug('Generating content with AWS Bedrock Claude');
 
@@ -300,6 +323,36 @@ export class LlmService {
 
       const result = JSON.parse(jsonText) as unknown;
 
+      // Track cost if jobId and businessId are provided
+      if (jobId && businessId && responseBody.usage) {
+        const inputTokens = responseBody.usage.input_tokens;
+        const outputTokens = responseBody.usage.output_tokens;
+        const cost = this.costTracker.calculateClaudeCost(
+          inputTokens,
+          outputTokens,
+        );
+
+        // Track API call cost asynchronously (don't block response)
+        void this.costTracker
+          .trackApiCall(jobId, businessId, {
+            service: 'claude',
+            operation: 'generate-content',
+            inputTokens,
+            outputTokens,
+            cost,
+            timestamp: new Date(),
+          })
+          .catch((error) => {
+            this.logger.error(
+              `Failed to track Claude cost: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          });
+
+        this.logger.debug(
+          `Claude cost: ${cost.toFixed(4)} USD (${inputTokens} input + ${outputTokens} output tokens)`,
+        );
+      }
+
       // Log API call with performance metrics (success)
       this.performanceMonitor.trackLatency(
         'bedrock-claude',
@@ -342,6 +395,8 @@ export class LlmService {
     systemPrompt: string,
     userPrompt: string,
     context: { correlationId: string; service: string },
+    jobId?: string,
+    businessId?: string,
   ): Promise<unknown> {
     if (!this.geminiModel) {
       throw new Error('Gemini fallback not initialized');
@@ -364,6 +419,37 @@ export class LlmService {
       this.logger.debug(`Gemini response length: ${responseText.length} chars`);
 
       const parsedResult = JSON.parse(responseText) as unknown;
+
+      // Track cost if jobId and businessId are provided
+      if (jobId && businessId && result.response.usageMetadata) {
+        const inputTokens = result.response.usageMetadata.promptTokenCount || 0;
+        const outputTokens =
+          result.response.usageMetadata.candidatesTokenCount || 0;
+        const cost = this.costTracker.calculateGeminiCost(
+          inputTokens,
+          outputTokens,
+        );
+
+        // Track API call cost asynchronously (don't block response)
+        void this.costTracker
+          .trackApiCall(jobId, businessId, {
+            service: 'gemini',
+            operation: 'generate-content',
+            inputTokens,
+            outputTokens,
+            cost,
+            timestamp: new Date(),
+          })
+          .catch((error) => {
+            this.logger.error(
+              `Failed to track Gemini cost: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          });
+
+        this.logger.debug(
+          `Gemini cost: ${cost.toFixed(4)} USD (${inputTokens} input + ${outputTokens} output tokens)`,
+        );
+      }
 
       // Log API call with performance metrics (success)
       this.performanceMonitor.trackLatency(

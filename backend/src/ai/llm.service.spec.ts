@@ -5,6 +5,7 @@ import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { StructuredLoggerService } from '../monitoring/structured-logger.service';
 import { PerformanceMonitorService } from '../monitoring/performance-monitor.service';
+import { CostTrackerService } from '../cost/cost-tracker.service';
 
 // Mock AWS SDK
 jest.mock('@aws-sdk/client-bedrock-runtime');
@@ -70,6 +71,14 @@ describe('LlmService', () => {
             trackLatency: jest.fn(),
             trackCount: jest.fn(),
             startTimer: jest.fn(() => jest.fn()),
+          },
+        },
+        {
+          provide: CostTrackerService,
+          useValue: {
+            calculateClaudeCost: jest.fn().mockReturnValue(0.01),
+            calculateGeminiCost: jest.fn().mockReturnValue(0.005),
+            trackApiCall: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],
@@ -289,6 +298,14 @@ describe('LlmService', () => {
               trackLatency: jest.fn(),
               trackCount: jest.fn(),
               startTimer: jest.fn(() => jest.fn()),
+            },
+          },
+          {
+            provide: CostTrackerService,
+            useValue: {
+              calculateClaudeCost: jest.fn().mockReturnValue(0.01),
+              calculateGeminiCost: jest.fn().mockReturnValue(0.005),
+              trackApiCall: jest.fn().mockResolvedValue(undefined),
             },
           },
         ],
