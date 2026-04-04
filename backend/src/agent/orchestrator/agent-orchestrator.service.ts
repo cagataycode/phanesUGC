@@ -379,6 +379,20 @@ export class AgentOrchestratorService {
     this.logger.log(`Starting scenario generation for job ${jobId}`);
 
     const state = await this.loadState(jobId, businessId);
+
+    const context = {
+      correlationId: state.correlationId,
+      jobId: state.jobId,
+      businessId: state.businessId,
+      stage: state.stage,
+    };
+
+    this.structuredLogger.log('Starting scenario generation', context);
+    const timer = this.performanceMonitor.startTimer(
+      'scenario-generation',
+      context,
+    );
+
     state.scenarioGenerationStatus = 'in_progress';
     state.scenarioGenerationStartedAt = new Date();
     await this.saveState(state);
@@ -494,11 +508,24 @@ export class AgentOrchestratorService {
       state.scenarioGenerationCompletedAt = new Date();
       await this.saveState(state);
 
+      timer();
+      this.structuredLogger.log('Scenario generation completed', {
+        ...context,
+        scenarioCount: scenarioSet.scenarios.length,
+      });
+
       this.logger.log(`Scenario generation completed for job ${jobId}`);
       return scenarioSet;
     } catch (error) {
+      timer();
       state.scenarioGenerationStatus = 'failed';
       this.recordError(state, state.stage, error);
+
+      this.structuredLogger.error(
+        'Scenario generation failed',
+        error as Error,
+        context,
+      );
 
       // Log full error details for debugging
       this.logger.error(`Scenario generation failed for job ${jobId}:`, {
