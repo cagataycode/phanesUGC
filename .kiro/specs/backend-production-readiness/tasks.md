@@ -29,12 +29,12 @@
   - [x] 1.4.4 Add alert trigger logic
   - [x] 1.4.5 Write unit tests for ErrorTracker
 
-- [-] 1.5 Integrate logging into agent pipeline
+- [x] 1.5 Integrate logging into agent pipeline
   - [x] 1.5.1 Add correlation ID to AgentJobState
   - [x] 1.5.2 Add logging to AgentOrchestratorService (job start, stage transitions, completion)
   - [x] 1.5.3 Add logging to LLMService (Claude calls, Gemini fallback, token usage)
   - [x] 1.5.4 Add logging to VideoGeneratorService (Veo calls, duration, status)
-  - [ ] 1.5.5 Add logging to all stage services
+  - [x] 1.5.5 Add logging to all stage services
 
 - [ ] 1.6 Add performance tracking
   - [ ] 1.6.1 Track request latency in API controllers
