@@ -77,54 +77,37 @@ export class PerformanceInterceptor implements NestInterceptor {
     // Track whether request succeeded or failed
     let requestFailed = false;
 
-    // Wrap the entire observable pipeline in the correlation context
-    // This ensures the context is available throughout the request lifecycle
-    return new Observable<unknown>((subscriber) => {
-      // Run the observable subscription within the correlation context
-      const subscription = this.correlationContext.run(
-        {
-          correlationId,
-          ...(businessId && { businessId: String(businessId) }),
-        },
-        () => {
-          // Subscribe to the handler's observable within the context
-          return next
-            .handle()
-            .pipe(
-              tap({
-                error: () => {
-                  requestFailed = true;
+    // Run the whole observable chain within the correlation context
+    return this.correlationContext.run(
+      {
+        correlationId,
+        ...(businessId && { businessId: String(businessId) }),
+      },
+      () =>
+        next.handle().pipe(
+          tap({
+            error: () => {
+              requestFailed = true;
+            },
+          }),
+          finalize(() => {
+            try {
+              const latency = Date.now() - startTime;
+              this.performanceMonitor.trackLatency(
+                `${controllerName}-controller`,
+                handlerName,
+                latency,
+                {
+                  ...baseContext,
+                  ...(platform && { platform }),
                 },
-              }),
-              finalize(() => {
-                // Track latency once at completion with graceful degradation
-                try {
-                  const latency = Date.now() - startTime;
-                  this.performanceMonitor.trackLatency(
-                    `${controllerName}-controller`,
-                    handlerName,
-                    latency,
-                    {
-                      ...baseContext,
-                      ...(platform && { platform }),
-                    },
-                    requestFailed ? 'failure' : 'success',
-                  );
-                } catch {
-                  // Silently fail - monitoring errors should not break requests
-                }
-              }),
-            )
-            .subscribe({
-              next: (value) => subscriber.next(value),
-              error: (err) => subscriber.error(err),
-              complete: () => subscriber.complete(),
-            });
-        },
-      );
-
-      // Return teardown function
-      return () => subscription.unsubscribe();
-    });
+                requestFailed ? 'failure' : 'success',
+              );
+            } catch {
+              // Silently fail - monitoring errors should not break requests
+            }
+          }),
+        ),
+    );
   }
 }
