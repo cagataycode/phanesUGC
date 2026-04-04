@@ -17,6 +17,7 @@ import { QualityGatesService } from './quality-gates.service';
 import { StructuredLoggerService } from '../../monitoring/structured-logger.service';
 import { PerformanceMonitorService } from '../../monitoring/performance-monitor.service';
 import { ErrorTrackerService } from '../../monitoring/error-tracker.service';
+import { ErrorSeverity } from '../../monitoring/types';
 import { NormalizedRequest } from '../contracts/normalized-request';
 import { CreativeBrief } from '../contracts/creative-brief';
 import { ProductContext } from '../contracts/product-context';
@@ -1019,6 +1020,41 @@ export class AgentOrchestratorService {
       timestamp: new Date(),
       retryCount,
     });
+
+    const context = {
+      correlationId: state.correlationId,
+      jobId: state.jobId,
+      businessId: state.businessId,
+      stage,
+    };
+
+    // Determine error severity based on stage and retry count
+    let severity: ErrorSeverity;
+    if (retryCount >= 2) {
+      // Multiple retries failed - critical
+      severity = ErrorSeverity.CRITICAL;
+    } else if (
+      stage === 'veo_generating' ||
+      stage === 'rendering' ||
+      stage === 'failed'
+    ) {
+      // Critical stages - high severity
+      severity = ErrorSeverity.HIGH;
+    } else if (retryCount >= 1) {
+      // First retry - medium severity
+      severity = ErrorSeverity.MEDIUM;
+    } else {
+      // First attempt - low severity
+      severity = ErrorSeverity.LOW;
+    }
+
+    // Report error to Cloud Error Reporting
+    this.errorTracker.reportError(
+      error instanceof Error ? error : new Error(message),
+      severity,
+      context,
+      state.correlationId,
+    );
 
     this.logger.error(
       `Job ${state.jobId} error at stage ${stage} (attempt ${retryCount + 1}): ${message}`,
