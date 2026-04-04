@@ -569,6 +569,19 @@ export class AgentOrchestratorService {
 
         const data = doc.data() as AgentJobState;
 
+        // Log scenario selection with correlation ID
+        const context = {
+          correlationId: data.correlationId,
+          jobId: data.jobId,
+          businessId: data.businessId,
+          stage: data.stage,
+        };
+
+        this.structuredLogger.log('Scenario selected by user', {
+          ...context,
+          scenarioId,
+        });
+
         // Validate scenario selection
         if (data.stage !== 'scenarios_ready') {
           throw new Error('Invalid job state for scenario selection');
