@@ -11,6 +11,8 @@ import {
   GenerateContentResult,
 } from '@google/generative-ai';
 import { Env } from '../config/env';
+import { StructuredLoggerService } from '../monitoring/structured-logger.service';
+import { PerformanceMonitorService } from '../monitoring/performance-monitor.service';
 
 interface BedrockResponseContent {
   type: string;
@@ -40,7 +42,11 @@ export class LlmService {
   private readonly geminiModel?: GenerativeModel;
   private readonly hasFallback: boolean;
 
-  constructor(private readonly configService: ConfigService<Env>) {
+  constructor(
+    private readonly configService: ConfigService<Env>,
+    private readonly structuredLogger: StructuredLoggerService,
+    private readonly performanceMonitor: PerformanceMonitorService,
+  ) {
     // Initialize AWS Bedrock (Primary Provider)
     const awsAccessKeyId = this.configService.get('AWS_ACCESS_KEY_ID', {
       infer: true,
@@ -130,10 +136,16 @@ export class LlmService {
   async generateContent(
     systemPrompt: string,
     userPrompt: string,
+    correlationId?: string,
   ): Promise<unknown> {
+    const context = {
+      correlationId: correlationId || 'unknown',
+      service: 'llm',
+    };
+
     // Try AWS Bedrock first (Primary Provider)
     try {
-      return await this.generateWithBedrock(systemPrompt, userPrompt);
+      return await this.generateWithBedrock(systemPrompt, userPrompt, context);
     } catch (bedrockError) {
       const bedrockMessage =
         bedrockError instanceof Error
@@ -147,7 +159,20 @@ export class LlmService {
       if (this.hasFallback && this.geminiModel) {
         try {
           this.logger.log('Using Gemini fallback provider');
-          return await this.generateWithGemini(systemPrompt, userPrompt);
+
+          // Log fallback event
+          this.structuredLogger.logFallback(
+            'bedrock-claude',
+            'gemini',
+            bedrockMessage,
+            context,
+          );
+
+          return await this.generateWithGemini(
+            systemPrompt,
+            userPrompt,
+            context,
+          );
         } catch (geminiError) {
           const geminiMessage =
             geminiError instanceof Error
@@ -156,6 +181,13 @@ export class LlmService {
           this.logger.error(
             `Both providers failed. Bedrock: ${bedrockMessage}, Gemini: ${geminiMessage}`,
           );
+
+          this.structuredLogger.error(
+            'All LLM providers failed',
+            new Error(`Bedrock: ${bedrockMessage}, Gemini: ${geminiMessage}`),
+            context,
+          );
+
           throw new Error(
             `LLM generation failed on all providers. Primary (Bedrock): ${bedrockMessage}, Fallback (Gemini): ${geminiMessage}`,
           );
@@ -164,6 +196,13 @@ export class LlmService {
         this.logger.error(
           `AWS Bedrock failed and no fallback available: ${bedrockMessage}`,
         );
+
+        this.structuredLogger.error(
+          'LLM generation failed with no fallback',
+          bedrockError as Error,
+          context,
+        );
+
         throw new Error(
           `LLM generation failed: ${bedrockMessage} (no fallback configured)`,
         );
@@ -180,8 +219,11 @@ export class LlmService {
   private async generateWithBedrock(
     systemPrompt: string,
     userPrompt: string,
+    context: { correlationId: string; service: string },
   ): Promise<unknown> {
     this.logger.debug('Generating content with AWS Bedrock Claude');
+
+    const startTime = Date.now();
 
     // Build Claude request with JSON mode (not strict schema)
     const requestBody = {
@@ -211,6 +253,8 @@ export class LlmService {
 
     const command = new InvokeModelCommand(input);
     const response = await this.bedrockClient.send(command);
+
+    const latency = Date.now() - startTime;
 
     // Parse Bedrock response
     const responseBody = JSON.parse(
@@ -242,6 +286,20 @@ export class LlmService {
       `Bedrock response length: ${textContent.text.length} chars`,
     );
 
+    // Log API call with performance metrics
+    this.performanceMonitor.trackLatency(
+      'bedrock-claude',
+      'generate-content',
+      latency,
+      {
+        ...context,
+        modelId: this.bedrockModelId,
+        responseLength: textContent.text.length,
+        stopReason: responseBody.stop_reason,
+      },
+      'success',
+    );
+
     // Parse JSON from response text, stripping markdown code blocks if present
     let jsonText: string = textContent.text.trim();
 
@@ -262,6 +320,7 @@ export class LlmService {
   private async generateWithGemini(
     systemPrompt: string,
     userPrompt: string,
+    context: { correlationId: string; service: string },
   ): Promise<unknown> {
     if (!this.geminiModel) {
       throw new Error('Gemini fallback not initialized');
@@ -269,14 +328,31 @@ export class LlmService {
 
     this.logger.debug('Generating content with Gemini fallback');
 
+    const startTime = Date.now();
+
     const result: GenerateContentResult =
       await this.geminiModel.generateContent({
         systemInstruction: systemPrompt,
         contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
       });
 
+    const latency = Date.now() - startTime;
+
     const responseText = result.response.text();
     this.logger.debug(`Gemini response length: ${responseText.length} chars`);
+
+    // Log API call with performance metrics
+    this.performanceMonitor.trackLatency(
+      'gemini',
+      'generate-content',
+      latency,
+      {
+        ...context,
+        modelId: 'gemini-2.5-pro',
+        responseLength: responseText.length,
+      },
+      'success',
+    );
 
     return JSON.parse(responseText) as unknown;
   }
