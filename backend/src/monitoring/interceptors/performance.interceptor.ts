@@ -74,47 +74,60 @@ export class PerformanceInterceptor implements NestInterceptor {
       ...(businessId && { businessId: String(businessId) }),
     };
 
-    // Set correlation context for this request
-    this.correlationContext.setContext({
-      correlationId,
-      ...(businessId && { businessId: String(businessId) }),
+    // Set correlation context and handle the request
+    // Wrap in AsyncLocalStorage.run() so context propagates to downstream services
+    return new Observable<unknown>((subscriber) => {
+      this.correlationContext.run(
+        {
+          correlationId,
+          ...(businessId && { businessId: String(businessId) }),
+        },
+        () => {
+          next
+            .handle()
+            .pipe(
+              tap(() => {
+                // Success case - track latency with graceful degradation
+                try {
+                  const latency = Date.now() - startTime;
+                  this.performanceMonitor.trackLatency(
+                    `${controllerName}-controller`,
+                    handlerName,
+                    latency,
+                    {
+                      ...baseContext,
+                      ...(platform && { platform }),
+                    },
+                    'success',
+                  );
+                } catch {
+                  // Silently fail - monitoring errors should not break requests
+                }
+              }),
+              catchError((error: Error) => {
+                // Failure case - track latency with graceful degradation
+                try {
+                  const latency = Date.now() - startTime;
+                  this.performanceMonitor.trackLatency(
+                    `${controllerName}-controller`,
+                    handlerName,
+                    latency,
+                    baseContext,
+                    'failure',
+                  );
+                } catch {
+                  // Silently fail - monitoring errors should not break requests
+                }
+                return throwError(() => error);
+              }),
+            )
+            .subscribe({
+              next: (value) => subscriber.next(value),
+              error: (err) => subscriber.error(err),
+              complete: () => subscriber.complete(),
+            });
+        },
+      );
     });
-
-    return next.handle().pipe(
-      tap(() => {
-        // Success case - track latency with graceful degradation
-        try {
-          const latency = Date.now() - startTime;
-          this.performanceMonitor.trackLatency(
-            `${controllerName}-controller`,
-            handlerName,
-            latency,
-            {
-              ...baseContext,
-              ...(platform && { platform }),
-            },
-            'success',
-          );
-        } catch {
-          // Silently fail - monitoring errors should not break requests
-        }
-      }),
-      catchError((error: Error) => {
-        // Failure case - track latency with graceful degradation
-        try {
-          const latency = Date.now() - startTime;
-          this.performanceMonitor.trackLatency(
-            `${controllerName}-controller`,
-            handlerName,
-            latency,
-            baseContext,
-            'failure',
-          );
-        } catch {
-          // Silently fail - monitoring errors should not break requests
-        }
-        return throwError(() => error);
-      }),
-    );
   }
 }

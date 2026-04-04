@@ -6,6 +6,10 @@ import { ErrorTrackerService } from './error-tracker.service';
 import { CorrelationContextService } from './correlation-context.service';
 import { ErrorSeverity } from './types';
 
+// Mock Google Cloud SDKs to avoid real API calls in tests
+jest.mock('@google-cloud/logging');
+jest.mock('@google-cloud/error-reporting');
+
 /**
  * Integration tests for monitoring services
  * Tests that services work together correctly in realistic scenarios
@@ -21,7 +25,14 @@ describe('Monitoring Integration', () => {
       imports: [
         ConfigModule.forRoot({
           isGlobal: true,
-          envFilePath: '.env',
+          ignoreEnvFile: true,
+          load: [
+            () => ({
+              GCP_PROJECT_ID: 'test-project',
+              ENABLE_STRUCTURED_LOGGING: 'false',
+              LOG_LEVEL: 'info',
+            }),
+          ],
         }),
       ],
       providers: [
