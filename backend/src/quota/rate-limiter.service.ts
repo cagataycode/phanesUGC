@@ -233,28 +233,25 @@ export class RateLimiterService {
       const cutoffTime = new Date(Date.now() - 3600000); // 1 hour ago
 
       // Query for stale rate limit documents
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+
       const staleDocsSnapshot = await this.firestore
         .getFirestore()
         .collectionGroup('rate_limits')
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+
         .where('updatedAt', '<', cutoffTime)
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+
         .get();
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
       const batch = this.firestore.getFirestore().batch();
       let deleteCount = 0;
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       staleDocsSnapshot.forEach((doc: any) => {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
         batch.delete(doc.ref);
         deleteCount++;
       });
 
       if (deleteCount > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         await batch.commit();
         this.logger.log(`Cleaned up ${deleteCount} stale rate limit entries`);
       }

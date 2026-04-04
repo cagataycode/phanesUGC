@@ -67,27 +67,27 @@
   - [x] 2.3.5 Calculate total job cost in AgentOrchestratorService
   - [x] 2.3.6 Store cost data in Firestore project document
 
-- [ ] 2.4 Create quota management module
-  - [ ] 2.4.1 Create `backend/src/quota/quota.module.ts`
-  - [ ] 2.4.2 Create `backend/src/quota/quota.service.ts`
-  - [ ] 2.4.3 Create `backend/src/quota/rate-limiter.service.ts`
+- [x] 2.4 Create quota management module
+  - [x] 2.4.1 Create `backend/src/quota/quota.module.ts`
+  - [x] 2.4.2 Create `backend/src/quota/quota.service.ts`
+  - [x] 2.4.3 Create `backend/src/quota/rate-limiter.service.ts`
 
-- [ ] 2.5 Implement QuotaService
-  - [ ] 2.5.1 Define subscription tier limits (Free: 2, Starter: 20, Pro: 40, Enterprise: custom)
-  - [ ] 2.5.2 Implement getSubscriptionTier method
-  - [ ] 2.5.3 Implement checkQuota method
-  - [ ] 2.5.4 Implement canCreateJob method
-  - [ ] 2.5.5 Implement incrementUsage method
-  - [ ] 2.5.6 Implement resetMonthlyQuotas method
-  - [ ] 2.5.7 Write unit tests for QuotaService
+- [x] 2.5 Implement QuotaService
+  - [x] 2.5.1 Define subscription tier limits (Free: 2, Starter: 20, Pro: 40, Enterprise: custom)
+  - [x] 2.5.2 Implement getSubscriptionTier method
+  - [x] 2.5.3 Implement checkQuota method
+  - [x] 2.5.4 Implement canCreateJob method
+  - [x] 2.5.5 Implement incrementUsage method
+  - [x] 2.5.6 Implement resetMonthlyQuotas method
+  - [x] 2.5.7 Write unit tests for QuotaService
 
-- [ ] 2.6 Implement RateLimiter service
-  - [ ] 2.6.1 Define rate limit configs per tier
-  - [ ] 2.6.2 Implement checkRateLimit method (10 req/min)
-  - [ ] 2.6.3 Implement checkConcurrentJobs method
-  - [ ] 2.6.4 Implement recordRequest method
-  - [ ] 2.6.5 Implement cleanupStaleEntries method
-  - [ ] 2.6.6 Write unit tests for RateLimiter
+- [x] 2.6 Implement RateLimiter service
+  - [x] 2.6.1 Define rate limit configs per tier
+  - [x] 2.6.2 Implement checkRateLimit method (10 req/min)
+  - [x] 2.6.3 Implement checkConcurrentJobs method
+  - [x] 2.6.4 Implement recordRequest method
+  - [x] 2.6.5 Implement cleanupStaleEntries method
+  - [x] 2.6.6 Write unit tests for RateLimiter
 
 - [ ] 2.7 Integrate quota enforcement
   - [ ] 2.7.1 Add quota check to AdsController.createJob
