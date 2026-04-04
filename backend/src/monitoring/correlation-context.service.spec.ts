@@ -61,8 +61,8 @@ describe('CorrelationContextService', () => {
       const correlationId = 'async-correlation-id';
 
       await service.runAsync({ correlationId }, async () => {
-        // Simulate async operation
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        // Simulate async operation (minimal delay for CI)
+        await new Promise((resolve) => setTimeout(resolve, 1));
         expect(service.getCorrelationId()).toBe(correlationId);
       });
     });
@@ -71,10 +71,10 @@ describe('CorrelationContextService', () => {
       const correlationId = 'multi-async-id';
 
       await service.runAsync({ correlationId }, async () => {
-        await new Promise((resolve) => setTimeout(resolve, 5));
+        await new Promise((resolve) => setTimeout(resolve, 1));
         expect(service.getCorrelationId()).toBe(correlationId);
 
-        await new Promise((resolve) => setTimeout(resolve, 5));
+        await new Promise((resolve) => setTimeout(resolve, 1));
         expect(service.getCorrelationId()).toBe(correlationId);
       });
     });
@@ -83,7 +83,7 @@ describe('CorrelationContextService', () => {
       const promise1 = service.runAsync(
         { correlationId: 'async-1' },
         async () => {
-          await new Promise((resolve) => setTimeout(resolve, 20));
+          await new Promise((resolve) => setTimeout(resolve, 5));
           return service.getCorrelationId();
         },
       );
@@ -91,7 +91,7 @@ describe('CorrelationContextService', () => {
       const promise2 = service.runAsync(
         { correlationId: 'async-2' },
         async () => {
-          await new Promise((resolve) => setTimeout(resolve, 10));
+          await new Promise((resolve) => setTimeout(resolve, 3));
           return service.getCorrelationId();
         },
       );

@@ -69,8 +69,8 @@ describe('Monitoring Integration', () => {
         // Verify context is set
         expect(correlationContext.getCorrelationId()).toBe(correlationId);
 
-        // Simulate async operation
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        // Simulate async operation (minimal delay for CI)
+        await new Promise((resolve) => setTimeout(resolve, 1));
 
         // Verify context persists after async operation
         expect(correlationContext.getCorrelationId()).toBe(correlationId);
@@ -84,7 +84,7 @@ describe('Monitoring Integration', () => {
       const promise1 = correlationContext.runAsync(
         { correlationId: id1 },
         async () => {
-          await new Promise((resolve) => setTimeout(resolve, 20));
+          await new Promise((resolve) => setTimeout(resolve, 5));
           return correlationContext.getCorrelationId();
         },
       );
@@ -92,7 +92,7 @@ describe('Monitoring Integration', () => {
       const promise2 = correlationContext.runAsync(
         { correlationId: id2 },
         async () => {
-          await new Promise((resolve) => setTimeout(resolve, 10));
+          await new Promise((resolve) => setTimeout(resolve, 3));
           return correlationContext.getCorrelationId();
         },
       );
@@ -129,8 +129,8 @@ describe('Monitoring Integration', () => {
             context,
           );
 
-          // Simulate work
-          await new Promise((resolve) => setTimeout(resolve, 50));
+          // Simulate work (minimal delay for CI)
+          await new Promise((resolve) => setTimeout(resolve, 10));
 
           // Track metric
           performanceMonitor.trackCount('requests', 1, context);
@@ -199,9 +199,9 @@ describe('Monitoring Integration', () => {
       };
 
       await correlationContext.runAsync({ correlationId }, async () => {
-        // Simulate API call
+        // Simulate API call (minimal delay for CI)
         const startTime = Date.now();
-        await new Promise((resolve) => setTimeout(resolve, 30));
+        await new Promise((resolve) => setTimeout(resolve, 5));
         const latency = Date.now() - startTime;
 
         // Track latency
@@ -214,7 +214,7 @@ describe('Monitoring Integration', () => {
         );
 
         // Verify latency was logged (through structured logger)
-        expect(latency).toBeGreaterThanOrEqual(30);
+        expect(latency).toBeGreaterThanOrEqual(5);
       });
     });
 
@@ -352,10 +352,8 @@ describe('Monitoring Integration', () => {
               businessId: 'test-business',
             };
 
-            // Simulate work
-            await new Promise((resolve) =>
-              setTimeout(resolve, Math.random() * 50),
-            );
+            // Simulate work (minimal delay for CI performance)
+            await new Promise((resolve) => setTimeout(resolve, 1));
 
             // Track metrics
             performanceMonitor.trackCount(`request-${i}`, 1, context);
