@@ -71,18 +71,18 @@ export class AdsController {
       const quota = await this.quotaService.checkQuota(businessId);
       throw new HttpException(
         {
-          statusCode: HttpStatus.PAYMENT_REQUIRED,
-          message: `Monthly video quota exceeded. You have used ${quota.videosCreated} of ${quota.videosRemaining + quota.videosCreated} videos this month. Quota resets on ${quota.resetDate.toISOString()}.`,
+          statusCode: HttpStatus.TOO_MANY_REQUESTS,
+          message: 'Monthly video quota exceeded. Please upgrade your plan.',
           quota: {
             used: quota.videosCreated,
             limit:
               quota.videosRemaining === -1
                 ? 'unlimited'
                 : quota.videosRemaining + quota.videosCreated,
-            resetDate: quota.resetDate,
+            resetDate: quota.resetDate.toISOString().split('T')[0], // Date only
           },
         },
-        HttpStatus.PAYMENT_REQUIRED,
+        HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 
@@ -109,10 +109,8 @@ export class AdsController {
     // Create the job
     const result = await this.adsService.createJob(createAdDto);
 
-    // Increment usage counter (don't wait for it)
-    void this.quotaService.incrementUsage(businessId).catch((error) => {
-      console.error('Failed to increment usage:', error);
-    });
+    // Note: Quota usage will be incremented when the job completes successfully
+    // See AgentOrchestratorService for the actual increment call
 
     return result;
   }
@@ -189,18 +187,18 @@ export class AdsController {
       const quota = await this.quotaService.checkQuota(businessId);
       throw new HttpException(
         {
-          statusCode: HttpStatus.PAYMENT_REQUIRED,
-          message: `Monthly video quota exceeded. You have used ${quota.videosCreated} of ${quota.videosRemaining + quota.videosCreated} videos this month. Quota resets on ${quota.resetDate.toISOString()}.`,
+          statusCode: HttpStatus.TOO_MANY_REQUESTS,
+          message: 'Monthly video quota exceeded. Please upgrade your plan.',
           quota: {
             used: quota.videosCreated,
             limit:
               quota.videosRemaining === -1
                 ? 'unlimited'
                 : quota.videosRemaining + quota.videosCreated,
-            resetDate: quota.resetDate,
+            resetDate: quota.resetDate.toISOString().split('T')[0], // Date only
           },
         },
-        HttpStatus.PAYMENT_REQUIRED,
+        HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 
@@ -227,10 +225,8 @@ export class AdsController {
     // Create the job
     const result = await this.adsService.createWizardJob(parsed);
 
-    // Increment usage counter (don't wait for it)
-    void this.quotaService.incrementUsage(businessId).catch((error) => {
-      console.error('Failed to increment usage:', error);
-    });
+    // Note: Quota usage will be incremented when the job completes successfully
+    // See AgentOrchestratorService for the actual increment call
 
     return result;
   }

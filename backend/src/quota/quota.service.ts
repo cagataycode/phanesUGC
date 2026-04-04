@@ -78,10 +78,18 @@ export class QuotaService {
       }
 
       const data = businessDoc.data();
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-      const tier = data?.subscription?.tier || SubscriptionTier.FREE;
+      const tierValue = data?.subscription?.tier;
 
-      return tier as SubscriptionTier;
+      // Validate tier value
+      const validTiers = Object.values(SubscriptionTier);
+      if (tierValue && validTiers.includes(tierValue as SubscriptionTier)) {
+        return tierValue as SubscriptionTier;
+      }
+
+      this.logger.warn(
+        `Invalid tier "${tierValue}" for business ${businessId}, defaulting to FREE`,
+      );
+      return SubscriptionTier.FREE;
     } catch (error) {
       this.logger.error(
         `Failed to get subscription tier: ${error instanceof Error ? error.message : String(error)}`,

@@ -16,6 +16,18 @@ describe('RateLimiterService', () => {
   const mockBusinessId = 'business-123';
 
   beforeEach(async () => {
+    const mockFirestoreInstance = {
+      collection: jest.fn().mockReturnThis(),
+      collectionGroup: jest.fn().mockReturnThis(),
+      doc: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      get: jest.fn(),
+      set: jest.fn(),
+      update: jest.fn(),
+      runTransaction: jest.fn(),
+      batch: jest.fn(),
+    };
+
     const mockFirestore = {
       collection: jest.fn().mockReturnThis(),
       collectionGroup: jest.fn().mockReturnThis(),
@@ -26,6 +38,7 @@ describe('RateLimiterService', () => {
       update: jest.fn(),
       runTransaction: jest.fn(),
       batch: jest.fn(),
+      getFirestore: jest.fn(() => mockFirestoreInstance),
     };
 
     const mockLogger = {
@@ -153,7 +166,8 @@ describe('RateLimiterService', () => {
         size: 0,
       };
 
-      firestoreService.get.mockResolvedValue(mockSnapshot as any);
+      const mockFirestoreInstance = firestoreService.getFirestore();
+      (mockFirestoreInstance.get as jest.Mock).mockResolvedValue(mockSnapshot as any);
 
       const allowed = await service.checkConcurrentJobs(
         mockBusinessId,
@@ -168,7 +182,8 @@ describe('RateLimiterService', () => {
         size: 1, // FREE tier limit is 1
       };
 
-      firestoreService.get.mockResolvedValue(mockSnapshot as any);
+      const mockFirestoreInstance = firestoreService.getFirestore();
+      (mockFirestoreInstance.get as jest.Mock).mockResolvedValue(mockSnapshot as any);
 
       const allowed = await service.checkConcurrentJobs(
         mockBusinessId,
@@ -183,7 +198,8 @@ describe('RateLimiterService', () => {
         size: 3,
       };
 
-      firestoreService.get.mockResolvedValue(mockSnapshot as any);
+      const mockFirestoreInstance = firestoreService.getFirestore();
+      (mockFirestoreInstance.get as jest.Mock).mockResolvedValue(mockSnapshot as any);
 
       const allowed = await service.checkConcurrentJobs(
         mockBusinessId,

@@ -224,7 +224,7 @@ describe('CostTrackerService', () => {
 
       await service.trackApiCall(jobId, businessId, call);
 
-      expect(mockDocRef.update).toHaveBeenCalledWith(
+      expect(mockSubDocRef.update).toHaveBeenCalledWith(
         expect.objectContaining({
           costBreakdown: expect.objectContaining({
             claudeCalls: 0.0105,
@@ -246,7 +246,7 @@ describe('CostTrackerService', () => {
 
       await service.trackApiCall(jobId, businessId, call);
 
-      expect(mockDocRef.update).toHaveBeenCalledWith(
+      expect(mockSubDocRef.update).toHaveBeenCalledWith(
         expect.objectContaining({
           costBreakdown: expect.objectContaining({
             geminiCalls: 0.00625,
@@ -257,7 +257,7 @@ describe('CostTrackerService', () => {
     });
 
     it('should accumulate multiple API calls', async () => {
-      mockDocRef.get.mockResolvedValue({
+      mockSubDocRef.get.mockResolvedValue({
         exists: true,
         data: () => ({
           apiCalls: [
@@ -283,7 +283,7 @@ describe('CostTrackerService', () => {
 
       await service.trackApiCall(jobId, businessId, call);
 
-      expect(mockDocRef.update).toHaveBeenCalledWith(
+      expect(mockSubDocRef.update).toHaveBeenCalledWith(
         expect.objectContaining({
           apiCalls: expect.arrayContaining([
             expect.objectContaining({ service: 'claude' }),

@@ -112,11 +112,15 @@ export class RateLimiterService {
         };
       }
 
-      // Within rate limit
+      // Within rate limit - calculate reset time based on oldest request
+      const resetTime = recentRequests.length > 0
+        ? new Date(recentRequests[0].timestamp.toDate().getTime() + 60000)
+        : new Date(now.getTime() + 60000);
+
       return {
         allowed: true,
         requestsRemaining: config.requestsPerMinute - requestCount - 1,
-        resetTime: new Date(now.getTime() + 60000),
+        resetTime,
       };
     } catch (error) {
       this.logger.error(
@@ -141,11 +145,13 @@ export class RateLimiterService {
     const config = this.rateLimitConfigs[tier];
 
     try {
-      // Query for active jobs
+      // Query for active agent jobs in the correct collection
       const activeJobsSnapshot = await this.firestore
-        .collection('jobs')
-        .where('businessId', '==', businessId)
-        .where('status', 'in', ['pending', 'processing'])
+        .getFirestore()
+        .collection('businesses')
+        .doc(businessId)
+        .collection('agent_jobs')
+        .where('status', 'in', ['pending', 'processing', 'phase2_started'])
         .get();
 
       const activeJobCount = activeJobsSnapshot.size;
