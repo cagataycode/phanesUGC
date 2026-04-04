@@ -11,10 +11,22 @@ describe('CostTrackerService', () => {
   let structuredLogger: jest.Mocked<StructuredLoggerService>;
   let performanceMonitor: jest.Mocked<PerformanceMonitorService>;
 
-  // Mock Firestore
+  // Mock Firestore with nested collection support
+  const mockSubDocRef = {
+    get: jest.fn(),
+    set: jest.fn(),
+    update: jest.fn(),
+  };
+
+  const mockSubCollectionRef = {
+    doc: jest.fn(() => mockSubDocRef),
+    get: jest.fn(),
+  };
+
   const mockDocRef = {
     get: jest.fn(),
     update: jest.fn(),
+    collection: jest.fn(() => mockSubCollectionRef), // Support nested collections
   };
 
   const mockCollectionRef = {
@@ -141,13 +153,14 @@ describe('CostTrackerService', () => {
     const businessId = 'test-business-456';
 
     beforeEach(() => {
-      mockDocRef.get.mockResolvedValue({
+      // Mock the nested collection structure for agent_jobs
+      mockSubDocRef.get.mockResolvedValue({
         exists: true,
         data: () => ({
           apiCalls: [],
         }),
       } as any);
-      mockDocRef.update.mockResolvedValue(undefined as any);
+      mockSubDocRef.update.mockResolvedValue(undefined as any);
       mockFirestore.runTransaction.mockImplementation((callback) => {
         const transaction = {
           get: jest.fn().mockResolvedValue({
@@ -172,7 +185,7 @@ describe('CostTrackerService', () => {
 
       await service.trackApiCall(jobId, businessId, call);
 
-      expect(mockDocRef.update).toHaveBeenCalledWith(
+      expect(mockSubDocRef.update).toHaveBeenCalledWith(
         expect.objectContaining({
           apiCalls: expect.arrayContaining([
             expect.objectContaining({
@@ -286,7 +299,7 @@ describe('CostTrackerService', () => {
     });
 
     it('should skip tracking if job does not exist', async () => {
-      mockDocRef.get.mockResolvedValue({
+      mockSubDocRef.get.mockResolvedValue({
         exists: false,
       } as any);
 
@@ -300,11 +313,11 @@ describe('CostTrackerService', () => {
 
       await service.trackApiCall(jobId, businessId, call);
 
-      expect(mockDocRef.update).not.toHaveBeenCalled();
+      expect(mockSubDocRef.update).not.toHaveBeenCalled();
     });
 
     it('should handle errors gracefully', async () => {
-      mockDocRef.get.mockRejectedValue(new Error('Firestore error'));
+      mockSubDocRef.get.mockRejectedValue(new Error('Firestore error'));
 
       const call: ApiCallCost = {
         service: 'veo',
@@ -336,7 +349,7 @@ describe('CostTrackerService', () => {
         currency: 'USD' as const,
       };
 
-      mockDocRef.get.mockResolvedValue({
+      mockSubDocRef.get.mockResolvedValue({
         exists: true,
         data: () => ({
           costBreakdown: mockCostBreakdown,
@@ -349,7 +362,7 @@ describe('CostTrackerService', () => {
     });
 
     it('should return zero costs if no cost breakdown exists', async () => {
-      mockDocRef.get.mockResolvedValue({
+      mockSubDocRef.get.mockResolvedValue({
         exists: true,
         data: () => ({}),
       } as any);
@@ -366,7 +379,7 @@ describe('CostTrackerService', () => {
     });
 
     it('should throw error if job does not exist', async () => {
-      mockDocRef.get.mockResolvedValue({
+      mockSubDocRef.get.mockResolvedValue({
         exists: false,
       } as any);
 
