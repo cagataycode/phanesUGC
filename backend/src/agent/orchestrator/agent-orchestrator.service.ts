@@ -14,6 +14,8 @@ import { TimelineAssemblerService } from '../stages/timeline-assembler.service';
 import { RenderExecutorService } from '../stages/render-executor.service';
 import { OutputValidatorService } from '../stages/output-validator.service';
 import { QualityGatesService } from './quality-gates.service';
+import { StructuredLoggerService } from '../../monitoring/structured-logger.service';
+import { PerformanceMonitorService } from '../../monitoring/performance-monitor.service';
 import { NormalizedRequest } from '../contracts/normalized-request';
 import { CreativeBrief } from '../contracts/creative-brief';
 import { ProductContext } from '../contracts/product-context';
@@ -53,6 +55,8 @@ export class AgentOrchestratorService {
     private readonly qualityGates: QualityGatesService,
     private readonly retryPolicy: RetryPolicy,
     private readonly fallbackPolicy: FallbackPolicy,
+    private readonly structuredLogger: StructuredLoggerService,
+    private readonly performanceMonitor: PerformanceMonitorService,
   ) {}
 
   /**
@@ -63,6 +67,17 @@ export class AgentOrchestratorService {
     businessId: string,
     createAdDto: CreateAdDto,
   ): Promise<AgentJobState> {
+    // Generate correlation ID for this job
+    const correlationId = this.structuredLogger.generateCorrelationId();
+
+    const context = {
+      correlationId,
+      jobId,
+      businessId,
+      stage: 'created' as const,
+    };
+
+    this.structuredLogger.log('Initializing agent job', context);
     this.logger.log(`Initializing agent job ${jobId}`);
 
     const now = new Date();
@@ -100,6 +115,7 @@ export class AgentOrchestratorService {
     const state: AgentJobState = {
       jobId,
       businessId,
+      correlationId,
       stage: 'created',
       scenarioGenerationStatus: 'pending',
       videoGenerationStatus: 'pending',
@@ -114,6 +130,9 @@ export class AgentOrchestratorService {
     };
 
     await this.saveState(state);
+
+    this.structuredLogger.log('Agent job initialized successfully', context);
+
     return state;
   }
 
