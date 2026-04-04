@@ -96,10 +96,10 @@
   - [x] 2.7.4 Add X-RateLimit headers to responses
   - [x] 2.7.5 Increment usage counter on job completion
 
-- [ ] 2.8 Create scheduled functions
-  - [ ] 2.8.1 Create Cloud Function for monthly quota reset
-  - [ ] 2.8.2 Create Cloud Function for rate limit cleanup
-  - [ ] 2.8.3 Schedule functions with Cloud Scheduler
+- [x] 2.8 Create scheduled functions
+  - [x] 2.8.1 Create Cloud Function for monthly quota reset
+  - [x] 2.8.2 Create Cloud Function for rate limit cleanup
+  - [x] 2.8.3 Schedule functions with Cloud Scheduler
 
 ## Phase 3: Security Hardening
 
