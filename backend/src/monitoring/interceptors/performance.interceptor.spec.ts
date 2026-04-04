@@ -4,6 +4,7 @@ import { of, throwError, Observable } from 'rxjs';
 import { PerformanceInterceptor } from './performance.interceptor';
 import { StructuredLoggerService } from '../structured-logger.service';
 import { PerformanceMonitorService } from '../performance-monitor.service';
+import { CorrelationContextService } from '../correlation-context.service';
 
 /* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -22,6 +23,13 @@ describe('PerformanceInterceptor', () => {
     trackLatency: jest.fn(),
   };
 
+  const mockCorrelationContext = {
+    runAsync: jest.fn((context, fn) => fn()) as jest.Mock<
+      Promise<void>,
+      [Record<string, unknown>, () => Promise<void>]
+    >,
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -33,6 +41,10 @@ describe('PerformanceInterceptor', () => {
         {
           provide: PerformanceMonitorService,
           useValue: mockPerformanceMonitor,
+        },
+        {
+          provide: CorrelationContextService,
+          useValue: mockCorrelationContext,
         },
       ],
     }).compile();
@@ -50,6 +62,7 @@ describe('PerformanceInterceptor', () => {
     mockStructuredLogger.generateCorrelationId.mockReturnValue(
       'test-correlation-id',
     );
+    mockCorrelationContext.runAsync.mockImplementation((context, fn) => fn());
   });
 
   const createMockExecutionContext = (
