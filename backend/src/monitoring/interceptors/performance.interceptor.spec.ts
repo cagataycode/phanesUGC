@@ -95,9 +95,17 @@ describe('PerformanceInterceptor', () => {
       const context = createMockExecutionContext();
       const next = createMockCallHandler();
 
-      interceptor.intercept(context, next).subscribe(() => {
-        expect(structuredLogger.generateCorrelationId).toHaveBeenCalled();
-        done();
+      interceptor.intercept(context, next).subscribe({
+        next: () => {
+          // Correlation ID is generated synchronously
+          expect(structuredLogger.generateCorrelationId).toHaveBeenCalled();
+        },
+        error: (err: Error) => {
+          done(err);
+        },
+        complete: () => {
+          done();
+        },
       });
     });
 
@@ -105,17 +113,25 @@ describe('PerformanceInterceptor', () => {
       const context = createMockExecutionContext();
       const next = createMockCallHandler();
 
-      interceptor.intercept(context, next).subscribe(() => {
-        expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
-          'test-controller',
-          'testHandler',
-          expect.any(Number),
-          {
-            correlationId: 'test-correlation-id',
-          },
-          'success',
-        );
-        done();
+      interceptor.intercept(context, next).subscribe({
+        next: () => {
+          // trackLatency is called in finalize(), not here
+        },
+        error: (err: Error) => {
+          done(err);
+        },
+        complete: () => {
+          expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
+            'test-controller',
+            'testHandler',
+            expect.any(Number),
+            {
+              correlationId: 'test-correlation-id',
+            },
+            'success',
+          );
+          done();
+        },
       });
     });
 
@@ -157,18 +173,26 @@ describe('PerformanceInterceptor', () => {
       });
       const next = createMockCallHandler();
 
-      interceptor.intercept(context, next).subscribe(() => {
-        expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
-          'test-controller',
-          'testHandler',
-          expect.any(Number),
-          {
-            correlationId: 'test-correlation-id',
-            businessId: 'business-123',
-          },
-          'success',
-        );
-        done();
+      interceptor.intercept(context, next).subscribe({
+        next: () => {
+          // trackLatency is called in finalize()
+        },
+        error: (err: Error) => {
+          done(err);
+        },
+        complete: () => {
+          expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
+            'test-controller',
+            'testHandler',
+            expect.any(Number),
+            {
+              correlationId: 'test-correlation-id',
+              businessId: 'business-123',
+            },
+            'success',
+          );
+          done();
+        },
       });
     });
 
@@ -179,18 +203,26 @@ describe('PerformanceInterceptor', () => {
       );
       const next = createMockCallHandler();
 
-      interceptor.intercept(context, next).subscribe(() => {
-        expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
-          'test-controller',
-          'testHandler',
-          expect.any(Number),
-          {
-            correlationId: 'test-correlation-id',
-            businessId: 'business-456',
-          },
-          'success',
-        );
-        done();
+      interceptor.intercept(context, next).subscribe({
+        next: () => {
+          // trackLatency is called in finalize()
+        },
+        error: (err: Error) => {
+          done(err);
+        },
+        complete: () => {
+          expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
+            'test-controller',
+            'testHandler',
+            expect.any(Number),
+            {
+              correlationId: 'test-correlation-id',
+              businessId: 'business-456',
+            },
+            'success',
+          );
+          done();
+        },
       });
     });
 
@@ -203,19 +235,27 @@ describe('PerformanceInterceptor', () => {
       });
       const next = createMockCallHandler();
 
-      interceptor.intercept(context, next).subscribe(() => {
-        expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
-          'test-controller',
-          'testHandler',
-          expect.any(Number),
-          {
-            correlationId: 'test-correlation-id',
-            businessId: 'business-123',
-            platform: 'tiktok',
-          },
-          'success',
-        );
-        done();
+      interceptor.intercept(context, next).subscribe({
+        next: () => {
+          // trackLatency is called in finalize()
+        },
+        error: (err: Error) => {
+          done(err);
+        },
+        complete: () => {
+          expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
+            'test-controller',
+            'testHandler',
+            expect.any(Number),
+            {
+              correlationId: 'test-correlation-id',
+              businessId: 'business-123',
+              platform: 'tiktok',
+            },
+            'success',
+          );
+          done();
+        },
       });
     });
 
@@ -223,17 +263,25 @@ describe('PerformanceInterceptor', () => {
       const context = createMockExecutionContext();
       const next = createMockCallHandler();
 
-      interceptor.intercept(context, next).subscribe(() => {
-        expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
-          'test-controller',
-          'testHandler',
-          expect.any(Number),
-          {
-            correlationId: 'test-correlation-id',
-          },
-          'success',
-        );
-        done();
+      interceptor.intercept(context, next).subscribe({
+        next: () => {
+          // trackLatency is called in finalize()
+        },
+        error: (err: Error) => {
+          done(err);
+        },
+        complete: () => {
+          expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
+            'test-controller',
+            'testHandler',
+            expect.any(Number),
+            {
+              correlationId: 'test-correlation-id',
+            },
+            'success',
+          );
+          done();
+        },
       });
     });
 
@@ -296,15 +344,23 @@ describe('PerformanceInterceptor', () => {
       } as ExecutionContext;
       const next = createMockCallHandler();
 
-      interceptor.intercept(context, next).subscribe(() => {
-        expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
-          'ads-controller',
-          'createJob',
-          expect.any(Number),
-          expect.any(Object),
-          'success',
-        );
-        done();
+      interceptor.intercept(context, next).subscribe({
+        next: () => {
+          // trackLatency is called in finalize()
+        },
+        error: (err: Error) => {
+          done(err);
+        },
+        complete: () => {
+          expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
+            'ads-controller',
+            'createJob',
+            expect.any(Number),
+            expect.any(Object),
+            'success',
+          );
+          done();
+        },
       });
     });
   });
