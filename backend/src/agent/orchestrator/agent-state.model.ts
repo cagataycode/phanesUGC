@@ -104,6 +104,17 @@ export interface AgentJobState {
 
   /** Expiry for scenario selection */
   scenarioExpiresAt?: Date;
+
+  /** Performance metrics */
+  performanceMetrics?: {
+    stageDurations: Record<AgentStage, number>;
+    apiCalls: Array<{
+      service: string;
+      operation: string;
+      latency: number;
+      timestamp: Date;
+    }>;
+  };
 }
 
 /**

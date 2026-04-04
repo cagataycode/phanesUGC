@@ -938,6 +938,23 @@ export class AgentOrchestratorService {
       stage: state.stage,
     };
 
+    // Calculate stage duration if we have a previous updatedAt timestamp
+    const now = new Date();
+    if (state.updatedAt) {
+      const stageDuration = now.getTime() - state.updatedAt.getTime();
+
+      // Initialize performanceMetrics if not exists
+      if (!state.performanceMetrics) {
+        state.performanceMetrics = {
+          stageDurations: {} as Record<AgentStage, number>,
+          apiCalls: [],
+        };
+      }
+
+      // Store duration for the current stage (before transition)
+      state.performanceMetrics.stageDurations[state.stage] = stageDuration;
+    }
+
     this.structuredLogger.log(
       `Stage transition: ${state.stage} → ${newStage}`,
       {
@@ -949,7 +966,7 @@ export class AgentOrchestratorService {
 
     this.logger.debug(`Job ${state.jobId}: ${state.stage} → ${newStage}`);
     state.stage = newStage;
-    state.updatedAt = new Date();
+    state.updatedAt = now;
   }
 
   /**
@@ -1088,6 +1105,15 @@ export class AgentOrchestratorService {
           ...r,
           checkedAt: r.checkedAt,
         })),
+        performanceMetrics: state.performanceMetrics
+          ? {
+              stageDurations: state.performanceMetrics.stageDurations,
+              apiCalls: state.performanceMetrics.apiCalls.map((call) => ({
+                ...call,
+                timestamp: call.timestamp,
+              })),
+            }
+          : undefined,
       };
 
       await this.firestore.set(
@@ -1156,6 +1182,15 @@ export class AgentOrchestratorService {
         ...r,
         checkedAt: this.toDate(r.checkedAt),
       })),
+      performanceMetrics: data.performanceMetrics
+        ? {
+            stageDurations: data.performanceMetrics.stageDurations,
+            apiCalls: data.performanceMetrics.apiCalls.map((call) => ({
+              ...call,
+              timestamp: this.toDate(call.timestamp),
+            })),
+          }
+        : undefined,
     };
   }
 

@@ -37,9 +37,9 @@
   - [x] 1.5.5 Add logging to all stage services
 
 - [ ] 1.6 Add performance tracking
-  - [ ] 1.6.1 Track request latency in API controllers
-  - [ ] 1.6.2 Track stage durations in AgentOrchestratorService
-  - [ ] 1.6.3 Track external API call latencies
+  - [x] 1.6.1 Track request latency in API controllers
+  - [x] 1.6.2 Track stage durations in AgentOrchestratorService
+  - [x] 1.6.3 Track external API call latencies
   - [ ] 1.6.4 Store performance metrics in AgentJobState
 
 ## Phase 2: Cost & Quota Management
