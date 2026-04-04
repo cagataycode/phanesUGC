@@ -6,6 +6,22 @@ import { ErrorTrackerService } from './error-tracker.service';
 import { CorrelationContextService } from './correlation-context.service';
 import { ErrorSeverity } from './types';
 
+// Mock Google Cloud SDKs to prevent real API calls in benchmarks
+jest.mock('@google-cloud/logging', () => ({
+  Logging: jest.fn().mockImplementation(() => ({
+    log: jest.fn().mockReturnValue({
+      entry: jest.fn(),
+      write: jest.fn().mockResolvedValue(undefined),
+    }),
+  })),
+}));
+
+jest.mock('@google-cloud/error-reporting', () => ({
+  ErrorReporting: jest.fn().mockImplementation(() => ({
+    report: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
 /**
  * Performance benchmarks for monitoring services
  * Measures overhead and performance characteristics

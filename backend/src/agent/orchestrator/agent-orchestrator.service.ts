@@ -403,6 +403,7 @@ export class AgentOrchestratorService {
             state.jobId,
             state.businessId,
             state.artifacts.normalizedRequest as Partial<NormalizedRequest>,
+            state.correlationId,
           ),
         this.createRetryContext(
           jobId,
@@ -925,7 +926,7 @@ export class AgentOrchestratorService {
       // Initialize performanceMetrics if not exists
       if (!state.performanceMetrics) {
         state.performanceMetrics = {
-          stageDurations: {} as Record<AgentStage, number>,
+          stageDurations: {},
           apiCalls: [],
         };
       }

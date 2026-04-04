@@ -38,7 +38,10 @@ export class PerformanceInterceptor implements NestInterceptor {
 
     // Extract request metadata
     const request = context.switchToHttp().getRequest<{
-      headers?: { 'x-correlation-id'?: string | string[] };
+      headers?: {
+        'x-correlation-id'?: string | string[];
+        'x-business-id'?: string | string[];
+      };
       body?: {
         businessId?: string;
         business_id?: string;
@@ -60,8 +63,12 @@ export class PerformanceInterceptor implements NestInterceptor {
       (Array.isArray(headerValue) ? headerValue[0] : headerValue) ||
       this.structuredLogger.generateCorrelationId();
 
-    // Extract businessId from body or query
+    // Extract businessId from header, body, or query (normalize header to single string)
+    const businessIdHeader = request.headers?.['x-business-id'];
     const businessId =
+      (Array.isArray(businessIdHeader)
+        ? businessIdHeader[0]
+        : businessIdHeader) ||
       request.body?.businessId ||
       request.body?.business_id ||
       request.query?.businessId;

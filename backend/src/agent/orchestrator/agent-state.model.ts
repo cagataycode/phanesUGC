@@ -107,7 +107,7 @@ export interface AgentJobState {
 
   /** Performance metrics */
   performanceMetrics?: {
-    stageDurations: Record<AgentStage, number>;
+    stageDurations: Partial<Record<AgentStage, number>>;
     apiCalls: Array<{
       service: string;
       operation: string;
