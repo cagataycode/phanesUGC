@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 // Above disables are required: @typescript-eslint cannot resolve Zod's
 // complex conditional / mapped types, producing false-positive "error typed"
 // diagnostics on every .parse() / .format() call and their return values.
