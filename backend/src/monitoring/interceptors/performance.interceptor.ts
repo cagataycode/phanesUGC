@@ -81,40 +81,50 @@ export class PerformanceInterceptor implements NestInterceptor {
               .handle()
               .pipe(
                 tap(() => {
-                  // Success case
-                  const latency = Date.now() - startTime;
-                  const baseContext: LogContext = {
-                    correlationId,
-                    ...(businessId && { businessId: String(businessId) }),
-                  };
+                  // Success case - track latency with graceful degradation
+                  try {
+                    const latency = Date.now() - startTime;
+                    const baseContext: LogContext = {
+                      correlationId,
+                      ...(businessId && { businessId: String(businessId) }),
+                    };
 
-                  this.performanceMonitor.trackLatency(
-                    `${controllerName}-controller`,
-                    handlerName,
-                    latency,
-                    {
-                      ...baseContext,
-                      ...(platform && { platform }),
-                    },
-                    'success',
-                  );
+                    this.performanceMonitor.trackLatency(
+                      `${controllerName}-controller`,
+                      handlerName,
+                      latency,
+                      {
+                        ...baseContext,
+                        ...(platform && { platform }),
+                      },
+                      'success',
+                    );
+                  } catch {
+                    // Silently fail - monitoring errors should not break requests
+                    // Error is already logged by the monitoring service
+                  }
                   resolve();
                 }),
                 catchError((error: Error) => {
-                  // Failure case
-                  const latency = Date.now() - startTime;
-                  const baseContext: LogContext = {
-                    correlationId,
-                    ...(businessId && { businessId: String(businessId) }),
-                  };
+                  // Failure case - track latency with graceful degradation
+                  try {
+                    const latency = Date.now() - startTime;
+                    const baseContext: LogContext = {
+                      correlationId,
+                      ...(businessId && { businessId: String(businessId) }),
+                    };
 
-                  this.performanceMonitor.trackLatency(
-                    `${controllerName}-controller`,
-                    handlerName,
-                    latency,
-                    baseContext,
-                    'failure',
-                  );
+                    this.performanceMonitor.trackLatency(
+                      `${controllerName}-controller`,
+                      handlerName,
+                      latency,
+                      baseContext,
+                      'failure',
+                    );
+                  } catch {
+                    // Silently fail - monitoring errors should not break requests
+                    // Error is already logged by the monitoring service
+                  }
                   reject(error);
                   return throwError(() => error);
                 }),
