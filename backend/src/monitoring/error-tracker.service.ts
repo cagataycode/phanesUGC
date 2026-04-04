@@ -19,6 +19,8 @@ export class ErrorTrackerService {
   private readonly errorReporting: ErrorReporting;
   private readonly alertEmail: string;
   private readonly errorCounts: Map<string, number> = new Map();
+  private readonly errorCountsCleanup: Map<string, NodeJS.Timeout> = new Map();
+  private readonly ERROR_COUNT_TTL_MS = 60 * 60 * 1000; // 1 hour
 
   constructor(private readonly configService: ConfigService<Env>) {
     // Initialize Cloud Error Reporting
@@ -40,6 +42,18 @@ export class ErrorTrackerService {
     this.logger.log(
       `ErrorTracker initialized for project: ${projectId}, alerts: ${this.alertEmail}`,
     );
+  }
+
+  /**
+   * Cleanup method called when service is destroyed
+   */
+  onModuleDestroy(): void {
+    // Clear all pending timeouts
+    this.errorCountsCleanup.forEach((timeout) => {
+      clearTimeout(timeout);
+    });
+    this.errorCountsCleanup.clear();
+    this.errorCounts.clear();
   }
 
   /**
@@ -108,19 +122,28 @@ export class ErrorTrackerService {
 
   /**
    * Track error count for alerting
+   * Prevents memory leaks by clearing existing timeouts before setting new ones
    */
   private trackErrorCount(appError: AppError): void {
     const key = `${appError.severity}:${appError.code}`;
+
+    // Clear existing timeout if present
+    const existingTimeout = this.errorCountsCleanup.get(key);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Update count
     const currentCount = this.errorCounts.get(key) || 0;
     this.errorCounts.set(key, currentCount + 1);
 
-    // Reset counts every hour
-    setTimeout(
-      () => {
-        this.errorCounts.delete(key);
-      },
-      60 * 60 * 1000,
-    );
+    // Set new timeout and track it
+    const timeout = setTimeout(() => {
+      this.errorCounts.delete(key);
+      this.errorCountsCleanup.delete(key);
+    }, this.ERROR_COUNT_TTL_MS);
+
+    this.errorCountsCleanup.set(key, timeout);
   }
 
   /**
@@ -184,6 +207,11 @@ export class ErrorTrackerService {
    * Clear error counts (for testing)
    */
   clearErrorCounts(): void {
+    // Clear all timeouts first
+    this.errorCountsCleanup.forEach((timeout) => {
+      clearTimeout(timeout);
+    });
+    this.errorCountsCleanup.clear();
     this.errorCounts.clear();
   }
 }

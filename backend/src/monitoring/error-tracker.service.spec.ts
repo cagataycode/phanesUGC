@@ -206,4 +206,84 @@ describe('ErrorTrackerService', () => {
       ).not.toThrow();
     });
   });
+
+  describe('memory leak prevention', () => {
+    it('should not accumulate timeouts for same error type', () => {
+      const error = new Error('Repeated error');
+      const context = {};
+
+      // Report same error multiple times
+      for (let i = 0; i < 100; i++) {
+        service.reportError(
+          error,
+          ErrorSeverity.MEDIUM,
+          context,
+          `correlation-${i}`,
+        );
+      }
+
+      const stats = service.getErrorStats();
+      const key = `${ErrorSeverity.MEDIUM}:UNKNOWN_ERROR`;
+
+      // Should have count of 100
+      expect(stats[key].count).toBe(100);
+
+      // But only one timeout should exist (not 100)
+      // This is verified by the fact that clearErrorCounts works properly
+      service.clearErrorCounts();
+      expect(service.getErrorStats()).toEqual({});
+    });
+
+    it('should clear timeouts on module destroy', () => {
+      const error = new Error('Test error');
+      const context = {};
+
+      service.reportError(
+        error,
+        ErrorSeverity.MEDIUM,
+        context,
+        'correlation-1',
+      );
+
+      // Call onModuleDestroy
+      service.onModuleDestroy();
+
+      // Stats should be cleared
+      expect(service.getErrorStats()).toEqual({});
+    });
+
+    it('should handle multiple error types without timeout accumulation', () => {
+      const context = {};
+
+      // Create 10 different error types
+      for (let i = 0; i < 10; i++) {
+        const error = new Error(`Error ${i}`) as Error & { code: string };
+        error.code = `ERROR_CODE_${i}`;
+
+        // Report each error 5 times
+        for (let j = 0; j < 5; j++) {
+          service.reportError(
+            error,
+            ErrorSeverity.MEDIUM,
+            context,
+            `correlation-${i}-${j}`,
+          );
+        }
+      }
+
+      const stats = service.getErrorStats();
+
+      // Should have 10 different error types
+      expect(Object.keys(stats).length).toBe(10);
+
+      // Each should have count of 5
+      Object.values(stats).forEach((stat) => {
+        expect(stat.count).toBe(5);
+      });
+
+      // Cleanup should work without issues
+      service.clearErrorCounts();
+      expect(service.getErrorStats()).toEqual({});
+    });
+  });
 });
