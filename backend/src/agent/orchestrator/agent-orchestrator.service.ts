@@ -16,6 +16,7 @@ import { OutputValidatorService } from '../stages/output-validator.service';
 import { QualityGatesService } from './quality-gates.service';
 import { StructuredLoggerService } from '../../monitoring/structured-logger.service';
 import { PerformanceMonitorService } from '../../monitoring/performance-monitor.service';
+import { ErrorTrackerService } from '../../monitoring/error-tracker.service';
 import { NormalizedRequest } from '../contracts/normalized-request';
 import { CreativeBrief } from '../contracts/creative-brief';
 import { ProductContext } from '../contracts/product-context';
@@ -57,6 +58,7 @@ export class AgentOrchestratorService {
     private readonly fallbackPolicy: FallbackPolicy,
     private readonly structuredLogger: StructuredLoggerService,
     private readonly performanceMonitor: PerformanceMonitorService,
+    private readonly errorTracker: ErrorTrackerService,
   ) {}
 
   /**
@@ -157,6 +159,17 @@ export class AgentOrchestratorService {
       scene: Record<string, unknown>;
     },
   ): Promise<AgentJobState> {
+    // Generate correlation ID for wizard job
+    const correlationId = this.structuredLogger.generateCorrelationId();
+
+    const context = {
+      correlationId,
+      jobId,
+      businessId,
+      stage: 'scenario_selected' as const,
+    };
+
+    this.structuredLogger.log('Initializing wizard job', context);
     this.logger.log(`Initializing wizard job ${jobId}`);
 
     const now = new Date();
@@ -312,6 +325,7 @@ export class AgentOrchestratorService {
     const state: AgentJobState = {
       jobId,
       businessId,
+      correlationId,
       stage: 'scenario_selected',
       scenarioGenerationStatus: 'completed',
       videoGenerationStatus: 'pending',
@@ -333,6 +347,8 @@ export class AgentOrchestratorService {
     };
 
     await this.saveState(state);
+
+    this.structuredLogger.log('Wizard job initialized successfully', context);
     this.logger.log(
       `Wizard job ${jobId} initialized with pre-generated content`,
     );
