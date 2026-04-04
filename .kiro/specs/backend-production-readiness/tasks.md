@@ -15,7 +15,7 @@
   - [x] 1.2.4 Add log methods: log, error, logApiCall, logFallback
   - [x] 1.2.5 Write unit tests for StructuredLogger
 
-- [ ] 1.3 Implement PerformanceMonitor service
+- [x] 1.3 Implement PerformanceMonitor service
   - [x] 1.3.1 Add Firebase Performance Monitoring SDK integration
   - [x] 1.3.2 Implement trackLatency, trackCount, startTimer methods
   - [x] 1.3.3 Add metric aggregation and batching
@@ -36,11 +36,11 @@
   - [x] 1.5.4 Add logging to VideoGeneratorService (Veo calls, duration, status)
   - [x] 1.5.5 Add logging to all stage services
 
-- [ ] 1.6 Add performance tracking
+- [x] 1.6 Add performance tracking
   - [x] 1.6.1 Track request latency in API controllers
   - [x] 1.6.2 Track stage durations in AgentOrchestratorService
   - [x] 1.6.3 Track external API call latencies
-  - [ ] 1.6.4 Store performance metrics in AgentJobState
+  - [x] 1.6.4 Store performance metrics in AgentJobState
 
 ## Phase 2: Cost & Quota Management
 
