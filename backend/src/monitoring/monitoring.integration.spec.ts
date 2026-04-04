@@ -30,7 +30,7 @@ describe('Monitoring Integration', () => {
             () => ({
               GCP_PROJECT_ID: 'test-project',
               ENABLE_STRUCTURED_LOGGING: 'false',
-              LOG_LEVEL: 'info',
+              LOG_LEVEL: 'log',
             }),
           ],
         }),

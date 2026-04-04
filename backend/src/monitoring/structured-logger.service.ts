@@ -42,20 +42,24 @@ export class StructuredLoggerService {
   private readonly enableStructuredLogging: boolean;
 
   constructor(private readonly configService: ConfigService<Env>) {
-    // Initialize Cloud Logging with proper type casting
-    const projectId = this.configService.get('GCP_PROJECT_ID', { infer: true });
-    this.cloudLogging = new Logging({ projectId }) as unknown as CloudLogging;
-    this.cloudLogger = this.cloudLogging.log('backend-app');
-
-    // Get log level from config
+    // Get log level from config (defaults to 'log')
     const logLevelStr =
-      this.configService.get('LOG_LEVEL', { infer: true }) || 'info';
+      this.configService.get('LOG_LEVEL', { infer: true }) || 'log';
     this.logLevel = logLevelStr as LogLevel;
 
     // Check if structured logging is enabled
     this.enableStructuredLogging =
       this.configService.get('ENABLE_STRUCTURED_LOGGING', { infer: true }) ===
       'true';
+
+    // Only initialize Cloud Logging if structured logging is enabled
+    if (this.enableStructuredLogging) {
+      const projectId = this.configService.get('GCP_PROJECT_ID', {
+        infer: true,
+      });
+      this.cloudLogging = new Logging({ projectId }) as unknown as CloudLogging;
+      this.cloudLogger = this.cloudLogging.log('backend-app');
+    }
 
     this.logger.log(
       `StructuredLogger initialized with level: ${this.logLevel}, structured: ${this.enableStructuredLogging}`,
@@ -98,21 +102,28 @@ export class StructuredLoggerService {
 
   /**
    * Log an error with full context
+   * Accepts Error or unknown (normalizes to Error internally)
    */
-  error(message: string, error: Error, context: LogContext): void {
+  error(message: string, error: unknown, context: LogContext): void {
+    // Normalize error to Error instance
+    const normalizedError =
+      error instanceof Error
+        ? error
+        : new Error(typeof error === 'string' ? error : String(error));
+
     const errorContext: LogContext = {
       ...context,
       error: {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
+        message: normalizedError.message,
+        stack: normalizedError.stack,
+        name: normalizedError.name,
       },
     };
 
     this.writeLog('error', message, errorContext, {
-      message: error.message,
-      stack: error.stack,
-      code: (error as { code?: string }).code,
+      message: normalizedError.message,
+      stack: normalizedError.stack,
+      code: (normalizedError as { code?: string }).code,
     });
   }
 
@@ -206,6 +217,11 @@ export class StructuredLoggerService {
    * Write log entry to Cloud Logging
    */
   private writeToCloudLogging(entry: LogEntry): void {
+    // Guard: only write if Cloud Logging was initialized
+    if (!this.cloudLogger) {
+      return;
+    }
+
     const metadata: CloudLogEntry = {
       severity: this.mapSeverity(entry.level),
       labels: {

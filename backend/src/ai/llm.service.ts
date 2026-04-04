@@ -225,93 +225,114 @@ export class LlmService {
 
     const startTime = Date.now();
 
-    // Build Claude request with JSON mode (not strict schema)
-    const requestBody = {
-      anthropic_version: 'bedrock-2023-05-31',
-      max_tokens: 4096,
-      temperature: 0.7,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: userPrompt,
-            },
-          ],
-        },
-      ],
-    };
+    try {
+      // Build Claude request with JSON mode (not strict schema)
+      const requestBody = {
+        anthropic_version: 'bedrock-2023-05-31',
+        max_tokens: 4096,
+        temperature: 0.7,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: userPrompt,
+              },
+            ],
+          },
+        ],
+      };
 
-    const input: InvokeModelCommandInput = {
-      modelId: this.bedrockModelId,
-      contentType: 'application/json',
-      accept: 'application/json',
-      body: JSON.stringify(requestBody),
-    };
-
-    const command = new InvokeModelCommand(input);
-    const response = await this.bedrockClient.send(command);
-
-    const latency = Date.now() - startTime;
-
-    // Parse Bedrock response
-    const responseBody = JSON.parse(
-      new TextDecoder().decode(response.body),
-    ) as BedrockResponse;
-
-    this.logger.debug(
-      `Bedrock response: stop_reason=${responseBody.stop_reason}`,
-    );
-
-    // Extract text from Claude's response structure
-    if (
-      !responseBody.content ||
-      !Array.isArray(responseBody.content) ||
-      responseBody.content.length === 0
-    ) {
-      throw new Error('Invalid response structure from Bedrock Claude');
-    }
-
-    const textContent = responseBody.content.find(
-      (block) => block.type === 'text',
-    );
-
-    if (!textContent?.text) {
-      throw new Error('No text content in Bedrock Claude response');
-    }
-
-    this.logger.debug(
-      `Bedrock response length: ${textContent.text.length} chars`,
-    );
-
-    // Log API call with performance metrics
-    this.performanceMonitor.trackLatency(
-      'bedrock-claude',
-      'generate-content',
-      latency,
-      {
-        ...context,
+      const input: InvokeModelCommandInput = {
         modelId: this.bedrockModelId,
-        responseLength: textContent.text.length,
-        stopReason: responseBody.stop_reason,
-      },
-      'success',
-    );
+        contentType: 'application/json',
+        accept: 'application/json',
+        body: JSON.stringify(requestBody),
+      };
 
-    // Parse JSON from response text, stripping markdown code blocks if present
-    let jsonText: string = textContent.text.trim();
+      const command = new InvokeModelCommand(input);
+      const response = await this.bedrockClient.send(command);
 
-    // Remove markdown code blocks (```json ... ``` or ``` ... ```)
-    // Handle both Unix (\n) and Windows (\r\n) line endings
-    if (jsonText.startsWith('```')) {
-      jsonText = jsonText
-        .replace(/^```(?:json)?(?:\r?\n)?/, '')
-        .replace(/(?:\r?\n)?```\s*$/, '');
+      const latency = Date.now() - startTime;
+
+      // Parse Bedrock response
+      const responseBody = JSON.parse(
+        new TextDecoder().decode(response.body),
+      ) as BedrockResponse;
+
+      this.logger.debug(
+        `Bedrock response: stop_reason=${responseBody.stop_reason}`,
+      );
+
+      // Extract text from Claude's response structure
+      if (
+        !responseBody.content ||
+        !Array.isArray(responseBody.content) ||
+        responseBody.content.length === 0
+      ) {
+        throw new Error('Invalid response structure from Bedrock Claude');
+      }
+
+      const textContent = responseBody.content.find(
+        (block) => block.type === 'text',
+      );
+
+      if (!textContent?.text) {
+        throw new Error('No text content in Bedrock Claude response');
+      }
+
+      this.logger.debug(
+        `Bedrock response length: ${textContent.text.length} chars`,
+      );
+
+      // Parse JSON from response text, stripping markdown code blocks if present
+      let jsonText: string = textContent.text.trim();
+
+      // Remove markdown code blocks (```json ... ``` or ``` ... ```)
+      // Handle both Unix (\n) and Windows (\r\n) line endings
+      if (jsonText.startsWith('```')) {
+        jsonText = jsonText
+          .replace(/^```(?:json)?(?:\r?\n)?/, '')
+          .replace(/(?:\r?\n)?```\s*$/, '');
+      }
+
+      const result = JSON.parse(jsonText) as unknown;
+
+      // Log API call with performance metrics (success)
+      this.performanceMonitor.trackLatency(
+        'bedrock-claude',
+        'generate-content',
+        latency,
+        {
+          ...context,
+          modelId: this.bedrockModelId,
+          responseLength: textContent.text.length,
+          stopReason: responseBody.stop_reason,
+        },
+        'success',
+      );
+
+      return result;
+    } catch (error) {
+      const latency = Date.now() - startTime;
+
+      // Log API call with performance metrics (failure)
+      this.performanceMonitor.trackLatency(
+        'bedrock-claude',
+        'generate-content',
+        latency,
+        {
+          ...context,
+          modelId: this.bedrockModelId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'failure',
+      );
+
+      throw error;
     }
-
-    return JSON.parse(jsonText) as unknown;
   }
 
   /**
@@ -330,30 +351,51 @@ export class LlmService {
 
     const startTime = Date.now();
 
-    const result: GenerateContentResult =
-      await this.geminiModel.generateContent({
-        systemInstruction: systemPrompt,
-        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      });
+    try {
+      const result: GenerateContentResult =
+        await this.geminiModel.generateContent({
+          systemInstruction: systemPrompt,
+          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+        });
 
-    const latency = Date.now() - startTime;
+      const latency = Date.now() - startTime;
 
-    const responseText = result.response.text();
-    this.logger.debug(`Gemini response length: ${responseText.length} chars`);
+      const responseText = result.response.text();
+      this.logger.debug(`Gemini response length: ${responseText.length} chars`);
 
-    // Log API call with performance metrics
-    this.performanceMonitor.trackLatency(
-      'gemini',
-      'generate-content',
-      latency,
-      {
-        ...context,
-        modelId: 'gemini-2.5-pro',
-        responseLength: responseText.length,
-      },
-      'success',
-    );
+      const parsedResult = JSON.parse(responseText) as unknown;
 
-    return JSON.parse(responseText) as unknown;
+      // Log API call with performance metrics (success)
+      this.performanceMonitor.trackLatency(
+        'gemini',
+        'generate-content',
+        latency,
+        {
+          ...context,
+          modelId: 'gemini-2.5-pro',
+          responseLength: responseText.length,
+        },
+        'success',
+      );
+
+      return parsedResult;
+    } catch (error) {
+      const latency = Date.now() - startTime;
+
+      // Log API call with performance metrics (failure)
+      this.performanceMonitor.trackLatency(
+        'gemini',
+        'generate-content',
+        latency,
+        {
+          ...context,
+          modelId: 'gemini-2.5-pro',
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'failure',
+      );
+
+      throw error;
+    }
   }
 }
