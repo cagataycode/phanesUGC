@@ -3,6 +3,8 @@ import { NormalizedRequest } from '../contracts/normalized-request';
 import { ProductContext } from '../contracts/product-context';
 import { ScraperService } from '../../scraper/scraper.service';
 import { ScrapeResult } from '../../scraper/interfaces/product-extraction.interface';
+import { StructuredLoggerService } from '../../monitoring/structured-logger.service';
+import { PerformanceMonitorService } from '../../monitoring/performance-monitor.service';
 
 /**
  * ContextAcquisitionService - Scrapes URLs and merges with manual input
@@ -13,7 +15,11 @@ import { ScrapeResult } from '../../scraper/interfaces/product-extraction.interf
 export class ContextAcquisitionService {
   private readonly logger = new Logger(ContextAcquisitionService.name);
 
-  constructor(private readonly scraper: ScraperService) {}
+  constructor(
+    private readonly scraper: ScraperService,
+    private readonly structuredLogger: StructuredLoggerService,
+    private readonly performanceMonitor: PerformanceMonitorService,
+  ) {}
 
   async acquire(request: NormalizedRequest): Promise<ProductContext> {
     this.logger.log(`Acquiring context for job ${request.jobId}`);
@@ -63,14 +69,29 @@ export class ContextAcquisitionService {
   async acquireWithCache(
     request: NormalizedRequest,
     cachedScrapeResults?: unknown,
+    correlationId?: string,
   ): Promise<{ context: ProductContext; scrapeResults: unknown }> {
     this.logger.log(`Acquiring context for job ${request.jobId}`);
 
+    const context = {
+      correlationId: correlationId || 'unknown',
+      jobId: request.jobId,
+      businessId: request.businessId,
+    };
+
+    const startTime = Date.now();
     const hasUrls = request.product?.urls && request.product.urls.length > 0;
+
+    this.structuredLogger.log('Acquiring product context', {
+      ...context,
+      hasUrls,
+      urlCount: request.product?.urls?.length || 0,
+    });
 
     // Case 1: No URLs provided - use manual input only
     if (!hasUrls) {
       this.logger.debug('No URLs provided, using manual input only');
+      this.structuredLogger.log('Using manual input only (no URLs)', context);
       return {
         context: this.buildManualContext(request),
         scrapeResults: null,
@@ -80,6 +101,7 @@ export class ContextAcquisitionService {
     // Case 2: Check cache first (idempotency)
     if (cachedScrapeResults && Array.isArray(cachedScrapeResults)) {
       this.logger.log('Using cached scrape results (idempotency)');
+      this.structuredLogger.log('Using cached scrape results', context);
       const scrapeResults = cachedScrapeResults as ScrapeResult[];
       const bestResult = this.selectBestScrapeResult(scrapeResults);
 
@@ -106,11 +128,17 @@ export class ContextAcquisitionService {
         },
       );
 
+      const latency = Date.now() - startTime;
+
       // Find the best scrape result (success > partial > failed)
       const bestResult = this.selectBestScrapeResult(scrapeResults);
 
       if (!bestResult || bestResult.status === 'failed') {
         this.logger.warn('All scrapes failed, falling back to manual input');
+        this.structuredLogger.warn(
+          'All scrapes failed, using manual input',
+          context,
+        );
         return {
           context: this.buildManualContext(request),
           scrapeResults,
@@ -118,14 +146,55 @@ export class ContextAcquisitionService {
       }
 
       // Merge scraped data with manual input
+      const productContext = this.mergeScrapedAndManual(
+        request,
+        bestResult,
+        scrapeResults,
+      );
+
+      this.performanceMonitor.trackLatency(
+        'context-acquisition',
+        'scrape-urls',
+        latency,
+        {
+          ...context,
+          urlCount: request.product!.urls!.length,
+          source: productContext.source,
+          confidence: productContext.confidence,
+        },
+        'success',
+      );
+
+      this.structuredLogger.log('Product context acquired successfully', {
+        ...context,
+        source: productContext.source,
+        confidence: productContext.confidence,
+      });
+
       return {
-        context: this.mergeScrapedAndManual(request, bestResult, scrapeResults),
+        context: productContext,
         scrapeResults,
       };
     } catch (error) {
+      const latency = Date.now() - startTime;
       this.logger.error(
         `Scraping failed: ${error instanceof Error ? error.message : String(error)}`,
       );
+
+      this.performanceMonitor.trackLatency(
+        'context-acquisition',
+        'scrape-urls',
+        latency,
+        context,
+        'failure',
+      );
+
+      this.structuredLogger.error(
+        'Scraping failed, using manual input',
+        error as Error,
+        context,
+      );
+
       // Fallback to manual input on scraping error
       return {
         context: this.buildManualContext(request),
