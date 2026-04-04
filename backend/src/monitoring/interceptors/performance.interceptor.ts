@@ -5,7 +5,7 @@ import {
   CallHandler,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { finalize } from 'rxjs/operators';
+import { finalize, tap } from 'rxjs/operators';
 import { StructuredLoggerService } from '../structured-logger.service';
 import { PerformanceMonitorService } from '../performance-monitor.service';
 import { CorrelationContextService } from '../correlation-context.service';
@@ -77,49 +77,43 @@ export class PerformanceInterceptor implements NestInterceptor {
     // Track whether request succeeded or failed
     let requestFailed = false;
 
-    // Run the request handler within correlation context
-    return new Observable<unknown>((subscriber) => {
-      this.correlationContext.run(
-        {
-          correlationId,
-          ...(businessId && { businessId: String(businessId) }),
-        },
-        () => {
-          const subscription = next
-            .handle()
-            .pipe(
-              finalize(() => {
-                // Track latency once at completion with graceful degradation
-                try {
-                  const latency = Date.now() - startTime;
-                  this.performanceMonitor.trackLatency(
-                    `${controllerName}-controller`,
-                    handlerName,
-                    latency,
-                    {
-                      ...baseContext,
-                      ...(platform && { platform }),
-                    },
-                    requestFailed ? 'failure' : 'success',
-                  );
-                } catch {
-                  // Silently fail - monitoring errors should not break requests
-                }
-              }),
-            )
-            .subscribe({
-              next: (value) => subscriber.next(value),
-              error: (err) => {
-                requestFailed = true;
-                subscriber.error(err);
-              },
-              complete: () => subscriber.complete(),
-            });
+    // Set correlation context
+    this.correlationContext.run(
+      {
+        correlationId,
+        ...(businessId && { businessId: String(businessId) }),
+      },
+      () => {
+        // Context is set, but we don't need to do anything here
+        // The context will be available for the duration of the request
+      },
+    );
 
-          // Return teardown function to unsubscribe when outer observable unsubscribes
-          return () => subscription.unsubscribe();
+    // Return the observable with finalize for cleanup
+    return next.handle().pipe(
+      finalize(() => {
+        // Track latency once at completion with graceful degradation
+        try {
+          const latency = Date.now() - startTime;
+          this.performanceMonitor.trackLatency(
+            `${controllerName}-controller`,
+            handlerName,
+            latency,
+            {
+              ...baseContext,
+              ...(platform && { platform }),
+            },
+            requestFailed ? 'failure' : 'success',
+          );
+        } catch {
+          // Silently fail - monitoring errors should not break requests
+        }
+      }),
+      tap({
+        error: () => {
+          requestFailed = true;
         },
-      );
-    });
+      }),
+    );
   }
 }
