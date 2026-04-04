@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { LlmService } from './llm.service';
 import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { StructuredLoggerService } from '../monitoring/structured-logger.service';
+import { PerformanceMonitorService } from '../monitoring/performance-monitor.service';
 
 // Mock AWS SDK
 jest.mock('@aws-sdk/client-bedrock-runtime');
@@ -48,6 +50,26 @@ describe('LlmService', () => {
             get: jest.fn(
               (key: string) => mockConfig[key as keyof typeof mockConfig],
             ),
+          },
+        },
+        {
+          provide: StructuredLoggerService,
+          useValue: {
+            log: jest.fn(),
+            error: jest.fn(),
+            warn: jest.fn(),
+            debug: jest.fn(),
+            logApiCall: jest.fn(),
+            logFallback: jest.fn(),
+            generateCorrelationId: jest.fn(() => 'test-correlation-id'),
+          },
+        },
+        {
+          provide: PerformanceMonitorService,
+          useValue: {
+            trackLatency: jest.fn(),
+            trackCount: jest.fn(),
+            startTimer: jest.fn(() => jest.fn()),
           },
         },
       ],
@@ -247,6 +269,26 @@ describe('LlmService', () => {
             provide: ConfigService,
             useValue: {
               get: jest.fn((key: string) => configWithoutGemini[key]),
+            },
+          },
+          {
+            provide: StructuredLoggerService,
+            useValue: {
+              log: jest.fn(),
+              error: jest.fn(),
+              warn: jest.fn(),
+              debug: jest.fn(),
+              logApiCall: jest.fn(),
+              logFallback: jest.fn(),
+              generateCorrelationId: jest.fn(() => 'test-correlation-id'),
+            },
+          },
+          {
+            provide: PerformanceMonitorService,
+            useValue: {
+              trackLatency: jest.fn(),
+              trackCount: jest.fn(),
+              startTimer: jest.fn(() => jest.fn()),
             },
           },
         ],

@@ -68,75 +68,53 @@ export class PerformanceInterceptor implements NestInterceptor {
     // Extract platform from body if available
     const platform = request.body?.prompt_inputs?.platform;
 
+    // Set correlation context and handle the request
+    const baseContext: LogContext = {
+      correlationId,
+      ...(businessId && { businessId: String(businessId) }),
+    };
+
     // Set correlation context for this request
-    return new Observable((subscriber) => {
-      void this.correlationContext.runAsync(
-        {
-          correlationId,
-          ...(businessId && { businessId: String(businessId) }),
-        },
-        async () => {
-          return new Promise<void>((resolve, reject) => {
-            next
-              .handle()
-              .pipe(
-                tap(() => {
-                  // Success case - track latency with graceful degradation
-                  try {
-                    const latency = Date.now() - startTime;
-                    const baseContext: LogContext = {
-                      correlationId,
-                      ...(businessId && { businessId: String(businessId) }),
-                    };
-
-                    this.performanceMonitor.trackLatency(
-                      `${controllerName}-controller`,
-                      handlerName,
-                      latency,
-                      {
-                        ...baseContext,
-                        ...(platform && { platform }),
-                      },
-                      'success',
-                    );
-                  } catch {
-                    // Silently fail - monitoring errors should not break requests
-                    // Error is already logged by the monitoring service
-                  }
-                  resolve();
-                }),
-                catchError((error: Error) => {
-                  // Failure case - track latency with graceful degradation
-                  try {
-                    const latency = Date.now() - startTime;
-                    const baseContext: LogContext = {
-                      correlationId,
-                      ...(businessId && { businessId: String(businessId) }),
-                    };
-
-                    this.performanceMonitor.trackLatency(
-                      `${controllerName}-controller`,
-                      handlerName,
-                      latency,
-                      baseContext,
-                      'failure',
-                    );
-                  } catch {
-                    // Silently fail - monitoring errors should not break requests
-                    // Error is already logged by the monitoring service
-                  }
-                  reject(error);
-                  return throwError(() => error);
-                }),
-              )
-              .subscribe({
-                next: (value) => subscriber.next(value),
-                error: (err) => subscriber.error(err),
-                complete: () => subscriber.complete(),
-              });
-          });
-        },
-      );
+    this.correlationContext.setContext({
+      correlationId,
+      ...(businessId && { businessId: String(businessId) }),
     });
+
+    return next.handle().pipe(
+      tap(() => {
+        // Success case - track latency with graceful degradation
+        try {
+          const latency = Date.now() - startTime;
+          this.performanceMonitor.trackLatency(
+            `${controllerName}-controller`,
+            handlerName,
+            latency,
+            {
+              ...baseContext,
+              ...(platform && { platform }),
+            },
+            'success',
+          );
+        } catch {
+          // Silently fail - monitoring errors should not break requests
+        }
+      }),
+      catchError((error: Error) => {
+        // Failure case - track latency with graceful degradation
+        try {
+          const latency = Date.now() - startTime;
+          this.performanceMonitor.trackLatency(
+            `${controllerName}-controller`,
+            handlerName,
+            latency,
+            baseContext,
+            'failure',
+          );
+        } catch {
+          // Silently fail - monitoring errors should not break requests
+        }
+        return throwError(() => error);
+      }),
+    );
   }
 }

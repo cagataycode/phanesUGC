@@ -24,10 +24,8 @@ describe('PerformanceInterceptor', () => {
   };
 
   const mockCorrelationContext = {
-    runAsync: jest.fn((context, fn) => fn()) as jest.Mock<
-      Promise<void>,
-      [Record<string, unknown>, () => Promise<void>]
-    >,
+    setContext: jest.fn(),
+    getCorrelationId: jest.fn(() => 'test-correlation-id'),
   };
 
   beforeEach(async () => {
@@ -62,7 +60,6 @@ describe('PerformanceInterceptor', () => {
     mockStructuredLogger.generateCorrelationId.mockReturnValue(
       'test-correlation-id',
     );
-    mockCorrelationContext.runAsync.mockImplementation((context, fn) => fn());
   });
 
   const createMockExecutionContext = (
@@ -126,7 +123,11 @@ describe('PerformanceInterceptor', () => {
       } as CallHandler;
 
       interceptor.intercept(context, next).subscribe({
-        error: () => {
+        next: () => {
+          done.fail('Should not emit next');
+        },
+        error: (err) => {
+          // Verify error was tracked
           expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
             'test-controller',
             'testHandler',
@@ -136,7 +137,12 @@ describe('PerformanceInterceptor', () => {
             },
             'failure',
           );
+          // Verify error was re-thrown
+          expect(err).toBe(error);
           done();
+        },
+        complete: () => {
+          done.fail('Should not complete');
         },
       });
     });
@@ -258,9 +264,15 @@ describe('PerformanceInterceptor', () => {
       } as CallHandler;
 
       interceptor.intercept(context, next).subscribe({
+        next: () => {
+          done.fail('Should not emit next');
+        },
         error: (err) => {
           expect(err).toBe(error);
           done();
+        },
+        complete: () => {
+          done.fail('Should not complete');
         },
       });
     });

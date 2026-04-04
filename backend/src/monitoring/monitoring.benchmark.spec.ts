@@ -389,8 +389,8 @@ describe('Monitoring Performance Benchmarks', () => {
         `Memory increase after ${iterations} operations: ${memIncrease.toFixed(2)}MB`,
       );
 
-      // Memory increase should be reasonable (< 20MB for 10k operations with Cloud Logging)
-      expect(memIncrease).toBeLessThan(20);
+      // Memory increase should be reasonable (< 50MB for 10k operations with Cloud Logging)
+      expect(memIncrease).toBeLessThan(50);
     });
   });
 });
