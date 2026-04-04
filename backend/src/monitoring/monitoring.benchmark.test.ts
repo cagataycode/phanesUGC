@@ -253,9 +253,10 @@ describe('Monitoring Performance Benchmarks', () => {
       for (let i = 0; i < iterations; i++) {
         await correlationContext.runAsync(
           { correlationId: `test-${i}` },
-          async () => {
+          () => {
             const id = correlationContext.getCorrelationId();
             expect(id).toBe(`test-${i}`);
+            return Promise.resolve();
           },
         );
       }
@@ -282,9 +283,10 @@ describe('Monitoring Performance Benchmarks', () => {
           async () => {
             await correlationContext.runAsync(
               { correlationId: `inner-${i}` },
-              async () => {
+              () => {
                 const id = correlationContext.getCorrelationId();
                 expect(id).toBe(`inner-${i}`);
+                return Promise.resolve();
               },
             );
           },
