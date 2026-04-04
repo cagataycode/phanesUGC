@@ -35,6 +35,11 @@ describe('ErrorTrackerService', () => {
     service = module.get<ErrorTrackerService>(ErrorTrackerService);
   });
 
+  afterEach(() => {
+    // Clean up timers to prevent hanging
+    service.clearErrorCounts();
+  });
+
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
