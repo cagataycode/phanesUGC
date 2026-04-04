@@ -22,14 +22,11 @@ export class VideoGeneratorService {
     private readonly performanceMonitor: PerformanceMonitorService,
   ) {}
 
-  async generate(
-    prompt: VeoPrompt,
-    correlationId?: string,
-  ): Promise<VeoOutput> {
+  async generate(prompt: VeoPrompt, correlationId: string): Promise<VeoOutput> {
     this.logger.log(`Generating video for project ${prompt.projectId}`);
 
     const context = {
-      correlationId: correlationId || 'unknown',
+      correlationId,
       jobId: prompt.projectId,
       sceneId: prompt.sceneId,
     };
@@ -143,7 +140,7 @@ export class VideoGeneratorService {
       gcsPath: string;
       timestamp: Date;
     }>,
-    correlationId?: string,
+    correlationId: string = 'unknown',
   ): Promise<{
     output: VeoOutput;
     attemptId: string;
@@ -152,7 +149,7 @@ export class VideoGeneratorService {
     const attemptId = `${prompt.projectId}-${prompt.sceneId}-${Date.now()}`;
 
     const context = {
-      correlationId: correlationId || 'unknown',
+      correlationId,
       jobId: prompt.projectId,
       sceneId: prompt.sceneId,
     };

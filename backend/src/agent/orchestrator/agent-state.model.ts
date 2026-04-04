@@ -34,8 +34,8 @@ export interface AgentJobState {
   /** Business identifier */
   businessId: string;
 
-  /** Correlation ID for distributed tracing */
-  correlationId: string;
+  /** Correlation ID for distributed tracing (optional for backward compatibility) */
+  correlationId?: string;
 
   /** Current stage */
   stage: AgentStage;

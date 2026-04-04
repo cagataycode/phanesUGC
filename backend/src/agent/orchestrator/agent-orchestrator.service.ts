@@ -424,6 +424,7 @@ export class AgentOrchestratorService {
             this.contextAcquisition.acquireWithCache(
               normalizedRequest,
               state.artifacts.scrapeResults,
+              state.correlationId,
             ),
           this.createRetryContext(
             jobId,
@@ -504,7 +505,7 @@ export class AgentOrchestratorService {
     } catch (error) {
       timer();
       state.scenarioGenerationStatus = 'failed';
-      this.recordError(state, state.stage, error);
+      this.recordError(state, state.stage, error, true); // true = final failure, report to ErrorTracker
 
       this.structuredLogger.error(
         'Scenario generation failed',
@@ -544,9 +545,13 @@ export class AgentOrchestratorService {
 
         const data = doc.data() as AgentJobState;
 
+        // Generate correlationId for old jobs that don't have one (backward compatibility)
+        const correlationId =
+          data.correlationId || this.structuredLogger.generateCorrelationId();
+
         // Log scenario selection with correlation ID
         const context = {
-          correlationId: data.correlationId,
+          correlationId,
           jobId: data.jobId,
           businessId: data.businessId,
           stage: data.stage,
@@ -729,6 +734,7 @@ export class AgentOrchestratorService {
               gcsPath: string;
               timestamp: Date;
             }>,
+            state.correlationId,
           ),
         this.createRetryContext(
           jobId,
@@ -877,7 +883,7 @@ export class AgentOrchestratorService {
       timer();
       state.videoGenerationStatus = 'failed';
       this.transitionStage(state, 'failed');
-      this.recordError(state, state.stage, error);
+      this.recordError(state, state.stage, error, true); // true = final failure, report to ErrorTracker
 
       this.structuredLogger.error(
         'Video generation failed',
@@ -900,7 +906,10 @@ export class AgentOrchestratorService {
   /**
    * Transition to a new stage
    */
-  private transitionStage(state: AgentJobState, newStage: AgentStage): void {
+  private transitionStage(
+    state: AgentJobState & { correlationId: string },
+    newStage: AgentStage,
+  ): void {
     const context = {
       correlationId: state.correlationId,
       jobId: state.jobId,
@@ -956,7 +965,7 @@ export class AgentOrchestratorService {
     jobId: string,
     businessId: string,
     stageName: string,
-    state: AgentJobState,
+    state: AgentJobState & { correlationId: string },
     targetStage: AgentStage,
   ): {
     jobId: string;
@@ -971,7 +980,7 @@ export class AgentOrchestratorService {
       onRetryAttempt: async (attemptNumber, error) => {
         // Increment retry count and record error against the target stage
         state.totalRetryCount++;
-        this.recordError(state, targetStage, error);
+        this.recordError(state, targetStage, error, false); // false = not final failure
         // Single saveState call
         await this.saveState(state);
       },
@@ -987,11 +996,14 @@ export class AgentOrchestratorService {
    *
    * Example: If RetryPolicy retries 1 time and both attempts fail, 2 errors are recorded
    * (one with retryCount=0 for first attempt, one with retryCount=1 for retry).
+   *
+   * @param isFinalFailure - If true, report to ErrorTrackerService (reduces alert noise)
    */
   private recordError(
-    state: AgentJobState,
+    state: AgentJobState & { correlationId: string },
     stage: AgentStage,
     error: unknown,
+    isFinalFailure = true,
   ): void {
     const message = error instanceof Error ? error.message : String(error);
     const existingErrors = state.errors.filter((e) => e.stage === stage);
@@ -1010,6 +1022,11 @@ export class AgentOrchestratorService {
       businessId: state.businessId,
       stage,
     };
+
+    // Only report to ErrorTrackerService on final failure to reduce alert noise
+    if (!isFinalFailure) {
+      return;
+    }
 
     // Determine error severity based on stage and retry count
     let severity: ErrorSeverity;
@@ -1090,7 +1107,7 @@ export class AgentOrchestratorService {
         'Failed to save state',
         error instanceof Error ? error : new Error(errorMessage),
         {
-          correlationId: state.correlationId,
+          correlationId: state.correlationId || 'unknown',
           jobId: state.jobId,
           businessId: state.businessId,
           stage: state.stage,
@@ -1102,11 +1119,12 @@ export class AgentOrchestratorService {
 
   /**
    * Load state from Firestore
+   * Returns AgentJobState with correlationId guaranteed to be present
    */
   private async loadState(
     jobId: string,
     businessId: string,
-  ): Promise<AgentJobState> {
+  ): Promise<AgentJobState & { correlationId: string }> {
     this.validateId(jobId);
     this.validateId(businessId);
 
@@ -1122,9 +1140,20 @@ export class AgentOrchestratorService {
 
     const data = doc.data() as AgentJobState;
 
+    // Generate correlationId for old jobs that don't have one (backward compatibility)
+    if (!data.correlationId) {
+      data.correlationId = this.structuredLogger.generateCorrelationId();
+      // Persist the generated correlationId for future loads
+      await this.firestore.update(
+        `businesses/${businessId}/agent_jobs/${jobId}`,
+        { correlationId: data.correlationId },
+      );
+    }
+
     // Convert Firestore Timestamps to Date objects
-    return {
+    const state: AgentJobState & { correlationId: string } = {
       ...data,
+      correlationId: data.correlationId, // Guaranteed to be present after the check above
       createdAt: this.toDate(data.createdAt),
       updatedAt: this.toDate(data.updatedAt),
       scenarioGenerationStartedAt: data.scenarioGenerationStartedAt
@@ -1160,6 +1189,8 @@ export class AgentOrchestratorService {
           }
         : undefined,
     };
+
+    return state;
   }
 
   /**
