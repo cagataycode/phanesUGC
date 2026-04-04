@@ -4,8 +4,8 @@ import {
   ExecutionContext,
   CallHandler,
 } from '@nestjs/common';
-import { Observable, throwError } from 'rxjs';
-import { tap, catchError } from 'rxjs/operators';
+import { Observable } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 import { StructuredLoggerService } from '../structured-logger.service';
 import { PerformanceMonitorService } from '../performance-monitor.service';
 import { CorrelationContextService } from '../correlation-context.service';
@@ -74,8 +74,10 @@ export class PerformanceInterceptor implements NestInterceptor {
       ...(businessId && { businessId: String(businessId) }),
     };
 
-    // Set correlation context and handle the request
-    // Wrap in AsyncLocalStorage.run() so context propagates to downstream services
+    // Track whether request succeeded or failed
+    let requestFailed = false;
+
+    // Run the request handler within correlation context
     return new Observable<unknown>((subscriber) => {
       this.correlationContext.run(
         {
@@ -83,11 +85,11 @@ export class PerformanceInterceptor implements NestInterceptor {
           ...(businessId && { businessId: String(businessId) }),
         },
         () => {
-          next
+          const subscription = next
             .handle()
             .pipe(
-              tap(() => {
-                // Success case - track latency with graceful degradation
+              finalize(() => {
+                // Track latency once at completion with graceful degradation
                 try {
                   const latency = Date.now() - startTime;
                   this.performanceMonitor.trackLatency(
@@ -98,34 +100,24 @@ export class PerformanceInterceptor implements NestInterceptor {
                       ...baseContext,
                       ...(platform && { platform }),
                     },
-                    'success',
+                    requestFailed ? 'failure' : 'success',
                   );
                 } catch {
                   // Silently fail - monitoring errors should not break requests
                 }
-              }),
-              catchError((error: Error) => {
-                // Failure case - track latency with graceful degradation
-                try {
-                  const latency = Date.now() - startTime;
-                  this.performanceMonitor.trackLatency(
-                    `${controllerName}-controller`,
-                    handlerName,
-                    latency,
-                    baseContext,
-                    'failure',
-                  );
-                } catch {
-                  // Silently fail - monitoring errors should not break requests
-                }
-                return throwError(() => error);
               }),
             )
             .subscribe({
               next: (value) => subscriber.next(value),
-              error: (err) => subscriber.error(err),
+              error: (err) => {
+                requestFailed = true;
+                subscriber.error(err);
+              },
               complete: () => subscriber.complete(),
             });
+
+          // Return teardown function to unsubscribe when outer observable unsubscribes
+          return () => subscription.unsubscribe();
         },
       );
     });

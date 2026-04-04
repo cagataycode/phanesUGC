@@ -73,7 +73,9 @@ export class StructuredLoggerService {
    * Log a message with context
    */
   log(message: string, context: LogContext): void {
-    this.writeLog('info', message, context);
+    if (this.shouldLog('log')) {
+      this.writeLog('info', message, context);
+    }
   }
 
   /**
@@ -89,7 +91,9 @@ export class StructuredLoggerService {
    * Log a warning
    */
   warn(message: string, context: LogContext): void {
-    this.writeLog('warn', message, context);
+    if (this.shouldLog('warn')) {
+      this.writeLog('warn', message, context);
+    }
   }
 
   /**

@@ -27,8 +27,8 @@ describe('PerformanceInterceptor', () => {
     setContext: jest.fn(),
     getCorrelationId: jest.fn(() => 'test-correlation-id'),
     run: jest.fn((context, callback: () => void) => {
-      // Execute the callback immediately in the mock
-      callback();
+      // Execute the callback immediately in the mock and return its result
+      return callback();
     }),
   };
 

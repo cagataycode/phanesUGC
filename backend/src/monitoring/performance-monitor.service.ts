@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { LogContext } from './types';
 import { StructuredLoggerService } from './structured-logger.service';
 
@@ -16,7 +16,6 @@ import { StructuredLoggerService } from './structured-logger.service';
  */
 @Injectable()
 export class PerformanceMonitorService {
-  private readonly logger = new Logger(PerformanceMonitorService.name);
   private readonly metrics: Map<string, number> = new Map();
 
   constructor(private readonly structuredLogger: StructuredLoggerService) {}
