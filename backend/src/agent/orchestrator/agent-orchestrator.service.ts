@@ -930,6 +930,22 @@ export class AgentOrchestratorService {
    * Transition to a new stage
    */
   private transitionStage(state: AgentJobState, newStage: AgentStage): void {
+    const context = {
+      correlationId: state.correlationId,
+      jobId: state.jobId,
+      businessId: state.businessId,
+      stage: state.stage,
+    };
+
+    this.structuredLogger.log(
+      `Stage transition: ${state.stage} → ${newStage}`,
+      {
+        ...context,
+        fromStage: state.stage,
+        toStage: newStage,
+      },
+    );
+
     this.logger.debug(`Job ${state.jobId}: ${state.stage} → ${newStage}`);
     state.stage = newStage;
     state.updatedAt = new Date();
