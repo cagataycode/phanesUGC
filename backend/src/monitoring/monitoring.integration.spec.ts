@@ -113,7 +113,10 @@ describe('Monitoring Integration', () => {
           structuredLogger.log('Request started', context);
 
           // Track performance
-          const timer = performanceMonitor.startTimer('test-operation', context);
+          const timer = performanceMonitor.startTimer(
+            'test-operation',
+            context,
+          );
 
           // Simulate work
           await new Promise((resolve) => setTimeout(resolve, 50));
@@ -141,7 +144,7 @@ describe('Monitoring Integration', () => {
 
       await correlationContext.runAsync(
         { correlationId, jobId, businessId },
-        async () => {
+        () => {
           const context = {
             correlationId,
             jobId,
@@ -154,11 +157,7 @@ describe('Monitoring Integration', () => {
             throw new Error('Test error');
           } catch (error) {
             // Log error
-            structuredLogger.error(
-              'Operation failed',
-              error as Error,
-              context,
-            );
+            structuredLogger.error('Operation failed', error as Error, context);
 
             // Report error
             errorTracker.reportError(
@@ -216,7 +215,7 @@ describe('Monitoring Integration', () => {
         businessId: 'test-business',
       };
 
-      await correlationContext.runAsync({ correlationId }, async () => {
+      await correlationContext.runAsync({ correlationId }, () => {
         // Track multiple operations
         performanceMonitor.trackCount('api-calls', 1, context);
         performanceMonitor.trackCount('api-calls', 1, context);
@@ -243,7 +242,7 @@ describe('Monitoring Integration', () => {
         businessId: 'test-business',
       };
 
-      await correlationContext.runAsync({ correlationId }, async () => {
+      await correlationContext.runAsync({ correlationId }, () => {
         // Report errors with different severities
         errorTracker.reportError(
           new Error('Low severity error'),
@@ -280,7 +279,7 @@ describe('Monitoring Integration', () => {
         businessId: 'test-business',
       };
 
-      await correlationContext.runAsync({ correlationId }, async () => {
+      await correlationContext.runAsync({ correlationId }, () => {
         // Report error
         errorTracker.reportError(
           new Error('Test error'),
@@ -309,7 +308,7 @@ describe('Monitoring Integration', () => {
 
       // This should not throw even if internal monitoring operations fail
       await expect(
-        correlationContext.runAsync({ correlationId }, async () => {
+        correlationContext.runAsync({ correlationId }, () => {
           const context = {
             correlationId,
             jobId: 'test-job',
