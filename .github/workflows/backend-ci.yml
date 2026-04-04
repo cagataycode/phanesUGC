@@ -28,15 +28,25 @@ jobs:
         node-version: 20.x
         cache: 'npm'
         cache-dependency-path: './backend/package-lock.json'
+    
+    - name: Cache node_modules
+      uses: actions/cache@v4
+      id: cache-node-modules
+      with:
+        path: backend/node_modules
+        key: ${{ runner.os }}-node-modules-${{ hashFiles('backend/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-modules-
         
     - name: Clean Install Dependencies
+      if: steps.cache-node-modules.outputs.cache-hit != 'true'
       run: npm ci
       
-    - name: Run Linter
-      run: npm run lint
-      
-    - name: Run Tests
-      run: npm run test
+    - name: Run Linter & Tests in Parallel
+      run: |
+        npm run lint &
+        npm run test &
+        wait
       
     - name: Build Application
       run: npm run build
