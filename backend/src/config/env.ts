@@ -38,11 +38,7 @@ export const envSchema = z
       .default(5 * 60 * 1000),
     // Monitoring Configuration
     LOG_LEVEL: z.enum(['debug', 'log', 'warn', 'error']).default('log'),
-    ERROR_TRACKING_SERVICE: z
-      .enum(['cloud-error-reporting', 'none'])
-      .default('cloud-error-reporting'),
     ENABLE_STRUCTURED_LOGGING: z.string().default('true'),
-    CORRELATION_ID_HEADER: z.string().default('x-correlation-id'),
     ALERT_EMAIL: z.string().email().optional(),
   })
   .refine(

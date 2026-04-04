@@ -23,7 +23,7 @@ async function testBriefGeneration() {
 
   const configService = new TestConfigService() as any;
   const structuredLogger = new StructuredLoggerService(configService);
-  const performanceMonitor = new PerformanceMonitorService(configService);
+  const performanceMonitor = new PerformanceMonitorService(structuredLogger);
   const llmService = new LlmService(configService, structuredLogger, performanceMonitor);
 
   const systemPrompt = `You are an expert advertising strategist. Generate a creative brief for a short-form video ad.
@@ -63,7 +63,7 @@ async function testScriptGeneration() {
 
   const configService = new TestConfigService() as any;
   const structuredLogger = new StructuredLoggerService(configService);
-  const performanceMonitor = new PerformanceMonitorService(configService);
+  const performanceMonitor = new PerformanceMonitorService(structuredLogger);
   const llmService = new LlmService(configService, structuredLogger, performanceMonitor);
 
   const systemPrompt = `You are an expert scriptwriter. Generate an 8-second ad script.
@@ -103,7 +103,7 @@ async function testScenarioGeneration() {
 
   const configService = new TestConfigService() as any;
   const structuredLogger = new StructuredLoggerService(configService);
-  const performanceMonitor = new PerformanceMonitorService(configService);
+  const performanceMonitor = new PerformanceMonitorService(structuredLogger);
   const llmService = new LlmService(configService, structuredLogger, performanceMonitor);
 
   const systemPrompt = `You are a creative director. Generate 2 distinct ad scenarios.
@@ -159,7 +159,7 @@ async function testComplexStructure() {
 
   const configService = new TestConfigService() as any;
   const structuredLogger = new StructuredLoggerService(configService);
-  const performanceMonitor = new PerformanceMonitorService(configService);
+  const performanceMonitor = new PerformanceMonitorService(structuredLogger);
   const llmService = new LlmService(configService, structuredLogger, performanceMonitor);
 
   const systemPrompt = `You are a scene director. Generate a video scene prompt.
