@@ -1,11 +1,27 @@
 import { Injectable, Logger, LogLevel } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - Cloud Logging types are not fully compatible
 import { Logging } from '@google-cloud/logging';
 import { v4 as uuidv4 } from 'uuid';
 import { LogContext, LogEntry } from './types';
 import { Env } from '../config/env';
+
+/**
+ * Type definitions for Google Cloud Logging SDK
+ * These provide type safety for the loosely-typed SDK
+ */
+interface CloudLogEntry {
+  severity: string;
+  labels: Record<string, string>;
+}
+
+interface CloudLogWriter {
+  entry(metadata: CloudLogEntry, data: unknown): unknown;
+  write(entry: unknown): Promise<void>;
+}
+
+interface CloudLogging {
+  log(name: string): CloudLogWriter;
+}
 
 /**
  * StructuredLoggerService - Provides structured JSON logging with correlation IDs
@@ -20,18 +36,15 @@ import { Env } from '../config/env';
 @Injectable()
 export class StructuredLoggerService {
   private readonly logger = new Logger(StructuredLoggerService.name);
-  private readonly cloudLogging: Logging;
-
-  private readonly cloudLogger: any;
+  private readonly cloudLogging: CloudLogging;
+  private readonly cloudLogger: CloudLogWriter;
   private readonly logLevel: LogLevel;
   private readonly enableStructuredLogging: boolean;
 
   constructor(private readonly configService: ConfigService<Env>) {
-    // Initialize Cloud Logging
+    // Initialize Cloud Logging with proper type casting
     const projectId = this.configService.get('GCP_PROJECT_ID', { infer: true });
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-    this.cloudLogging = new Logging({ projectId });
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    this.cloudLogging = new Logging({ projectId }) as unknown as CloudLogging;
     this.cloudLogger = this.cloudLogging.log('backend-app');
 
     // Get log level from config
@@ -189,7 +202,7 @@ export class StructuredLoggerService {
    * Write log entry to Cloud Logging
    */
   private writeToCloudLogging(entry: LogEntry): void {
-    const metadata = {
+    const metadata: CloudLogEntry = {
       severity: this.mapSeverity(entry.level),
       labels: {
         correlationId: entry.context.correlationId,
@@ -202,11 +215,9 @@ export class StructuredLoggerService {
       },
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const cloudEntry = this.cloudLogger.entry(metadata, entry);
 
     // Fire and forget - don't await to avoid blocking
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     void this.cloudLogger.write(cloudEntry).catch((error: unknown) => {
       // Fallback to console if Cloud Logging fails
       this.logger.error(
