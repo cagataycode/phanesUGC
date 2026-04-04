@@ -33,7 +33,7 @@
   - [x] 1.5.1 Add correlation ID to AgentJobState
   - [x] 1.5.2 Add logging to AgentOrchestratorService (job start, stage transitions, completion)
   - [x] 1.5.3 Add logging to LLMService (Claude calls, Gemini fallback, token usage)
-  - [ ] 1.5.4 Add logging to VideoGeneratorService (Veo calls, duration, status)
+  - [x] 1.5.4 Add logging to VideoGeneratorService (Veo calls, duration, status)
   - [ ] 1.5.5 Add logging to all stage services
 
 - [ ] 1.6 Add performance tracking
