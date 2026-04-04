@@ -81,7 +81,6 @@ export class AgentOrchestratorService {
     };
 
     this.structuredLogger.log('Initializing agent job', context);
-    this.logger.log(`Initializing agent job ${jobId}`);
 
     const now = new Date();
 
@@ -171,7 +170,6 @@ export class AgentOrchestratorService {
     };
 
     this.structuredLogger.log('Initializing wizard job', context);
-    this.logger.log(`Initializing wizard job ${jobId}`);
 
     const now = new Date();
 
@@ -350,9 +348,6 @@ export class AgentOrchestratorService {
     await this.saveState(state);
 
     this.structuredLogger.log('Wizard job initialized successfully', context);
-    this.logger.log(
-      `Wizard job ${jobId} initialized with pre-generated content`,
-    );
     return state;
   }
 
@@ -377,8 +372,6 @@ export class AgentOrchestratorService {
     jobId: string,
     businessId: string,
   ): Promise<ScenarioSet> {
-    this.logger.log(`Starting scenario generation for job ${jobId}`);
-
     const state = await this.loadState(jobId, businessId);
 
     const context = {
@@ -400,12 +393,10 @@ export class AgentOrchestratorService {
 
     try {
       // Stage 0: Platform validation (transition to platform_ready)
-      this.logger.debug(`[${jobId}] Platform validation`);
       this.transitionStage(state, 'platform_ready');
       await this.saveState(state);
 
       // Stage 1: Normalize input
-      this.logger.debug(`[${jobId}] Starting Stage 1: Normalize input`);
       const normalizedRequest = await this.retryPolicy.execute(
         () =>
           this.inputNormalizer.normalize(
@@ -423,11 +414,9 @@ export class AgentOrchestratorService {
       );
       this.transitionStage(state, 'normalized');
       state.artifacts.normalizedRequest = normalizedRequest;
-      this.logger.debug(`[${jobId}] Stage 1 complete, saving state`);
       await this.saveState(state);
 
       // Stage 2: Acquire product context (with fallback and idempotency)
-      this.logger.debug(`[${jobId}] Starting Stage 2: Acquire product context`);
       let productContext: ProductContext;
       try {
         const result = await this.retryPolicy.execute(
@@ -455,11 +444,9 @@ export class AgentOrchestratorService {
       }
       this.transitionStage(state, 'context_ready');
       state.artifacts.productContext = productContext;
-      this.logger.debug(`[${jobId}] Stage 2 complete, saving state`);
       await this.saveState(state);
 
       // Stage 3: Build creative brief (with fallback)
-      this.logger.debug(`[${jobId}] Starting Stage 3: Build creative brief`);
       let creativeBrief: CreativeBrief;
       try {
         creativeBrief = await this.retryPolicy.execute(
@@ -482,11 +469,9 @@ export class AgentOrchestratorService {
       }
       this.transitionStage(state, 'brief_ready');
       state.artifacts.creativeBrief = creativeBrief;
-      this.logger.debug(`[${jobId}] Stage 3 complete, saving state`);
       await this.saveState(state);
 
       // Stage 4: Generate 4 scenarios (generator has internal fallback on errors)
-      this.logger.debug(`[${jobId}] Starting Stage 4: Generate scenarios`);
       const scenarioSet = await this.retryPolicy.execute(
         () => this.scenarioGenerator.generate(state.jobId, creativeBrief),
         this.createRetryContext(
@@ -515,7 +500,6 @@ export class AgentOrchestratorService {
         scenarioCount: scenarioSet.scenarios.length,
       });
 
-      this.logger.log(`Scenario generation completed for job ${jobId}`);
       return scenarioSet;
     } catch (error) {
       timer();
@@ -527,14 +511,6 @@ export class AgentOrchestratorService {
         error as Error,
         context,
       );
-
-      // Log full error details for debugging
-      this.logger.error(`Scenario generation failed for job ${jobId}:`, {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        stage: state.stage,
-        errorDetails: JSON.stringify(error, null, 2),
-      });
 
       await this.saveState(state);
       throw error;
@@ -550,8 +526,6 @@ export class AgentOrchestratorService {
     businessId: string,
     scenarioId: number,
   ): Promise<void> {
-    this.logger.log(`Scenario ${scenarioId} selected for job ${jobId}`);
-
     // Validate IDs before constructing path
     this.validateId(jobId);
     this.validateId(businessId);
@@ -608,16 +582,18 @@ export class AgentOrchestratorService {
 
         // CRITICAL: Check if video generation is already running (race condition prevention)
         if (data.videoGenerationStatus === 'in_progress') {
-          this.logger.warn(
-            `Video generation already in progress for job ${jobId}, ignoring duplicate request`,
+          this.structuredLogger.warn(
+            'Video generation already in progress, ignoring duplicate request',
+            context,
           );
           throw new Error('Video generation already in progress');
         }
 
         // CRITICAL: Check if video generation is already completed
         if (data.videoGenerationStatus === 'completed') {
-          this.logger.warn(
-            `Video generation already completed for job ${jobId}, ignoring duplicate request`,
+          this.structuredLogger.warn(
+            'Video generation already completed, ignoring duplicate request',
+            context,
           );
           throw new Error('Video generation already completed');
         }
@@ -646,8 +622,6 @@ export class AgentOrchestratorService {
     jobId: string,
     businessId: string,
   ): Promise<FinalOutput> {
-    this.logger.log(`Starting video generation for job ${jobId}`);
-
     const state = await this.loadState(jobId, businessId);
 
     const context = {
@@ -659,9 +633,6 @@ export class AgentOrchestratorService {
 
     // Double-check status (defense in depth)
     if (state.videoGenerationStatus === 'completed') {
-      this.logger.warn(
-        `Video generation already completed for job ${jobId}, skipping`,
-      );
       this.structuredLogger.warn(
         'Video generation already completed, skipping',
         context,
@@ -901,7 +872,6 @@ export class AgentOrchestratorService {
         outputUrl: finalOutput.videoUrl,
       });
 
-      this.logger.log(`Video generation completed for job ${jobId}`);
       return finalOutput;
     } catch (error) {
       timer();
@@ -964,7 +934,6 @@ export class AgentOrchestratorService {
       },
     );
 
-    this.logger.debug(`Job ${state.jobId}: ${state.stage} → ${newStage}`);
     state.stage = newStage;
     state.updatedAt = now;
   }
@@ -1005,9 +974,6 @@ export class AgentOrchestratorService {
         this.recordError(state, targetStage, error);
         // Single saveState call
         await this.saveState(state);
-        this.logger.log(
-          `[${jobId}] Retry attempt ${attemptNumber} for ${stageName}, state saved`,
-        );
       },
     };
   }
@@ -1072,10 +1038,6 @@ export class AgentOrchestratorService {
       context,
       state.correlationId,
     );
-
-    this.logger.error(
-      `Job ${state.jobId} error at stage ${stage} (attempt ${retryCount + 1}): ${message}`,
-    );
   }
 
   /**
@@ -1121,13 +1083,19 @@ export class AgentOrchestratorService {
         firestoreState,
       );
     } catch (error) {
-      this.logger.error(`Failed to save state for job ${state.jobId}:`, {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        businessId: state.businessId,
-        jobId: state.jobId,
-        stage: state.stage,
-      });
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      this.structuredLogger.error(
+        'Failed to save state',
+        error instanceof Error ? error : new Error(errorMessage),
+        {
+          correlationId: state.correlationId,
+          jobId: state.jobId,
+          businessId: state.businessId,
+          stage: state.stage,
+        },
+      );
       throw error;
     }
   }
