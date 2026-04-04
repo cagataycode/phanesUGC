@@ -1,19 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, CallHandler } from '@nestjs/common';
-import { of, throwError, Observable } from 'rxjs';
+import { of, throwError } from 'rxjs';
+import { lastValueFrom } from 'rxjs';
 import { PerformanceInterceptor } from './performance.interceptor';
 import { StructuredLoggerService } from '../structured-logger.service';
 import { PerformanceMonitorService } from '../performance-monitor.service';
 import { CorrelationContextService } from '../correlation-context.service';
 
 /* eslint-disable @typescript-eslint/unbound-method */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
 describe('PerformanceInterceptor', () => {
   let interceptor: PerformanceInterceptor;
   let structuredLogger: StructuredLoggerService;
   let performanceMonitor: PerformanceMonitorService;
+  let dateNowSpy: jest.SpyInstance;
 
   const mockStructuredLogger = {
     generateCorrelationId: jest.fn(),
@@ -26,13 +26,20 @@ describe('PerformanceInterceptor', () => {
   const mockCorrelationContext = {
     setContext: jest.fn(),
     getCorrelationId: jest.fn(() => 'test-correlation-id'),
-    run: jest.fn((context, callback: () => void) => {
+    run: jest.fn((context, callback: () => unknown) => {
       // Execute the callback immediately in the mock and return its result
       return callback();
     }),
   };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
+
+    // Mock Date.now() for deterministic latency
+    dateNowSpy = jest.spyOn(Date, 'now');
+    dateNowSpy.mockReturnValueOnce(1000); // startTime
+    dateNowSpy.mockReturnValue(1100); // endTime (100ms later)
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PerformanceInterceptor,
@@ -59,11 +66,14 @@ describe('PerformanceInterceptor', () => {
       PerformanceMonitorService,
     );
 
-    // Reset mocks
-    jest.clearAllMocks();
     mockStructuredLogger.generateCorrelationId.mockReturnValue(
       'test-correlation-id',
     );
+  });
+
+  afterEach(() => {
+    // Restore all spies to prevent cross-test bleed
+    jest.restoreAllMocks();
   });
 
   const createMockExecutionContext = (
@@ -91,145 +101,96 @@ describe('PerformanceInterceptor', () => {
   };
 
   describe('intercept', () => {
-    it('should generate correlation ID', (done) => {
+    it('should generate correlation ID', async () => {
       const context = createMockExecutionContext();
       const next = createMockCallHandler();
 
-      interceptor.intercept(context, next).subscribe({
-        next: () => {
-          // Correlation ID is generated synchronously
-          expect(structuredLogger.generateCorrelationId).toHaveBeenCalled();
-        },
-        error: (err: Error) => {
-          done(err);
-        },
-        complete: () => {
-          done();
-        },
-      });
+      await lastValueFrom(interceptor.intercept(context, next));
+
+      expect(structuredLogger.generateCorrelationId).toHaveBeenCalled();
     });
 
-    it('should track latency on success', (done) => {
+    it('should track latency on success', async () => {
       const context = createMockExecutionContext();
       const next = createMockCallHandler();
 
-      interceptor.intercept(context, next).subscribe({
-        next: () => {
-          // trackLatency is called in finalize(), not here
+      await lastValueFrom(interceptor.intercept(context, next));
+
+      expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
+        'test-controller',
+        'testHandler',
+        100, // 1100 - 1000
+        {
+          correlationId: 'test-correlation-id',
         },
-        error: (err: Error) => {
-          done(err);
-        },
-        complete: () => {
-          expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
-            'test-controller',
-            'testHandler',
-            expect.any(Number),
-            {
-              correlationId: 'test-correlation-id',
-            },
-            'success',
-          );
-          done();
-        },
-      });
+        'success',
+      );
     });
 
-    it('should track latency on failure', (done) => {
+    it('should track latency on failure', async () => {
       const context = createMockExecutionContext();
       const error = new Error('Test error');
       const next = {
         handle: () => throwError(() => error),
       } as CallHandler;
 
-      interceptor.intercept(context, next).subscribe({
-        next: () => {
-          done.fail('Should not emit next');
+      await expect(
+        lastValueFrom(interceptor.intercept(context, next)),
+      ).rejects.toThrow(error);
+
+      expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
+        'test-controller',
+        'testHandler',
+        100,
+        {
+          correlationId: 'test-correlation-id',
         },
-        error: (err: Error) => {
-          // finalize() runs after the error notification, so wait a tick
-          setImmediate(() => {
-            // Verify error was tracked
-            expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
-              'test-controller',
-              'testHandler',
-              expect.any(Number),
-              {
-                correlationId: 'test-correlation-id',
-              },
-              'failure',
-            );
-            // Verify error was re-thrown
-            expect(err).toBe(error);
-            done();
-          });
-        },
-        complete: () => {
-          done.fail('Should not complete');
-        },
-      });
+        'failure',
+      );
     });
 
-    it('should extract businessId from body', (done) => {
+    it('should extract businessId from body', async () => {
       const context = createMockExecutionContext({
         businessId: 'business-123',
       });
       const next = createMockCallHandler();
 
-      interceptor.intercept(context, next).subscribe({
-        next: () => {
-          // trackLatency is called in finalize()
+      await lastValueFrom(interceptor.intercept(context, next));
+
+      expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
+        'test-controller',
+        'testHandler',
+        100,
+        {
+          correlationId: 'test-correlation-id',
+          businessId: 'business-123',
         },
-        error: (err: Error) => {
-          done(err);
-        },
-        complete: () => {
-          expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
-            'test-controller',
-            'testHandler',
-            expect.any(Number),
-            {
-              correlationId: 'test-correlation-id',
-              businessId: 'business-123',
-            },
-            'success',
-          );
-          done();
-        },
-      });
+        'success',
+      );
     });
 
-    it('should extract businessId from query', (done) => {
+    it('should extract businessId from query', async () => {
       const context = createMockExecutionContext(
         {},
         { businessId: 'business-456' },
       );
       const next = createMockCallHandler();
 
-      interceptor.intercept(context, next).subscribe({
-        next: () => {
-          // trackLatency is called in finalize()
+      await lastValueFrom(interceptor.intercept(context, next));
+
+      expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
+        'test-controller',
+        'testHandler',
+        100,
+        {
+          correlationId: 'test-correlation-id',
+          businessId: 'business-456',
         },
-        error: (err: Error) => {
-          done(err);
-        },
-        complete: () => {
-          expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
-            'test-controller',
-            'testHandler',
-            expect.any(Number),
-            {
-              correlationId: 'test-correlation-id',
-              businessId: 'business-456',
-            },
-            'success',
-          );
-          done();
-        },
-      });
+        'success',
+      );
     });
 
-    it('should extract platform from body', (done) => {
+    it('should extract platform from body', async () => {
       const context = createMockExecutionContext({
         businessId: 'business-123',
         prompt_inputs: {
@@ -238,106 +199,51 @@ describe('PerformanceInterceptor', () => {
       });
       const next = createMockCallHandler();
 
-      interceptor.intercept(context, next).subscribe({
-        next: () => {
-          // trackLatency is called in finalize()
+      await lastValueFrom(interceptor.intercept(context, next));
+
+      expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
+        'test-controller',
+        'testHandler',
+        100,
+        {
+          correlationId: 'test-correlation-id',
+          businessId: 'business-123',
+          platform: 'tiktok',
         },
-        error: (err: Error) => {
-          done(err);
-        },
-        complete: () => {
-          expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
-            'test-controller',
-            'testHandler',
-            expect.any(Number),
-            {
-              correlationId: 'test-correlation-id',
-              businessId: 'business-123',
-              platform: 'tiktok',
-            },
-            'success',
-          );
-          done();
-        },
-      });
+        'success',
+      );
     });
 
-    it('should handle missing metadata gracefully', (done) => {
+    it('should handle missing metadata gracefully', async () => {
       const context = createMockExecutionContext();
       const next = createMockCallHandler();
 
-      interceptor.intercept(context, next).subscribe({
-        next: () => {
-          // trackLatency is called in finalize()
+      await lastValueFrom(interceptor.intercept(context, next));
+
+      expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
+        'test-controller',
+        'testHandler',
+        100,
+        {
+          correlationId: 'test-correlation-id',
         },
-        error: (err: Error) => {
-          done(err);
-        },
-        complete: () => {
-          expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
-            'test-controller',
-            'testHandler',
-            expect.any(Number),
-            {
-              correlationId: 'test-correlation-id',
-            },
-            'success',
-          );
-          done();
-        },
-      });
+        'success',
+      );
     });
 
-    it.skip('should measure actual latency', (done) => {
-      // TODO: Fix this test - it's timing out due to Observable subscription issues
-      const context = createMockExecutionContext();
-
-      // Create a proper Observable that delays
-      const delayedObservable = new Observable((subscriber) => {
-        setTimeout(() => {
-          subscriber.next({ success: true });
-          subscriber.complete();
-        }, 10);
-      });
-
-      const next = {
-        handle: () => delayedObservable,
-      } as CallHandler;
-
-      interceptor.intercept(context, next).subscribe(() => {
-        const latency = (performanceMonitor.trackLatency as jest.Mock).mock
-          .calls[0][2];
-        // Use >= 9 to account for timer precision issues
-        expect(latency).toBeGreaterThanOrEqual(9);
-        done();
-      });
-    });
-
-    it('should re-throw errors after tracking', (done) => {
+    it('should re-throw errors after tracking', async () => {
       const context = createMockExecutionContext();
       const error = new Error('Test error');
       const next = {
         handle: () => throwError(() => error),
       } as CallHandler;
 
-      interceptor.intercept(context, next).subscribe({
-        next: () => {
-          done.fail('Should not emit next');
-        },
-        error: (err: Error) => {
-          // finalize() runs after error, so wait a tick
-          setImmediate(() => {
-            expect(err).toBe(error);
-            done();
-          });
-        },
-        complete: () => {
-          done.fail('Should not complete');
-        },
-      });
+      await expect(
+        lastValueFrom(interceptor.intercept(context, next)),
+      ).rejects.toThrow(error);
     });
 
-    it('should normalize controller name', (done) => {
+    it('should normalize controller name', async () => {
       const context = {
         switchToHttp: () => ({
           getRequest: () => ({
@@ -350,24 +256,15 @@ describe('PerformanceInterceptor', () => {
       } as ExecutionContext;
       const next = createMockCallHandler();
 
-      interceptor.intercept(context, next).subscribe({
-        next: () => {
-          // trackLatency is called in finalize()
-        },
-        error: (err: Error) => {
-          done(err);
-        },
-        complete: () => {
-          expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
-            'ads-controller',
-            'createJob',
-            expect.any(Number),
-            expect.any(Object),
-            'success',
-          );
-          done();
-        },
-      });
+      await lastValueFrom(interceptor.intercept(context, next));
+
+      expect(performanceMonitor.trackLatency).toHaveBeenCalledWith(
+        'ads-controller',
+        'createJob',
+        100,
+        expect.any(Object),
+        'success',
+      );
     });
   });
 });
