@@ -89,12 +89,12 @@
   - [x] 2.6.5 Implement cleanupStaleEntries method
   - [x] 2.6.6 Write unit tests for RateLimiter
 
-- [ ] 2.7 Integrate quota enforcement
-  - [ ] 2.7.1 Add quota check to AdsController.createJob
-  - [ ] 2.7.2 Add rate limit check to AdsController
-  - [ ] 2.7.3 Return 429 status with descriptive error
-  - [ ] 2.7.4 Add X-RateLimit headers to responses
-  - [ ] 2.7.5 Increment usage counter on job completion
+- [x] 2.7 Integrate quota enforcement
+  - [x] 2.7.1 Add quota check to AdsController.createJob
+  - [x] 2.7.2 Add rate limit check to AdsController
+  - [x] 2.7.3 Return 429 status with descriptive error
+  - [x] 2.7.4 Add X-RateLimit headers to responses
+  - [x] 2.7.5 Increment usage counter on job completion
 
 - [ ] 2.8 Create scheduled functions
   - [ ] 2.8.1 Create Cloud Function for monthly quota reset
