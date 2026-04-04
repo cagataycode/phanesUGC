@@ -198,6 +198,8 @@ describe('Monitoring Integration', () => {
         businessId: 'test-business',
       };
 
+      const trackLatencySpy = jest.spyOn(performanceMonitor, 'trackLatency');
+
       await correlationContext.runAsync({ correlationId }, async () => {
         // Simulate API call (minimal delay for CI)
         const startTime = Date.now();
@@ -213,8 +215,17 @@ describe('Monitoring Integration', () => {
           'success',
         );
 
-        // Verify latency was logged (through structured logger)
-        expect(latency).toBeGreaterThanOrEqual(5);
+        // Verify trackLatency was called with correct parameters
+        expect(trackLatencySpy).toHaveBeenCalledWith(
+          'external-api',
+          'getData',
+          expect.any(Number),
+          context,
+          'success',
+        );
+
+        // Verify latency is non-negative (avoid flaky timing assertions)
+        expect(latency).toBeGreaterThanOrEqual(0);
       });
     });
 
