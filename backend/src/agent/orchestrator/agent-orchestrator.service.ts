@@ -649,13 +649,30 @@ export class AgentOrchestratorService {
 
     const state = await this.loadState(jobId, businessId);
 
+    const context = {
+      correlationId: state.correlationId,
+      jobId: state.jobId,
+      businessId: state.businessId,
+      stage: state.stage,
+    };
+
     // Double-check status (defense in depth)
     if (state.videoGenerationStatus === 'completed') {
       this.logger.warn(
         `Video generation already completed for job ${jobId}, skipping`,
       );
+      this.structuredLogger.warn(
+        'Video generation already completed, skipping',
+        context,
+      );
       return state.artifacts.finalOutput as FinalOutput;
     }
+
+    this.structuredLogger.log('Starting video generation', context);
+    const timer = this.performanceMonitor.startTimer(
+      'video-generation',
+      context,
+    );
 
     // Ensure status is set to in_progress and start timestamp exists
     if (
@@ -876,12 +893,27 @@ export class AgentOrchestratorService {
       state.videoGenerationCompletedAt = new Date();
       await this.saveState(state);
 
+      timer();
+      this.structuredLogger.log('Video generation completed', {
+        ...context,
+        qualityScore: finalOutput.qualityScore,
+        outputUrl: finalOutput.finalVideoUrl,
+      });
+
       this.logger.log(`Video generation completed for job ${jobId}`);
       return finalOutput;
     } catch (error) {
+      timer();
       state.videoGenerationStatus = 'failed';
       this.transitionStage(state, 'failed');
       this.recordError(state, state.stage, error);
+
+      this.structuredLogger.error(
+        'Video generation failed',
+        error as Error,
+        context,
+      );
+
       await this.saveState(state);
       throw error;
     }
