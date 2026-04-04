@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { AbsoluteFill, Sequence, Video, useCurrentFrame, staticFile } from 'remotion';
+import { AbsoluteFill, Sequence, OffthreadVideo, useCurrentFrame, staticFile } from 'remotion';
 import { RenderRequest } from '../constants';
 import {
   getSubtitleTimelineState
@@ -59,9 +59,11 @@ export const KineticSubtitledVideo: React.FC<RenderRequest> = ({
   fps,
 }) => {
   const resolvedVideoUrl = useMemo(() => {
+    // Handle HTTP/HTTPS URLs directly
     if (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) {
       return videoUrl;
     }
+    // All other paths are treated as files in public/ folder
     return staticFile(videoUrl);
   }, [videoUrl]);
 
@@ -80,9 +82,13 @@ export const KineticSubtitledVideo: React.FC<RenderRequest> = ({
   return (
     <AbsoluteFill style={{ backgroundColor: 'black' }}>
       <Sequence from={0}>
-        <Video
+        <OffthreadVideo
           src={resolvedVideoUrl}
           style={{ width: '100%', height: '100%' }}
+          onError={(e) => {
+            console.error('Video loading error:', e);
+            throw new Error(`Failed to load video: ${resolvedVideoUrl}`);
+          }}
         />
       </Sequence>
       {captionPresentation ? (

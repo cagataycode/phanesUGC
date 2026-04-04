@@ -33,73 +33,122 @@ export class RenderExecutorService {
       }),
     );
 
-    // Get signed URL for the video source
+    // Get object path for the video source
     // Handle both full GCS URIs (gs://bucket/path) and plain object paths (path)
     const gcsPath = timeline.videoSource.gcsPath;
     const objectPath = gcsPath.startsWith('gs://')
       ? gcsPath.replace('gs://', '').split('/').slice(1).join('/')
       : gcsPath;
 
-    const videoUrl = await this.gcsStorage.createSignedVideoUrl(objectPath);
+    // Import filesystem utilities
+    const { mkdtemp, rm, copyFile, mkdir, stat } =
+      await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const path = await import('node:path');
 
-    // Prepare render request
-    const renderRequest = {
-      videoUrl,
-      phrases: timeline.subtitles.enabled ? phrases : [],
-      fps: timeline.output.fps,
-      durationInFrames: timeline.output.durationInFrames,
-      width: timeline.output.width,
-      height: timeline.output.height,
-      subtitleStyle: timeline.subtitles.style,
-    };
-
-    // Render to temp file
-    const { outputPath, cleanup } =
-      await this.renderService.renderToTempFile(renderRequest);
+    // Setup paths
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'phanes-video-'));
+    const localVideoPath = path.join(tempDir, 'source-video.mp4');
+    const publicDir = path.resolve(process.cwd(), 'src/render/remotion/public');
+    const publicVideoFilename = `${timeline.jobId}-source.mp4`;
+    const publicVideoPath = path.join(publicDir, publicVideoFilename);
 
     try {
-      // Upload rendered video to GCS
-      const finalGcsPath = `${timeline.jobId}/final.mp4`;
-      await this.gcsStorage.uploadLocalFile(
-        outputPath,
-        finalGcsPath,
-        'video/mp4',
+      // Download video to temp location
+      this.logger.debug(`Downloading source video to ${localVideoPath}`);
+      await this.gcsStorage.downloadFile(objectPath, localVideoPath);
+
+      // Ensure public directory exists
+      await mkdir(publicDir, { recursive: true });
+
+      // Copy video to Remotion's public folder
+      this.logger.debug(
+        `Copying source video to Remotion public folder: ${publicVideoPath}`,
       );
+      await copyFile(localVideoPath, publicVideoPath);
 
-      // Create signed URL for the final video
-      const finalVideoUrl =
-        await this.gcsStorage.createSignedVideoUrl(finalGcsPath);
-
-      const output: FinalOutput = {
-        jobId: timeline.jobId,
-        videoUrl: finalVideoUrl,
-        gcsPath: finalGcsPath,
-        metadata: {
-          durationSec: timeline.videoSource.durationSec,
-          width: timeline.output.width,
-          height: timeline.output.height,
-          fileSizeBytes: 0, // File size retrieved by OutputValidator
-          fps: timeline.output.fps,
-        },
-        subtitles: timeline.subtitles.segments.map((seg) => ({
-          text: seg.text,
-          startSec: seg.startSec,
-          endSec: seg.endSec,
-        })),
-        transcript: timeline.subtitles.segments
-          .map((seg) => seg.text)
-          .join(' '),
-        qualityReports: [],
-        qualityScore: 1.0,
-        finalizedAt: new Date(),
+      // Prepare render request with just the filename (Remotion will resolve from public/)
+      const renderRequest = {
+        videoUrl: publicVideoFilename,
+        phrases: timeline.subtitles.enabled ? phrases : [],
+        fps: timeline.output.fps,
+        durationInFrames: timeline.output.durationInFrames,
+        width: timeline.output.width,
+        height: timeline.output.height,
+        subtitleStyle: timeline.subtitles.style,
       };
 
-      this.logger.log(`Final video rendered: ${finalGcsPath}`);
+      // Render to temp file
+      const { outputPath, cleanup } =
+        await this.renderService.renderToTempFile(renderRequest);
 
-      return output;
+      try {
+        // Upload rendered video to GCS
+        const finalGcsPath = `${timeline.jobId}/final.mp4`;
+        await this.gcsStorage.uploadLocalFile(
+          outputPath,
+          finalGcsPath,
+          'video/mp4',
+        );
+
+        // Get file size from the rendered output (async)
+        const fileSizeBytes = (await stat(outputPath)).size;
+
+        // Create signed URL for the final video
+        const finalVideoUrl =
+          await this.gcsStorage.createSignedVideoUrl(finalGcsPath);
+
+        const output: FinalOutput = {
+          jobId: timeline.jobId,
+          videoUrl: finalVideoUrl,
+          gcsPath: finalGcsPath,
+          metadata: {
+            durationSec: timeline.videoSource.durationSec,
+            width: timeline.output.width,
+            height: timeline.output.height,
+            fileSizeBytes,
+            fps: timeline.output.fps,
+          },
+          subtitles: timeline.subtitles.segments.map((seg) => ({
+            text: seg.text,
+            startSec: seg.startSec,
+            endSec: seg.endSec,
+          })),
+          transcript: timeline.subtitles.segments
+            .map((seg) => seg.text)
+            .join(' '),
+          qualityReports: [],
+          qualityScore: 1.0,
+          finalizedAt: new Date(),
+        };
+
+        this.logger.log(`Final video rendered: ${finalGcsPath}`);
+
+        return output;
+      } finally {
+        // Cleanup render temp files
+        await cleanup();
+      }
     } finally {
-      // Cleanup temp file
-      await cleanup();
+      // Cleanup temp video directory and public folder video (always runs)
+      try {
+        await rm(tempDir, { recursive: true, force: true });
+        this.logger.debug(`Cleaned up temp video directory: ${tempDir}`);
+      } catch (error) {
+        this.logger.error(
+          `Failed to cleanup temp video directory: ${tempDir}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
+      try {
+        await rm(publicVideoPath, { force: true });
+        this.logger.debug(`Cleaned up public folder video: ${publicVideoPath}`);
+      } catch (error) {
+        this.logger.error(
+          `Failed to cleanup public folder video: ${publicVideoPath}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
     }
   }
 }

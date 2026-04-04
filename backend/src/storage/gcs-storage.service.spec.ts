@@ -21,6 +21,7 @@ describe('GcsStorageService', () => {
     getSignedUrl: jest.Mock;
     copy: jest.Mock;
     save: jest.Mock;
+    getMetadata: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -28,6 +29,7 @@ describe('GcsStorageService', () => {
       getSignedUrl: jest.fn(),
       copy: jest.fn(),
       save: jest.fn(),
+      getMetadata: jest.fn().mockResolvedValue([{ size: 1024 }]),
     };
 
     mockBucket = {

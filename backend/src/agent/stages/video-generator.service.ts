@@ -48,7 +48,7 @@ export class VideoGeneratorService {
     }
 
     // Import video to our GCS bucket
-    const gcsPath = await this.gcsStorage.importGeneratedVideo(
+    const importResult = await this.gcsStorage.importGeneratedVideo(
       result.downloadUrl,
       `${prompt.projectId}/scene-${prompt.sceneId}.mp4`,
     );
@@ -61,11 +61,11 @@ export class VideoGeneratorService {
     const output: VeoOutput = {
       jobId: prompt.projectId,
       sceneId: prompt.sceneId,
-      gcsPath,
+      gcsPath: importResult.path,
       actualDurationSec: prompt.durationSeconds, // Veo should match requested duration
       resolution,
       fps: 24, // Veo 3.1 outputs 24 fps
-      fileSizeBytes: 0, // Will be populated when we add metadata extraction
+      fileSizeBytes: importResult.sizeBytes,
       veoOperationId: result.providerJobId,
       metadata: {
         model: prompt.generationConfig.model,
@@ -76,7 +76,7 @@ export class VideoGeneratorService {
     };
 
     this.logger.log(
-      `Video generated successfully: ${gcsPath} (${prompt.durationSeconds}s)`,
+      `Video generated successfully: ${importResult.path} (${prompt.durationSeconds}s, ${(importResult.sizeBytes / 1024 / 1024).toFixed(2)}MB)`,
     );
 
     return output;

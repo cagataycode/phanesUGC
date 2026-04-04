@@ -38,7 +38,6 @@ User submits ad request (prompt + config + product context + style preferences)
   -> Gemini: script generation (hook, body scenes, CTA)
   -> Gemini: scene planning + Veo prompt structuring  <-- THIS DOCUMENT
   -> Veo 3: generates video+audio per scene
-  -> FFmpeg: extract audio
   -> faster-whisper: transcribe
   -> Subtitle pipeline
   -> Remotion: final composition + render
