@@ -77,7 +77,9 @@ export class QuotaService {
         return SubscriptionTier.FREE;
       }
 
-      const data = businessDoc.data();
+      const data = businessDoc.data() as
+        | { subscription?: { tier?: string } }
+        | undefined;
       const tierValue = data?.subscription?.tier;
 
       // Validate tier value

@@ -167,7 +167,9 @@ describe('RateLimiterService', () => {
       };
 
       const mockFirestoreInstance = firestoreService.getFirestore();
-      (mockFirestoreInstance.get as jest.Mock).mockResolvedValue(mockSnapshot as any);
+      (mockFirestoreInstance.get as jest.Mock).mockResolvedValue(
+        mockSnapshot as any,
+      );
 
       const allowed = await service.checkConcurrentJobs(
         mockBusinessId,
@@ -183,7 +185,9 @@ describe('RateLimiterService', () => {
       };
 
       const mockFirestoreInstance = firestoreService.getFirestore();
-      (mockFirestoreInstance.get as jest.Mock).mockResolvedValue(mockSnapshot as any);
+      (mockFirestoreInstance.get as jest.Mock).mockResolvedValue(
+        mockSnapshot as any,
+      );
 
       const allowed = await service.checkConcurrentJobs(
         mockBusinessId,
@@ -199,7 +203,9 @@ describe('RateLimiterService', () => {
       };
 
       const mockFirestoreInstance = firestoreService.getFirestore();
-      (mockFirestoreInstance.get as jest.Mock).mockResolvedValue(mockSnapshot as any);
+      (mockFirestoreInstance.get as jest.Mock).mockResolvedValue(
+        mockSnapshot as any,
+      );
 
       const allowed = await service.checkConcurrentJobs(
         mockBusinessId,

@@ -27,15 +27,21 @@ describe('PricingConfig', () => {
     });
 
     it('should have Veo standard pricing higher than fast', () => {
-      expect(PRICING_CONFIG.veo.standard).toBeGreaterThan(PRICING_CONFIG.veo.fast);
+      expect(PRICING_CONFIG.veo.standard).toBeGreaterThan(
+        PRICING_CONFIG.veo.fast,
+      );
     });
 
     it('should have Claude output tokens more expensive than input', () => {
-      expect(PRICING_CONFIG.claude.outputTokens).toBeGreaterThan(PRICING_CONFIG.claude.inputTokens);
+      expect(PRICING_CONFIG.claude.outputTokens).toBeGreaterThan(
+        PRICING_CONFIG.claude.inputTokens,
+      );
     });
 
     it('should have Gemini output tokens more expensive than input', () => {
-      expect(PRICING_CONFIG.gemini.outputTokens).toBeGreaterThan(PRICING_CONFIG.gemini.inputTokens);
+      expect(PRICING_CONFIG.gemini.outputTokens).toBeGreaterThan(
+        PRICING_CONFIG.gemini.inputTokens,
+      );
     });
   });
 });

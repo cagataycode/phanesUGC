@@ -113,9 +113,10 @@ export class RateLimiterService {
       }
 
       // Within rate limit - calculate reset time based on oldest request
-      const resetTime = recentRequests.length > 0
-        ? new Date(recentRequests[0].timestamp.toDate().getTime() + 60000)
-        : new Date(now.getTime() + 60000);
+      const resetTime =
+        recentRequests.length > 0
+          ? new Date(recentRequests[0].timestamp.toDate().getTime() + 60000)
+          : new Date(now.getTime() + 60000);
 
       return {
         allowed: true,
