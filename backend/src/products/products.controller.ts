@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
+import { BusinessOwnershipGuard } from '../auth/business-ownership.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { GetUser } from '../auth/get-user.decorator';
 import type { DecodedIdToken } from 'firebase-admin/auth';
@@ -26,7 +27,7 @@ import {
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 
 @Controller('v1/businesses/:businessId/products')
-@UseGuards(FirebaseAuthGuard, RolesGuard)
+@UseGuards(FirebaseAuthGuard, BusinessOwnershipGuard, RolesGuard)
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
