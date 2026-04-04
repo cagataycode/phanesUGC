@@ -115,6 +115,30 @@ export interface AgentJobState {
       timestamp: Date;
     }>;
   };
+
+  /** Cost tracking */
+  costBreakdown?: {
+    veoGeneration: number;
+    claudeCalls: number;
+    geminiCalls: number;
+    totalCost: number;
+    currency: 'USD';
+  };
+
+  /** API call details for cost attribution */
+  apiCalls?: Array<{
+    service: 'veo' | 'claude' | 'gemini';
+    operation: string;
+    inputTokens?: number;
+    outputTokens?: number;
+    durationSeconds?: number;
+    cost: number;
+    timestamp: Date;
+  }>;
+
+  /** LLM provider tracking */
+  llmProvider?: 'claude' | 'gemini';
+  fallbackTriggered?: boolean;
 }
 
 /**
