@@ -15,8 +15,6 @@ import { RolesGuard } from '../auth/roles.guard';
 import { PerformanceMonitorService } from '../monitoring/performance-monitor.service';
 import { StructuredLoggerService } from '../monitoring/structured-logger.service';
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-
 @Controller('ads')
 @UseGuards(FirebaseAuthGuard, RolesGuard)
 export class AdsController {
@@ -41,7 +39,7 @@ export class AdsController {
         latency,
         {
           correlationId,
-          businessId: createAdDto.business_id,
+          businessId: createAdDto.businessId,
           platform: createAdDto.prompt_inputs.platform,
         },
         'success',
@@ -54,7 +52,7 @@ export class AdsController {
         'ads-controller',
         'create-job',
         latency,
-        { correlationId, businessId: createAdDto.business_id },
+        { correlationId, businessId: createAdDto.businessId },
         'failure',
       );
       throw error;
@@ -183,7 +181,7 @@ export class AdsController {
         'ads-controller',
         'create-wizard-job',
         latency,
-        { correlationId, businessId: parsed.business_id },
+        { correlationId, businessId: parsed.businessId },
         'success',
       );
 

@@ -898,7 +898,7 @@ export class AgentOrchestratorService {
       this.structuredLogger.log('Video generation completed', {
         ...context,
         qualityScore: finalOutput.qualityScore,
-        outputUrl: finalOutput.finalVideoUrl,
+        outputUrl: finalOutput.videoUrl,
       });
 
       this.logger.log(`Video generation completed for job ${jobId}`);
