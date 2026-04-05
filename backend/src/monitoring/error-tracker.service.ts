@@ -27,8 +27,8 @@ export class ErrorTrackerService {
     // Initialize Cloud Error Reporting only if credentials are available
     const projectId = this.configService.get('GCP_PROJECT_ID', { infer: true });
     const enableErrorReporting =
-      this.configService.get('ENABLE_ERROR_REPORTING', { infer: true }) !==
-      'false';
+      this.configService.get('ENABLE_ERROR_REPORTING', { infer: true }) ===
+      'true';
 
     // Use local variables to determine initialization
     let isEnabled = enableErrorReporting && !!projectId;

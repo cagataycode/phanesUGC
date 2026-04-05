@@ -14,17 +14,14 @@ import {
 } from '@nestjs/common';
 import { AdsService } from './ads.service';
 import { CreateAdDto } from './dto/create-ad.dto';
+import { SelectScenarioDto } from './dto/select-scenario.dto';
 import { WizardSubmitSchema } from './dto/wizard.dto';
 import { ZodError, z } from 'zod';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { PerformanceInterceptor } from '../monitoring/interceptors/performance.interceptor';
 import { RateLimitInterceptor } from '../quota/interceptors/rate-limit.interceptor';
-import {
-  QuotaService,
-  SubscriptionTier,
-  TierLimits,
-} from '../quota/quota.service';
+import { QuotaService, SubscriptionTier } from '../quota/quota.service';
 import { RateLimiterService } from '../quota/rate-limiter.service';
 
 @Controller('ads')
@@ -100,7 +97,6 @@ export class AdsController {
   ): Promise<{
     businessId: string;
     tier: SubscriptionTier;
-    tierLimits: TierLimits;
   }> {
     // Use centralized businessId resolution to prevent IDOR
     const businessId = this.resolveAndValidateBusinessId(
@@ -112,7 +108,6 @@ export class AdsController {
     // Get subscription tier and limits
     const tier = await this.quotaService.getSubscriptionTier(businessId);
     const rateLimitConfig = this.rateLimiter.getRateLimitConfig(tier);
-    const tierLimits = this.quotaService.getTierLimits(tier);
 
     // Check concurrent jobs
     const canRunConcurrent = await this.rateLimiter.checkConcurrentJobs(
@@ -131,7 +126,7 @@ export class AdsController {
       );
     }
 
-    return { businessId, tier, tierLimits };
+    return { businessId, tier };
   }
 
   @Post()
@@ -220,7 +215,7 @@ export class AdsController {
   @Post(':id/select')
   async selectScenario(
     @Param('id') id: string,
-    @Body() body: { scenarioId: number; businessId?: string },
+    @Body() body: SelectScenarioDto,
     @Headers('x-business-id')
     authorizedBusinessId: string | string[] | undefined,
     @Query('businessId') queryBusinessId: string | string[] | undefined,
