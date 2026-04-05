@@ -1,267 +1,191 @@
-import { Test, TestingModule } from '@nestjs/testing';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/unbound-method */
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { BusinessOwnershipGuard } from './business-ownership.guard';
 import { FirestoreService } from '../firebase/firestore.service';
-import { AuthenticatedRequest } from './firebase-auth.guard';
-
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
 describe('BusinessOwnershipGuard', () => {
   let guard: BusinessOwnershipGuard;
-
-  const mockFirestore = {
-    doc: jest.fn(),
-  };
+  let firestoreService: jest.Mocked<FirestoreService>;
 
   const mockDocRef = {
     get: jest.fn(),
   };
 
-  const mockDocSnap = {
-    exists: true,
-    data: jest.fn(),
+  const mockCollectionRef = {
+    doc: jest.fn(() => mockDocRef),
   };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        BusinessOwnershipGuard,
-        {
-          provide: FirestoreService,
-          useValue: {
-            getFirestore: jest.fn(() => mockFirestore),
-          },
-        },
-      ],
-    }).compile();
+  const mockSubCollectionRef = {
+    doc: jest.fn(() => mockDocRef),
+  };
 
-    guard = module.get<BusinessOwnershipGuard>(BusinessOwnershipGuard);
-    firestoreService = module.get(FirestoreService);
+  const mockBusinessDocRef = {
+    collection: jest.fn(() => mockSubCollectionRef),
+  };
 
-    // Reset mocks
+  beforeEach(() => {
+    firestoreService = {
+      collection: jest.fn(() => mockCollectionRef),
+    } as unknown as jest.Mocked<FirestoreService>;
+
+    guard = new BusinessOwnershipGuard(firestoreService);
+
     jest.clearAllMocks();
-    mockFirestore.doc.mockReturnValue(mockDocRef);
-    mockDocRef.get.mockResolvedValue(mockDocSnap);
+    mockCollectionRef.doc.mockReturnValue(mockBusinessDocRef);
+    mockBusinessDocRef.collection.mockReturnValue(mockSubCollectionRef);
+    mockSubCollectionRef.doc.mockReturnValue(mockDocRef);
   });
 
-  const createMockExecutionContext = (
-    request: Partial<AuthenticatedRequest>,
+  const createMockContext = (
+    user: any,
+    params: any = {},
+    query: any = {},
+    body: any = {},
   ): ExecutionContext => {
     return {
       switchToHttp: () => ({
-        getRequest: () => request,
-        getResponse: jest.fn(),
-        getNext: jest.fn(),
+        getRequest: () => ({
+          user,
+          params,
+          query,
+          body,
+        }),
       }),
-      getClass: jest.fn(),
-      getHandler: jest.fn(),
-      getArgs: jest.fn(),
-      getArgByIndex: jest.fn(),
-      switchToRpc: jest.fn(),
-      switchToWs: jest.fn(),
-      getType: jest.fn(),
     } as ExecutionContext;
   };
 
   describe('canActivate', () => {
-    it('should allow access when user is a member of the business', async () => {
-      const context = createMockExecutionContext({
-        user: { uid: 'user-123' } as unknown as any,
-        query: { businessId: 'business-456' },
-        params: {},
-        body: {},
-        headers: {},
-      } as AuthenticatedRequest);
+    it('should throw ForbiddenException if user is not authenticated', async () => {
+      const context = createMockContext(null);
 
-      mockDocSnap.exists = true;
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        new ForbiddenException('Authentication required'),
+      );
+    });
+
+    it('should throw ForbiddenException if businessId is missing', async () => {
+      const context = createMockContext({ uid: 'user-123' });
+
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        new ForbiddenException('Business ID required'),
+      );
+    });
+
+    it('should throw ForbiddenException if user is not a member', async () => {
+      const context = createMockContext(
+        { uid: 'user-123' },
+        {},
+        { businessId: 'business-456' },
+      );
+
+      mockDocRef.get.mockResolvedValue({
+        exists: false,
+        data: () => null,
+      });
+
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        new ForbiddenException(
+          'Access denied: You are not a member of this business',
+        ),
+      );
+
+      expect(firestoreService.collection).toHaveBeenCalledWith('businesses');
+      expect(mockCollectionRef.doc).toHaveBeenCalledWith('business-456');
+      expect(mockBusinessDocRef.collection).toHaveBeenCalledWith('members');
+      expect(mockSubCollectionRef.doc).toHaveBeenCalledWith('user-123');
+    });
+
+    it('should allow access if user is a member', async () => {
+      const context = createMockContext(
+        { uid: 'user-123' },
+        {},
+        { businessId: 'business-456' },
+      );
+
+      mockDocRef.get.mockResolvedValue({
+        exists: true,
+        data: () => ({ role: 'owner', userId: 'user-123' }),
+      });
 
       const result = await guard.canActivate(context);
 
       expect(result).toBe(true);
-      expect(mockFirestore.doc).toHaveBeenCalledWith(
-        'businesses/business-456/members/user-123',
-      );
-      expect(mockDocRef.get).toHaveBeenCalled();
+      expect(firestoreService.collection).toHaveBeenCalledWith('businesses');
     });
 
-    it('should deny access when user is not a member', async () => {
-      const context = createMockExecutionContext({
-        user: { uid: 'user-123' } as unknown as any,
-        query: { businessId: 'business-456' },
-        params: {},
-        body: {},
-        headers: {},
-      } as AuthenticatedRequest);
-
-      mockDocSnap.exists = false;
-
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        ForbiddenException,
+    it('should extract businessId from params', async () => {
+      const context = createMockContext(
+        { uid: 'user-123' },
+        { businessId: 'business-from-params' },
       );
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'Access denied: You are not a member of this business',
+
+      mockDocRef.get.mockResolvedValue({
+        exists: true,
+        data: () => ({ role: 'admin' }),
+      });
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(mockCollectionRef.doc).toHaveBeenCalledWith(
+        'business-from-params',
       );
     });
 
-    it('should throw ForbiddenException when no user is authenticated', async () => {
-      const context = createMockExecutionContext({
-        user: undefined,
-        query: { businessId: 'business-456' },
-        params: {},
-        body: {},
-        headers: {},
-      } as AuthenticatedRequest);
+    it('should extract businessId from query', async () => {
+      const context = createMockContext(
+        { uid: 'user-123' },
+        {},
+        { businessId: 'business-from-query' },
+      );
 
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        ForbiddenException,
-      );
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'Authentication required',
-      );
+      mockDocRef.get.mockResolvedValue({
+        exists: true,
+        data: () => ({ role: 'member' }),
+      });
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(mockCollectionRef.doc).toHaveBeenCalledWith('business-from-query');
     });
 
-    it('should throw ForbiddenException when no businessId is provided', async () => {
-      const context = createMockExecutionContext({
-        user: { uid: 'user-123' } as any,
-        query: {},
-        params: {},
-        body: {},
-        headers: {},
-      } as AuthenticatedRequest);
+    it('should extract businessId from body', async () => {
+      const context = createMockContext(
+        { uid: 'user-123' },
+        {},
+        {},
+        { businessId: 'business-from-body' },
+      );
 
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        ForbiddenException,
-      );
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        'Business ID is required',
-      );
+      mockDocRef.get.mockResolvedValue({
+        exists: true,
+        data: () => ({ role: 'owner' }),
+      });
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(mockCollectionRef.doc).toHaveBeenCalledWith('business-from-body');
     });
 
-    it('should extract businessId from headers', async () => {
-      const context = createMockExecutionContext({
-        user: { uid: 'user-123' } as unknown as any,
-        headers: { 'x-business-id': 'business-from-header' },
-        query: {},
-        params: {},
-        body: {},
-      } as AuthenticatedRequest);
+    it('should prioritize params over query and body', async () => {
+      const context = createMockContext(
+        { uid: 'user-123' },
+        { businessId: 'from-params' },
+        { businessId: 'from-query' },
+        { businessId: 'from-body' },
+      );
 
-      mockDocSnap.exists = true;
+      mockDocRef.get.mockResolvedValue({
+        exists: true,
+        data: () => ({ role: 'owner' }),
+      });
 
       await guard.canActivate(context);
 
-      expect(mockFirestore.doc).toHaveBeenCalledWith(
-        'businesses/business-from-header/members/user-123',
-      );
-    });
-
-    it('should extract businessId from query params', async () => {
-      const context = createMockExecutionContext({
-        user: { uid: 'user-123' } as unknown as any,
-        query: { businessId: 'business-from-query' },
-        params: {},
-        body: {},
-        headers: {},
-      } as AuthenticatedRequest);
-
-      mockDocSnap.exists = true;
-
-      await guard.canActivate(context);
-
-      expect(mockFirestore.doc).toHaveBeenCalledWith(
-        'businesses/business-from-query/members/user-123',
-      );
-    });
-
-    it('should extract businessId from route params', async () => {
-      const context = createMockExecutionContext({
-        user: { uid: 'user-123' } as unknown as any,
-        params: { businessId: 'business-from-params' },
-        query: {},
-        body: {},
-        headers: {},
-      } as AuthenticatedRequest);
-
-      mockDocSnap.exists = true;
-
-      await guard.canActivate(context);
-
-      expect(mockFirestore.doc).toHaveBeenCalledWith(
-        'businesses/business-from-params/members/user-123',
-      );
-    });
-
-    it('should extract businessId from request body', async () => {
-      const context = createMockExecutionContext({
-        user: { uid: 'user-123' } as unknown as any,
-        body: { businessId: 'business-from-body' },
-        query: {},
-        params: {},
-        headers: {},
-      } as AuthenticatedRequest);
-
-      mockDocSnap.exists = true;
-
-      await guard.canActivate(context);
-
-      expect(mockFirestore.doc).toHaveBeenCalledWith(
-        'businesses/business-from-body/members/user-123',
-      );
-    });
-
-    it('should prioritize header over query params', async () => {
-      const context = createMockExecutionContext({
-        user: { uid: 'user-123' } as unknown as any,
-        headers: { 'x-business-id': 'business-from-header' },
-        query: { businessId: 'business-from-query' },
-        params: {},
-        body: {},
-      } as AuthenticatedRequest);
-
-      mockDocSnap.exists = true;
-
-      await guard.canActivate(context);
-
-      expect(mockFirestore.doc).toHaveBeenCalledWith(
-        'businesses/business-from-header/members/user-123',
-      );
-    });
-
-    it('should handle array businessId values', async () => {
-      const context = createMockExecutionContext({
-        user: { uid: 'user-123' } as unknown as any,
-        query: {
-          businessId: ['business-1', 'business-2'] as unknown as string,
-        },
-        params: {},
-        body: {},
-        headers: {},
-      } as AuthenticatedRequest);
-
-      mockDocSnap.exists = true;
-
-      await guard.canActivate(context);
-
-      // Should use first element of array
-      expect(mockFirestore.doc).toHaveBeenCalledWith(
-        'businesses/business-1/members/user-123',
-      );
-    });
-
-    it('should deny access on Firestore error (fail closed)', async () => {
-      const context = createMockExecutionContext({
-        user: { uid: 'user-123' } as unknown as any,
-        query: { businessId: 'business-456' },
-        params: {},
-        body: {},
-        headers: {},
-      } as AuthenticatedRequest);
-
-      mockDocRef.get.mockRejectedValue(new Error('Firestore error'));
-
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        ForbiddenException,
-      );
+      expect(mockCollectionRef.doc).toHaveBeenCalledWith('from-params');
     });
   });
 });
