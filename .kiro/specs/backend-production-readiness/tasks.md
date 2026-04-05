@@ -410,34 +410,34 @@
 - [x] 2.9.8 Add getFirestore() method to mockFirestore objects
 
 ### Remaining E2E Test Fixes
-- [ ] 2.9.9 Update e2e test payloads to current DTO format
-  - [ ] Update security.e2e-spec.ts to use CreateAdDto (productId, createdBy, prompt_inputs, veo_config)
-  - [ ] Update load.e2e-spec.ts to use CreateAdDto
-  - [ ] Update integration.e2e-spec.ts to use CreateAdDto
-  - [ ] Create helper function createValidAdPayload() in each test file
+- [x] 2.9.9 Update e2e test payloads to current DTO format
+  - [x] Update security.e2e-spec.ts to use CreateAdDto (productId, createdBy, prompt_inputs, veo_config)
+  - [x] Update load.e2e-spec.ts to use CreateAdDto
+  - [x] Update integration.e2e-spec.ts to use CreateAdDto
+  - [x] Create helper function createValidAdPayload() in each test file
 
-- [ ] 2.9.10 Fix rate limit mock schema mismatch
-  - [ ] Update mocks to use { requests: Array<{timestamp}>, updatedAt } format
-  - [ ] Add toDate() method to mock timestamps
-  - [ ] Apply to all 3 e2e test files
+- [x] 2.9.10 Fix rate limit mock schema mismatch
+  - [x] Update mocks to use { requests: Array<{timestamp}>, updatedAt } format
+  - [x] Add toDate() method to mock timestamps
+  - [x] Apply to all 3 e2e test files
 
 - [ ] 2.9.11 Fix missing /quota endpoint test
   - [ ] Remove or update integration test that calls GET /quota
   - [ ] Test quota via job creation flow instead
 
-- [ ] 2.9.12 Fix hard-coded test dates in integration.e2e-spec.ts
-  - [ ] Replace hard-coded '2026-03' with dynamic date calculation
-  - [ ] Use Date() to calculate lastMonth dynamically
+- [x] 2.9.12 Fix hard-coded test dates in integration.e2e-spec.ts
+  - [x] Replace hard-coded '2026-03' with dynamic date calculation
+  - [x] Use Date() to calculate lastMonth dynamically
 
-- [ ] 2.9.13 Fix time-based performance assertions in load.e2e-spec.ts
-  - [ ] Remove or relax duration < 10000ms assertion (flaky in CI)
-  - [ ] Remove or relax throughput > 10 req/s assertion
-  - [ ] Keep functional assertions only
+- [x] 2.9.13 Fix time-based performance assertions in load.e2e-spec.ts
+  - [x] Remove or relax duration < 10000ms assertion (flaky in CI)
+  - [x] Remove or relax throughput > 10 req/s assertion
+  - [x] Keep functional assertions only
 
-- [ ] 2.9.14 Fix ValidationPipe test expectation in security.e2e-spec.ts
-  - [ ] Change "should strip unknown properties" test to expect 400 (not 201)
-  - [ ] Update test name to "should reject unknown properties"
-  - [ ] Verify error message contains "should not exist"
+- [x] 2.9.14 Fix ValidationPipe test expectation in security.e2e-spec.ts
+  - [x] Change "should strip unknown properties" test to expect 400 (not 201)
+  - [x] Update test name to "should reject unknown properties"
+  - [x] Verify error message contains "should not exist"
 
 ### Documentation Fixes
 - [ ] 2.9.15 Fix deployment guide endpoints
@@ -446,7 +446,7 @@
   - [ ] Update curl examples to use actual API endpoints
   - [ ] Fix test commands to use npm run test:e2e with proper patterns
 
-- [ ] 2.9.16 Clean up temporary tracking documents
+- [x] 2.9.16 Clean up temporary tracking documents
   - [x] Move remaining tasks to .kiro/specs/backend-production-readiness/tasks.md
-  - [ ] Delete backend/CODE_REVIEW_FIXES_NEEDED.md
-  - [ ] Delete backend/IMPLEMENTATION_PLAN.md
+  - [x] Delete backend/CODE_REVIEW_FIXES_NEEDED.md
+  - [x] Delete backend/IMPLEMENTATION_PLAN.md
