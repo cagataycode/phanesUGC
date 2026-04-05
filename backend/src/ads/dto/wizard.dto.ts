@@ -7,7 +7,7 @@ export const ProductInfoSchema = z.object({
 });
 
 export const GenerateBriefSchema = z.object({
-  businessId: z.string().uuid('Business ID must be a valid UUID'),
+  businessId: z.string().min(1, 'Business ID is required'), // Firestore auto-generated ID
   productId: z.string().min(1, 'Product ID is required'), // Firestore auto-generated ID
   prompt: z.string().min(5).max(2000, 'Prompt must not exceed 2000 characters'),
   platform: z.enum(['tiktok', 'instagram', 'youtube']),
@@ -19,12 +19,12 @@ export const GenerateBriefSchema = z.object({
 });
 
 export const GenerateScriptSchema = z.object({
-  businessId: z.string().uuid('Business ID must be a valid UUID'),
+  businessId: z.string().min(1, 'Business ID is required'), // Firestore auto-generated ID
   brief: z.record(z.string(), z.unknown()),
 });
 
 export const GenerateSceneSchema = z.object({
-  businessId: z.string().uuid('Business ID must be a valid UUID'),
+  businessId: z.string().min(1, 'Business ID is required'), // Firestore auto-generated ID
   brief: z.record(z.string(), z.unknown()),
   script: z.record(z.string(), z.unknown()),
   aspectRatio: z.enum(['9:16', '1:1', '16:9']),
@@ -43,7 +43,7 @@ export type ProductInfoDto = z.infer<typeof ProductInfoSchema>;
 
 // Wizard submission DTO - for submitting pre-generated brief/script/scene
 export const WizardSubmitSchema = z.object({
-  businessId: z.string().uuid('Business ID must be a valid UUID'),
+  businessId: z.string().min(1, 'Business ID is required'), // Firestore auto-generated ID
   productId: z.string().min(1, 'Product ID is required'), // Firestore auto-generated ID
   createdBy: z.string().optional(),
   prompt: z.string().max(2000, 'Prompt must not exceed 2000 characters'),
