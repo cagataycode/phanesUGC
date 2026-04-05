@@ -28,7 +28,7 @@ export class RateLimitInterceptor implements NestInterceptor {
 
     // Extract businessId from params, query, or body
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const businessId: string | undefined =
+    let businessId: string | undefined =
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       request.params?.businessId ||
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -36,7 +36,13 @@ export class RateLimitInterceptor implements NestInterceptor {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       request.body?.businessId;
 
-    if (!businessId) {
+    // Normalize array values (query params can be arrays)
+    if (Array.isArray(businessId)) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      businessId = businessId[0];
+    }
+
+    if (!businessId || typeof businessId !== 'string') {
       // No businessId, skip rate limiting
       return next.handle();
     }

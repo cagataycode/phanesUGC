@@ -147,13 +147,14 @@ export class RateLimiterService {
     const config = this.rateLimitConfigs[tier];
 
     try {
-      // Query for active agent jobs in the correct collection
+      // Query for active agent jobs using the correct fields
+      // Agent jobs use 'stage' and 'videoGenerationStatus', not 'status'
       const activeJobsSnapshot = await this.firestore
         .getFirestore()
         .collection('businesses')
         .doc(businessId)
         .collection('agent_jobs')
-        .where('status', 'in', ['pending', 'processing', 'phase2_started'])
+        .where('videoGenerationStatus', '==', 'in_progress')
         .get();
 
       const activeJobCount = activeJobsSnapshot.size;
@@ -240,26 +241,31 @@ export class RateLimiterService {
       const cutoffTime = new Date(Date.now() - 3600000); // 1 hour ago
 
       // Query for stale rate limit documents
-
       const staleDocsSnapshot = await this.firestore
         .getFirestore()
         .collectionGroup('rate_limits')
-
         .where('updatedAt', '<', cutoffTime)
-
         .get();
 
-      const batch = this.firestore.getFirestore().batch();
+      // Firestore batches are limited to 500 operations
+      const maxBatchSize = 500;
+      const staleDocs = staleDocsSnapshot.docs;
       let deleteCount = 0;
 
-      staleDocsSnapshot.forEach((doc: any) => {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
-        batch.delete(doc.ref);
-        deleteCount++;
-      });
+      for (let i = 0; i < staleDocs.length; i += maxBatchSize) {
+        const batch = this.firestore.getFirestore().batch();
+        const batchDocs = staleDocs.slice(i, i + maxBatchSize);
+
+        batchDocs.forEach((doc: any) => {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
+          batch.delete(doc.ref);
+          deleteCount++;
+        });
+
+        await batch.commit();
+      }
 
       if (deleteCount > 0) {
-        await batch.commit();
         this.logger.log(`Cleaned up ${deleteCount} stale rate limit entries`);
       }
     } catch (error) {

@@ -37,16 +37,22 @@ export const cleanupRateLimits = functions.pubsub
         return null;
       }
       
-      // Delete stale documents in batches
-      const batch = firestore.batch();
+      // Delete stale documents in batches (Firestore limit: 500 ops per batch)
+      const maxBatchSize = 500;
+      const staleDocs = staleDocsSnapshot.docs;
       let deleteCount = 0;
       
-      staleDocsSnapshot.forEach((doc) => {
-        batch.delete(doc.ref);
-        deleteCount++;
-      });
-      
-      await batch.commit();
+      for (let i = 0; i < staleDocs.length; i += maxBatchSize) {
+        const batch = firestore.batch();
+        const batchDocs = staleDocs.slice(i, i + maxBatchSize);
+        
+        batchDocs.forEach((doc) => {
+          batch.delete(doc.ref);
+          deleteCount++;
+        });
+        
+        await batch.commit();
+      }
       
       console.log(`Cleaned up ${deleteCount} stale rate limit entries`);
       

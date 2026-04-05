@@ -30,12 +30,19 @@ export class BusinessOwnershipGuard implements CanActivate {
     }
 
     // Extract businessId from params, query, or body
-    const businessId =
+
+    let businessId =
       request.params?.businessId ||
       request.query?.businessId ||
       request.body?.businessId;
 
-    if (!businessId) {
+    // Normalize array values (query params can be arrays)
+    if (Array.isArray(businessId)) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      businessId = businessId[0];
+    }
+
+    if (!businessId || typeof businessId !== 'string') {
       throw new ForbiddenException('Business ID required');
     }
 
