@@ -93,10 +93,7 @@ export class AgentOrchestratorService {
     const normalizedRequest = {
       jobId,
       businessId,
-      prompt:
-        typeof promptInputs.prompt === 'string'
-          ? promptInputs.prompt
-          : JSON.stringify(promptInputs.prompt),
+      prompt: promptInputs.prompt,
       platform: this.mapPlatform(promptInputs.platform),
       aspectRatio: veoConfig.aspect_ratio,
       durationSec: veoConfig.duration_sec,

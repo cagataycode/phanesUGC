@@ -4,7 +4,7 @@ import { Type } from 'class-transformer';
 export class SelectScenarioDto {
   @Type(() => Number)
   @IsInt()
-  @Min(0)
+  @Min(1)
   scenarioId!: number;
 
   @IsString()

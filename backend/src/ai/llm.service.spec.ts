@@ -106,17 +106,53 @@ describe('LlmService', () => {
       });
     });
 
-    it('should initialize without explicit credentials (using default credential chain)', () => {
+    it('should initialize without explicit credentials (using default credential chain)', async () => {
       const configWithoutCreds: Record<string, string> = { ...mockConfig };
       delete configWithoutCreds.AWS_ACCESS_KEY_ID;
       delete configWithoutCreds.AWS_SECRET_ACCESS_KEY;
 
-      expect(() => {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        new LlmService({
-          get: jest.fn((key: string) => configWithoutCreds[key]),
-        } as ConfigService<any>);
-      }).not.toThrow();
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          LlmService,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string) => configWithoutCreds[key]),
+            },
+          },
+          {
+            provide: StructuredLoggerService,
+            useValue: {
+              log: jest.fn(),
+              error: jest.fn(),
+              warn: jest.fn(),
+              debug: jest.fn(),
+              logApiCall: jest.fn(),
+              logFallback: jest.fn(),
+              generateCorrelationId: jest.fn(() => 'test-correlation-id'),
+            },
+          },
+          {
+            provide: PerformanceMonitorService,
+            useValue: {
+              trackLatency: jest.fn(),
+              trackCount: jest.fn(),
+              startTimer: jest.fn(() => jest.fn()),
+            },
+          },
+          {
+            provide: CostTrackerService,
+            useValue: {
+              calculateClaudeCost: jest.fn().mockReturnValue(0.01),
+              calculateGeminiCost: jest.fn().mockReturnValue(0.005),
+              trackApiCall: jest.fn().mockResolvedValue(undefined),
+            },
+          },
+        ],
+      }).compile();
+
+      const serviceWithoutCreds = module.get<LlmService>(LlmService);
+      expect(serviceWithoutCreds).toBeDefined();
     });
   });
 

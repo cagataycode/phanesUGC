@@ -6,6 +6,7 @@ import {
   Headers,
   HttpException,
   HttpStatus,
+  Logger,
   Param,
   Post,
   Query,
@@ -28,6 +29,7 @@ import { RateLimiterService } from '../quota/rate-limiter.service';
 @UseGuards(FirebaseAuthGuard, RolesGuard)
 @UseInterceptors(PerformanceInterceptor, RateLimitInterceptor)
 export class AdsController {
+  private readonly logger = new Logger(AdsController.name);
   constructor(
     private readonly adsService: AdsService,
     private readonly quotaService: QuotaService,
@@ -165,8 +167,16 @@ export class AdsController {
       // Create the job (quota already reserved atomically)
       return await this.adsService.createJob(createAdDto);
     } catch (error) {
-      // Rollback quota if job creation fails
-      await this.quotaService.decrementQuota(businessId);
+      // Rollback quota if job creation fails, but do not let rollback
+      // failures mask the original createJob error.
+      try {
+        await this.quotaService.decrementQuota(businessId);
+      } catch (rollbackError) {
+        // Log rollback failure but don't throw - preserve original error
+        this.logger.error(
+          `Failed to rollback quota for businessId ${businessId} after createJob failure: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`,
+        );
+      }
       throw error;
     }
   }
@@ -284,8 +294,16 @@ export class AdsController {
       // Create the job (quota already reserved atomically)
       return await this.adsService.createWizardJob(parsed);
     } catch (error) {
-      // Rollback quota if job creation fails
-      await this.quotaService.decrementQuota(businessId);
+      // Rollback quota if job creation fails, but do not let rollback
+      // failures mask the original createWizardJob error.
+      try {
+        await this.quotaService.decrementQuota(businessId);
+      } catch (rollbackError) {
+        // Log rollback failure but don't throw - preserve original error
+        this.logger.error(
+          `Failed to rollback quota for businessId ${businessId} after createWizardJob failure: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`,
+        );
+      }
       throw error;
     }
   }
