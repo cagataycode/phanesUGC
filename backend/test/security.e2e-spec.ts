@@ -100,9 +100,6 @@ describe('Security Tests (e2e)', () => {
       // Note: This test requires proper Firebase Auth mock differentiation per token
       // Currently all tokens resolve to same uid, so IDOR testing is limited
       // TODO: Implement per-token uid resolution in firebase-admin mock
-      
-      const userAToken = 'mock-token-user-a';
-      const userBBusinessId = 'business-user-b';
 
       // This test is skipped until proper auth mocking is implemented
       expect(true).toBe(true);

@@ -340,7 +340,7 @@ describe('Load Tests (e2e)', () => {
         }),
       });
 
-      mockFirestore.runTransaction.mockImplementation(async (callback) => {
+      mockFirestore.runTransaction.mockImplementation((callback) => {
         const mockTransaction = {
           get: jest.fn().mockResolvedValue({
             exists: true,
