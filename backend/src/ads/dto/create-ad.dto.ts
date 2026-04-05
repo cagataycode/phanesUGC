@@ -30,7 +30,7 @@ class ProductInfoDto {
   @IsArray()
   @IsString({ each: true })
   @MaxLength(200, { each: true })
-  @ArrayMaxSize(10)
+  @ArrayMaxSize(30) // Aligned with wizard.dto.ts ProductInfoSchema
   @IsOptional()
   benefits?: string[];
 }

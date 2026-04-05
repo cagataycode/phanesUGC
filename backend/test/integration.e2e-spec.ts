@@ -77,6 +77,8 @@ describe('Integration Tests (e2e)', () => {
       return createMockCollection({});
     }),
     doc: jest.fn(() => createMockDoc({})),
+    set: jest.fn().mockResolvedValue(undefined),
+    update: jest.fn().mockResolvedValue(undefined),
     runTransaction: jest.fn(),
     getFirestore: jest.fn().mockReturnValue({
       collection: jest.fn(() => createMockCollection({})),

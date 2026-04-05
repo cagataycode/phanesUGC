@@ -209,7 +209,7 @@ export class AdsController {
   @Post(':id/select')
   async selectScenario(
     @Param('id') id: string,
-    @Body() body: { scenarioId: number; businessId: string },
+    @Body() body: { scenarioId: number; businessId?: string },
     @Headers('x-business-id')
     authorizedBusinessId: string | string[] | undefined,
     @Query('businessId') queryBusinessId: string | string[] | undefined,
