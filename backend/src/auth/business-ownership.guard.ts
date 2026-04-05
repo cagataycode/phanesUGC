@@ -47,11 +47,14 @@ export class BusinessOwnershipGuard implements CanActivate {
     }
 
     // Verify all provided businessId sources match (prevent IDOR via mismatched IDs)
+    // Normalize each source to string before comparing (headers/query can be arrays)
     const sources = [
       request.headers?.['x-business-id'],
       request.params?.businessId,
       request.query?.businessId,
-    ].filter((id) => id !== undefined);
+    ]
+      .filter((id) => id !== undefined)
+      .map((id) => (Array.isArray(id) ? id[0] : id));
 
     if (sources.length > 1 && !sources.every((id) => id === businessId)) {
       throw new ForbiddenException(

@@ -266,7 +266,8 @@ describe('Integration Tests (e2e)', () => {
         .send(createValidAdPayload({ businessId }));
 
       // Should not be rejected due to quota (new month = reset quota)
-      expect([201, 500]).toContain(quota.status); // 201 success or 500 for other reasons, but not 402 quota exceeded
+      // Accept 201 (success) or any non-402 status (quota not exceeded)
+      expect(quota.status).not.toBe(402);
     });
   });
 
@@ -383,8 +384,8 @@ describe('Integration Tests (e2e)', () => {
         .set('x-business-id', businessId)
         .send(createValidAdPayload({ businessId }));
 
-      // Should eventually succeed after retry
-      expect([201, 500]).toContain(response.status);
+      // Should eventually succeed after retry (or fail with specific error, not generic 500)
+      expect(response.status).toBe(201);
     });
   });
 

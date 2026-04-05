@@ -63,6 +63,17 @@ export class AdsController {
       ? queryBusinessId[0]
       : queryBusinessId;
 
+    // Reject if both header and query are present but disagree
+    if (
+      normalizedHeader &&
+      normalizedQuery &&
+      normalizedHeader !== normalizedQuery
+    ) {
+      throw new ForbiddenException(
+        'Business ID in x-business-id header must match businessId query parameter',
+      );
+    }
+
     const guardBusinessId = normalizedHeader || normalizedQuery;
     if (!guardBusinessId) {
       throw new ForbiddenException(

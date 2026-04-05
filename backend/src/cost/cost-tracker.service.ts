@@ -4,6 +4,7 @@ import { StructuredLoggerService } from '../monitoring/structured-logger.service
 import { PerformanceMonitorService } from '../monitoring/performance-monitor.service';
 import { PRICING_CONFIG } from './pricing-config';
 import { LogContext } from '../monitoring/types';
+import * as admin from 'firebase-admin';
 
 /**
  * API Call Cost Details
@@ -288,6 +289,7 @@ export class CostTrackerService {
 
   /**
    * Update monthly cost aggregate for a business
+   * Uses FieldValue.increment for atomic updates without read transaction
    * @param businessId Business identifier
    * @param cost Cost to add
    */
@@ -303,30 +305,10 @@ export class CostTrackerService {
       .doc(businessId);
 
     try {
-      // Use Firestore transaction to safely increment
-      await this.firestore
-        .getFirestore()
-        .runTransaction(async (transaction) => {
-          const businessDoc = await transaction.get(businessRef);
-
-          if (!businessDoc.exists) {
-            this.logger.warn(
-              `Business ${businessId} not found, skipping monthly cost update`,
-            );
-            return;
-          }
-
-          const businessData = businessDoc.data() as
-            | Record<string, any>
-            | undefined;
-          const monthlyCosts =
-            (businessData?.monthlyCosts as Record<string, number>) || {};
-          const currentMonthCost = monthlyCosts[month] || 0;
-
-          transaction.update(businessRef, {
-            [`monthlyCosts.${month}`]: currentMonthCost + cost,
-          });
-        });
+      // Use FieldValue.increment for atomic update without transaction read
+      await businessRef.update({
+        [`monthlyCosts.${month}`]: admin.firestore.FieldValue.increment(cost),
+      });
 
       this.logger.debug(
         `Updated monthly cost for ${businessId}: +${cost.toFixed(4)}`,
