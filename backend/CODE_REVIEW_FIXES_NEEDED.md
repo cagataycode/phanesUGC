@@ -2,17 +2,12 @@
 
 ## Critical (Production Impact)
 
-### 1. Rate Limiter Timestamp Type Mismatch
+### 1. ✅ FIXED - Rate Limiter Timestamp Type Mismatch
 **File**: `backend/src/quota/rate-limiter.service.ts`
 **Issue**: `recordRequest()` stores `Date` objects but `checkRateLimit()` expects `FirebaseFirestore.Timestamp`
 **Impact**: Rate limiter will fail at runtime after first request
-**Fix**: Store Firestore Timestamps consistently
-```typescript
-// In recordRequest(), change:
-recentRequests.push({ timestamp: now as any });
-// To:
-recentRequests.push({ timestamp: Timestamp.fromDate(now) });
-```
+**Fix**: Now using `Timestamp.fromDate()` consistently
+**Commit**: 1a5d232
 
 ### 2. Quota Increment Before Job Creation
 **File**: `backend/src/ads/ads.controller.ts`
