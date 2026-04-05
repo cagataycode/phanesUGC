@@ -158,7 +158,89 @@ export class QuotaService {
   }
 
   /**
+   * Atomically check and increment quota
+   * Returns true if job can be created, false if quota exceeded
+   */
+  async tryIncrementQuota(businessId: string): Promise<{
+    allowed: boolean;
+    quota?: QuotaUsage;
+  }> {
+    const tier = await this.getSubscriptionTier(businessId);
+    const limits = this.getTierLimits(tier);
+    const monthKey = this.getCurrentMonthKey();
+
+    const usageRef = this.firestore
+      .collection('businesses')
+      .doc(businessId)
+      .collection('usage')
+      .doc(monthKey);
+
+    try {
+      const result = await this.firestore.runTransaction(
+        async (transaction) => {
+          const usageDoc = await transaction.get(usageRef);
+          const currentCount = usageDoc.exists
+            ? (usageDoc.data()?.videosCreated as number) || 0
+            : 0;
+
+          // Check limit
+          if (
+            limits.monthlyVideos !== -1 &&
+            currentCount >= limits.monthlyVideos
+          ) {
+            return { allowed: false, currentCount };
+          }
+
+          // Atomically increment
+          if (!usageDoc.exists) {
+            transaction.set(usageRef, {
+              videosCreated: 1,
+              month: monthKey,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+          } else {
+            transaction.update(usageRef, {
+              videosCreated: currentCount + 1,
+              updatedAt: new Date(),
+            });
+          }
+
+          return { allowed: true, currentCount: currentCount + 1 };
+        },
+      );
+
+      if (!result.allowed) {
+        const quota: QuotaUsage = {
+          videosCreated: result.currentCount,
+          videosRemaining: Math.max(
+            0,
+            limits.monthlyVideos - result.currentCount,
+          ),
+          resetDate: this.getNextMonthResetDate(),
+          tier,
+        };
+        return { allowed: false, quota };
+      }
+
+      this.structuredLogger.log('Quota usage incremented', {
+        correlationId: 'quota-increment',
+        businessId,
+        month: monthKey,
+      });
+
+      return { allowed: true };
+    } catch (error) {
+      this.logger.error(
+        `Failed to increment quota: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Increment usage counter for a business
+   * @deprecated Use tryIncrementQuota() instead for atomic check-and-increment
    */
   async incrementUsage(businessId: string): Promise<void> {
     const monthKey = this.getCurrentMonthKey();
