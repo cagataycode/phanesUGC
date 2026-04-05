@@ -38,19 +38,47 @@ import { FirestoreService } from '../src/firebase/firestore.service';
 describe('Load Tests (e2e)', () => {
   let app: INestApplication;
 
+  // Create comprehensive Firestore mock that supports all call chains
+  const createMockDoc = (data: any) => ({
+    get: jest.fn().mockResolvedValue({
+      exists: true,
+      data: () => data,
+    }),
+    set: jest.fn().mockResolvedValue(undefined),
+    update: jest.fn().mockResolvedValue(undefined),
+    delete: jest.fn().mockResolvedValue(undefined),
+  });
+
+  const createMockCollection = (docData: any) => ({
+    doc: jest.fn((id?: string) => createMockDoc(docData)),
+    add: jest.fn().mockResolvedValue({ id: 'mock-id' }),
+    where: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    get: jest.fn().mockResolvedValue({
+      empty: true,
+      docs: [],
+    }),
+  });
+
   const mockFirestore = {
-    collection: jest.fn(),
-    doc: jest.fn(),
+    collection: jest.fn((name: string) => {
+      if (name === 'businesses') {
+        return createMockCollection({
+          ownerId: 'test-uid',
+          subscription: { tier: 'enterprise' },
+        });
+      }
+      if (name === 'api_calls') {
+        return createMockCollection({});
+      }
+      return createMockCollection({});
+    }),
+    doc: jest.fn((path: string) => createMockDoc({})),
     runTransaction: jest.fn(),
     getFirestore: jest.fn().mockReturnValue({
-      collection: jest.fn(),
-      doc: jest.fn().mockReturnValue({
-        get: jest.fn().mockResolvedValue({
-          exists: true,
-          data: () => ({ role: 'owner' }),
-        }),
-      }),
-      runTransaction: jest.fn(),
+      collection: jest.fn((name: string) => createMockCollection({})),
+      doc: jest.fn((path: string) => createMockDoc({ role: 'owner' })),
     }),
   };
 
@@ -229,7 +257,8 @@ describe('Load Tests (e2e)', () => {
         .map(() =>
           request(app.getHttpServer())
             .get(`/ads/${jobId}?businessId=${businessId}`)
-            .set('Authorization', 'Bearer mock-token'),
+            .set('Authorization', 'Bearer mock-token')
+            .set('x-business-id', businessId),
         );
 
       const responses = await Promise.all(requests);
@@ -330,7 +359,8 @@ describe('Load Tests (e2e)', () => {
         .map(() =>
           request(app.getHttpServer())
             .get(`/ads?businessId=${businessId}`)
-            .set('Authorization', 'Bearer mock-token'),
+            .set('Authorization', 'Bearer mock-token')
+            .set('x-business-id', businessId),
         );
 
       const responses = await Promise.all(requests);

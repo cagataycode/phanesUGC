@@ -81,6 +81,9 @@ cd ../..
 ### Option A: Google App Engine
 
 ```bash
+# Navigate to backend directory
+cd backend
+
 # Build the application
 npm run build
 

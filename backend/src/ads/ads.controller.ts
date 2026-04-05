@@ -38,23 +38,14 @@ export class AdsController {
   ) {}
 
   /**
-   * Validate businessId and perform quota/rate limit checks
-   * Shared logic for createJob and createWizardJob
-   *
-   * Note: RateLimitInterceptor already calls getSubscriptionTier() for this request.
-   * This creates a redundant Firestore read. Future optimization: Pass tier through
-   * request context (e.g., attach to request in interceptor) to avoid double-read.
+   * Resolve and validate businessId from multiple sources (header, query, body)
+   * Ensures single source of truth and prevents IDOR attacks
    */
-  private async validateAndCheckLimits(
+  private resolveAndValidateBusinessId(
     authorizedBusinessId: string | string[] | undefined,
     queryBusinessId: string | string[] | undefined,
-    bodyBusinessId: string,
-  ): Promise<{
-    businessId: string;
-    tier: SubscriptionTier;
-    tierLimits: TierLimits;
-  }> {
-    // IDOR Protection: Validate body businessId matches the authorized businessId from guard
+    bodyBusinessId?: string,
+  ): string {
     // Normalize arrays (repeated headers/query params) to single string
     const normalizedHeader = Array.isArray(authorizedBusinessId)
       ? authorizedBusinessId[0]
@@ -81,13 +72,39 @@ export class AdsController {
       );
     }
 
-    if (bodyBusinessId !== guardBusinessId) {
+    // If body businessId is provided, validate it matches
+    if (bodyBusinessId && bodyBusinessId !== guardBusinessId) {
       throw new ForbiddenException(
         'Business ID in request body must match authorized business',
       );
     }
 
-    const businessId = guardBusinessId;
+    return guardBusinessId;
+  }
+
+  /**
+   * Validate businessId and perform quota/rate limit checks
+   * Shared logic for createJob and createWizardJob
+   *
+   * Note: RateLimitInterceptor already calls getSubscriptionTier() for this request.
+   * This creates a redundant Firestore read. Future optimization: Pass tier through
+   * request context (e.g., attach to request in interceptor) to avoid double-read.
+   */
+  private async validateAndCheckLimits(
+    authorizedBusinessId: string | string[] | undefined,
+    queryBusinessId: string | string[] | undefined,
+    bodyBusinessId: string,
+  ): Promise<{
+    businessId: string;
+    tier: SubscriptionTier;
+    tierLimits: TierLimits;
+  }> {
+    // Use centralized businessId resolution to prevent IDOR
+    const businessId = this.resolveAndValidateBusinessId(
+      authorizedBusinessId,
+      queryBusinessId,
+      bodyBusinessId,
+    );
 
     // Get subscription tier and limits
     const tier = await this.quotaService.getSubscriptionTier(businessId);
@@ -149,32 +166,59 @@ export class AdsController {
   }
 
   @Get()
-  async listJobs(@Query('businessId') businessId: string) {
+  async listJobs(
+    @Headers('x-business-id')
+    authorizedBusinessId: string | string[] | undefined,
+    @Query('businessId') queryBusinessId: string | string[] | undefined,
+  ) {
+    const businessId = this.resolveAndValidateBusinessId(
+      authorizedBusinessId,
+      queryBusinessId,
+    );
     return this.adsService.listJobs(businessId);
   }
 
   @Get(':id')
   async getJob(
     @Param('id') id: string,
-    @Query('businessId') businessId: string,
+    @Headers('x-business-id')
+    authorizedBusinessId: string | string[] | undefined,
+    @Query('businessId') queryBusinessId: string | string[] | undefined,
   ) {
+    const businessId = this.resolveAndValidateBusinessId(
+      authorizedBusinessId,
+      queryBusinessId,
+    );
     return this.adsService.getJob(businessId, id);
   }
 
   @Get(':id/result')
   async getJobResult(
     @Param('id') id: string,
-    @Query('businessId') businessId: string,
+    @Headers('x-business-id')
+    authorizedBusinessId: string | string[] | undefined,
+    @Query('businessId') queryBusinessId: string | string[] | undefined,
   ) {
+    const businessId = this.resolveAndValidateBusinessId(
+      authorizedBusinessId,
+      queryBusinessId,
+    );
     return this.adsService.getJobResult(businessId, id);
   }
 
   @Post(':id/select')
   async selectScenario(
     @Param('id') id: string,
-    @Body() body: { scenarioId: number },
-    @Query('businessId') businessId: string,
+    @Body() body: { scenarioId: number; businessId: string },
+    @Headers('x-business-id')
+    authorizedBusinessId: string | string[] | undefined,
+    @Query('businessId') queryBusinessId: string | string[] | undefined,
   ) {
+    const businessId = this.resolveAndValidateBusinessId(
+      authorizedBusinessId,
+      queryBusinessId,
+      body.businessId,
+    );
     await this.adsService.selectScenario(businessId, id, body.scenarioId);
     return { id, status: 'phase2_started' };
   }
@@ -197,7 +241,7 @@ export class AdsController {
           : 'Invalid request';
       throw new HttpException(
         {
-          status: HttpStatus.BAD_REQUEST,
+          statusCode: HttpStatus.BAD_REQUEST,
           error: 'Validation failed',
           details,
         },
