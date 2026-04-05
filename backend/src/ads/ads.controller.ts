@@ -7,11 +7,9 @@ import {
   Param,
   Post,
   Query,
-  Res,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import type { Response } from 'express';
 import { AdsService } from './ads.service';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { WizardSubmitSchema } from './dto/wizard.dto';
@@ -19,12 +17,13 @@ import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
 import { BusinessOwnershipGuard } from '../auth/business-ownership.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { PerformanceInterceptor } from '../monitoring/interceptors/performance.interceptor';
+import { RateLimitInterceptor } from '../quota/interceptors/rate-limit.interceptor';
 import { QuotaService } from '../quota/quota.service';
 import { RateLimiterService } from '../quota/rate-limiter.service';
 
 @Controller('ads')
 @UseGuards(FirebaseAuthGuard, BusinessOwnershipGuard, RolesGuard)
-@UseInterceptors(PerformanceInterceptor)
+@UseInterceptors(PerformanceInterceptor, RateLimitInterceptor)
 export class AdsController {
   constructor(
     private readonly adsService: AdsService,
@@ -33,59 +32,12 @@ export class AdsController {
   ) {}
 
   @Post()
-  async createJob(
-    @Body() createAdDto: CreateAdDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async createJob(@Body() createAdDto: CreateAdDto) {
     const businessId = createAdDto.businessId;
 
-    // Get subscription tier for rate limit config
+    // Get subscription tier
     const tier = await this.quotaService.getSubscriptionTier(businessId);
     const rateLimitConfig = this.rateLimiter.getRateLimitConfig(tier);
-
-    // Check rate limit
-    const rateLimitStatus = await this.rateLimiter.checkRateLimit(
-      businessId,
-      tier,
-    );
-
-    // Add rate limit headers
-    res.setHeader('X-RateLimit-Limit', rateLimitConfig.requestsPerMinute);
-    res.setHeader('X-RateLimit-Remaining', rateLimitStatus.requestsRemaining);
-    res.setHeader('X-RateLimit-Reset', rateLimitStatus.resetTime.toISOString());
-
-    if (!rateLimitStatus.allowed) {
-      res.setHeader('Retry-After', rateLimitStatus.retryAfter || 60);
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          message: 'Rate limit exceeded. Please try again later.',
-          retryAfter: rateLimitStatus.retryAfter,
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
-    // Check quota
-    const canCreate = await this.quotaService.canCreateJob(businessId);
-    if (!canCreate) {
-      const quota = await this.quotaService.checkQuota(businessId);
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          message: 'Monthly video quota exceeded. Please upgrade your plan.',
-          quota: {
-            used: quota.videosCreated,
-            limit:
-              quota.videosRemaining === -1
-                ? 'unlimited'
-                : quota.videosRemaining + quota.videosCreated,
-            resetDate: quota.resetDate.toISOString().split('T')[0], // Date only
-          },
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
 
     // Check concurrent jobs
     const canRunConcurrent = await this.rateLimiter.checkConcurrentJobs(
@@ -104,14 +56,30 @@ export class AdsController {
       );
     }
 
-    // Record the request for rate limiting
-    await this.rateLimiter.recordRequest(businessId);
+    // Atomically check and increment quota
+    const quotaResult = await this.quotaService.tryIncrementQuota(businessId);
+
+    if (!quotaResult.allowed && quotaResult.quota) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.PAYMENT_REQUIRED,
+          message: 'Monthly video quota exceeded. Please upgrade your plan.',
+          quota: {
+            used: quotaResult.quota.videosCreated,
+            limit:
+              quotaResult.quota.videosRemaining === -1
+                ? 'unlimited'
+                : quotaResult.quota.videosRemaining +
+                  quotaResult.quota.videosCreated,
+            resetDate: quotaResult.quota.resetDate.toISOString().split('T')[0],
+          },
+        },
+        HttpStatus.PAYMENT_REQUIRED,
+      );
+    }
 
     // Create the job
     const result = await this.adsService.createJob(createAdDto);
-
-    // Note: Quota usage will be incremented when the job completes successfully
-    // See AgentOrchestratorService for the actual increment call
 
     return result;
   }
@@ -148,60 +116,13 @@ export class AdsController {
   }
 
   @Post('wizard')
-  async createWizardJob(
-    @Body() wizardDto: Record<string, unknown>,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async createWizardJob(@Body() wizardDto: Record<string, unknown>) {
     const parsed = WizardSubmitSchema.parse(wizardDto);
     const businessId = parsed.businessId;
 
-    // Get subscription tier for rate limit config
+    // Get subscription tier
     const tier = await this.quotaService.getSubscriptionTier(businessId);
     const rateLimitConfig = this.rateLimiter.getRateLimitConfig(tier);
-
-    // Check rate limit
-    const rateLimitStatus = await this.rateLimiter.checkRateLimit(
-      businessId,
-      tier,
-    );
-
-    // Add rate limit headers
-    res.setHeader('X-RateLimit-Limit', rateLimitConfig.requestsPerMinute);
-    res.setHeader('X-RateLimit-Remaining', rateLimitStatus.requestsRemaining);
-    res.setHeader('X-RateLimit-Reset', rateLimitStatus.resetTime.toISOString());
-
-    if (!rateLimitStatus.allowed) {
-      res.setHeader('Retry-After', rateLimitStatus.retryAfter || 60);
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          message: 'Rate limit exceeded. Please try again later.',
-          retryAfter: rateLimitStatus.retryAfter,
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
-    // Check quota
-    const canCreate = await this.quotaService.canCreateJob(businessId);
-    if (!canCreate) {
-      const quota = await this.quotaService.checkQuota(businessId);
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          message: 'Monthly video quota exceeded. Please upgrade your plan.',
-          quota: {
-            used: quota.videosCreated,
-            limit:
-              quota.videosRemaining === -1
-                ? 'unlimited'
-                : quota.videosRemaining + quota.videosCreated,
-            resetDate: quota.resetDate.toISOString().split('T')[0], // Date only
-          },
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
 
     // Check concurrent jobs
     const canRunConcurrent = await this.rateLimiter.checkConcurrentJobs(
@@ -220,14 +141,30 @@ export class AdsController {
       );
     }
 
-    // Record the request for rate limiting
-    await this.rateLimiter.recordRequest(businessId);
+    // Atomically check and increment quota
+    const quotaResult = await this.quotaService.tryIncrementQuota(businessId);
+
+    if (!quotaResult.allowed && quotaResult.quota) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.PAYMENT_REQUIRED,
+          message: 'Monthly video quota exceeded. Please upgrade your plan.',
+          quota: {
+            used: quotaResult.quota.videosCreated,
+            limit:
+              quotaResult.quota.videosRemaining === -1
+                ? 'unlimited'
+                : quotaResult.quota.videosRemaining +
+                  quotaResult.quota.videosCreated,
+            resetDate: quotaResult.quota.resetDate.toISOString().split('T')[0],
+          },
+        },
+        HttpStatus.PAYMENT_REQUIRED,
+      );
+    }
 
     // Create the job
     const result = await this.adsService.createWizardJob(parsed);
-
-    // Note: Quota usage will be incremented when the job completes successfully
-    // See AgentOrchestratorService for the actual increment call
 
     return result;
   }
