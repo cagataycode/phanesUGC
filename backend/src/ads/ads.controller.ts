@@ -34,9 +34,10 @@ export class AdsController {
   async createJob(@Body() createAdDto: CreateAdDto) {
     const businessId = createAdDto.businessId;
 
-    // Get subscription tier
+    // Get subscription tier and limits
     const tier = await this.quotaService.getSubscriptionTier(businessId);
     const rateLimitConfig = this.rateLimiter.getRateLimitConfig(tier);
+    const tierLimits = this.quotaService.getTierLimits(tier);
 
     // Check concurrent jobs
     const canRunConcurrent = await this.rateLimiter.checkConcurrentJobs(
@@ -64,7 +65,7 @@ export class AdsController {
           message: 'Monthly video quota exceeded. Please upgrade your plan.',
           quota: {
             used: quota.videosCreated,
-            limit: quota.videosCreated, // videosRemaining is 0, so limit = used
+            limit: tierLimits.monthlyVideos,
             resetDate: quota.resetDate.toISOString().split('T')[0],
           },
         },
@@ -112,9 +113,10 @@ export class AdsController {
     const parsed = WizardSubmitSchema.parse(wizardDto);
     const businessId = parsed.businessId;
 
-    // Get subscription tier
+    // Get subscription tier and limits
     const tier = await this.quotaService.getSubscriptionTier(businessId);
     const rateLimitConfig = this.rateLimiter.getRateLimitConfig(tier);
+    const tierLimits = this.quotaService.getTierLimits(tier);
 
     // Check concurrent jobs
     const canRunConcurrent = await this.rateLimiter.checkConcurrentJobs(
@@ -142,7 +144,7 @@ export class AdsController {
           message: 'Monthly video quota exceeded. Please upgrade your plan.',
           quota: {
             used: quota.videosCreated,
-            limit: quota.videosCreated, // videosRemaining is 0, so limit = used
+            limit: tierLimits.monthlyVideos,
             resetDate: quota.resetDate.toISOString().split('T')[0],
           },
         },
