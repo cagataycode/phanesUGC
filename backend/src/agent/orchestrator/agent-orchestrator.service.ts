@@ -879,19 +879,9 @@ export class AgentOrchestratorService {
       state.videoGenerationCompletedAt = new Date();
       await this.saveState(state);
 
-      // Increment quota usage on successful completion
-      try {
-        await this.quotaService.incrementUsage(state.businessId);
-        this.structuredLogger.log('Quota usage incremented', {
-          ...context,
-          businessId: state.businessId,
-        });
-      } catch (error) {
-        // Log but don't fail the job if quota increment fails
-        this.logger.error(
-          `Failed to increment quota usage: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
+      // Note: Quota is already incremented atomically at job creation time
+      // by AdsController.createJob() using tryIncrementQuota().
+      // No need to increment again here to avoid double-charging.
 
       timer();
       this.structuredLogger.log('Video generation completed', {

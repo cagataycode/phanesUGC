@@ -83,12 +83,15 @@ export class AdsController {
   }
 
   /**
-   * Validate businessId and perform quota/rate limit checks
+   * Validate businessId and perform rate limit checks
    * Shared logic for createJob and createWizardJob
    *
    * Note: RateLimitInterceptor already calls getSubscriptionTier() for this request.
    * This creates a redundant Firestore read. Future optimization: Pass tier through
    * request context (e.g., attach to request in interceptor) to avoid double-read.
+   *
+   * Note: Quota is now checked and reserved atomically in the controller using
+   * tryIncrementQuota() to prevent race conditions under concurrent job creation.
    */
   private async validateAndCheckLimits(
     authorizedBusinessId: string | string[] | undefined,
@@ -128,23 +131,6 @@ export class AdsController {
       );
     }
 
-    // Check quota availability (without incrementing - quota is charged on completion)
-    const quota = await this.quotaService.checkQuota(businessId, tier);
-    if (quota.videosRemaining !== -1 && quota.videosRemaining === 0) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.PAYMENT_REQUIRED,
-          message: 'Monthly video quota exceeded. Please upgrade your plan.',
-          quota: {
-            used: quota.videosCreated,
-            limit: tierLimits.monthlyVideos,
-            resetDate: quota.resetDate.toISOString().split('T')[0],
-          },
-        },
-        HttpStatus.PAYMENT_REQUIRED,
-      );
-    }
-
     return { businessId, tier, tierLimits };
   }
 
@@ -155,14 +141,39 @@ export class AdsController {
     @Query('businessId') queryBusinessId: string | string[] | undefined,
     @Body() createAdDto: CreateAdDto,
   ) {
-    await this.validateAndCheckLimits(
+    const { businessId } = await this.validateAndCheckLimits(
       authorizedBusinessId,
       queryBusinessId,
       createAdDto.businessId,
     );
 
-    // Create the job (quota will be charged by orchestrator on successful completion)
-    return this.adsService.createJob(createAdDto);
+    // Atomically reserve quota (check and increment in single transaction)
+    const quotaResult = await this.quotaService.tryIncrementQuota(businessId);
+
+    if (!quotaResult.allowed && quotaResult.quota) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.PAYMENT_REQUIRED,
+          message: 'Monthly video quota exceeded. Please upgrade your plan.',
+          quota: {
+            used: quotaResult.quota.videosCreated,
+            limit: this.quotaService.getTierLimits(quotaResult.quota.tier)
+              .monthlyVideos,
+            resetDate: quotaResult.quota.resetDate.toISOString().split('T')[0],
+          },
+        },
+        HttpStatus.PAYMENT_REQUIRED,
+      );
+    }
+
+    try {
+      // Create the job (quota already reserved atomically)
+      return await this.adsService.createJob(createAdDto);
+    } catch (error) {
+      // Rollback quota if job creation fails
+      await this.quotaService.decrementQuota(businessId);
+      throw error;
+    }
   }
 
   @Get()
@@ -249,13 +260,38 @@ export class AdsController {
       );
     }
 
-    await this.validateAndCheckLimits(
+    const { businessId } = await this.validateAndCheckLimits(
       authorizedBusinessId,
       queryBusinessId,
       parsed.businessId,
     );
 
-    // Create the job (quota will be charged by orchestrator on successful completion)
-    return this.adsService.createWizardJob(parsed);
+    // Atomically reserve quota (check and increment in single transaction)
+    const quotaResult = await this.quotaService.tryIncrementQuota(businessId);
+
+    if (!quotaResult.allowed && quotaResult.quota) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.PAYMENT_REQUIRED,
+          message: 'Monthly video quota exceeded. Please upgrade your plan.',
+          quota: {
+            used: quotaResult.quota.videosCreated,
+            limit: this.quotaService.getTierLimits(quotaResult.quota.tier)
+              .monthlyVideos,
+            resetDate: quotaResult.quota.resetDate.toISOString().split('T')[0],
+          },
+        },
+        HttpStatus.PAYMENT_REQUIRED,
+      );
+    }
+
+    try {
+      // Create the job (quota already reserved atomically)
+      return await this.adsService.createWizardJob(parsed);
+    } catch (error) {
+      // Rollback quota if job creation fails
+      await this.quotaService.decrementQuota(businessId);
+      throw error;
+    }
   }
 }
