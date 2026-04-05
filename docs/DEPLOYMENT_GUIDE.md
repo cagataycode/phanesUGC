@@ -155,10 +155,11 @@ done
 # Test input validation (invalid UUID)
 curl -X POST "https://YOUR_DOMAIN/ads" \
   -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "x-business-id: YOUR_BUSINESS_ID" \
   -H "Content-Type: application/json" \
-  -d '{"businessId":"not-a-uuid","prompt":"test"}'
+  -d '{"businessId":"not-a-uuid","productId":"prod-123","createdBy":"user-123","prompt_inputs":{"prompt":"test","platform":"tiktok","language":"en"},"veo_config":{"aspect_ratio":"9:16","duration_sec":8}}'
 
-# Expected: 400 Bad Request
+# Expected: 400 Bad Request (invalid businessId UUID)
 ```
 
 ### Functional Tests

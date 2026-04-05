@@ -19,7 +19,11 @@ import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { PerformanceInterceptor } from '../monitoring/interceptors/performance.interceptor';
 import { RateLimitInterceptor } from '../quota/interceptors/rate-limit.interceptor';
-import { QuotaService } from '../quota/quota.service';
+import {
+  QuotaService,
+  SubscriptionTier,
+  TierLimits,
+} from '../quota/quota.service';
 import { RateLimiterService } from '../quota/rate-limiter.service';
 
 @Controller('ads')
@@ -40,7 +44,11 @@ export class AdsController {
     authorizedBusinessId: string | string[] | undefined,
     queryBusinessId: string | string[] | undefined,
     bodyBusinessId: string,
-  ): Promise<{ businessId: string; tier: any; tierLimits: any }> {
+  ): Promise<{
+    businessId: string;
+    tier: SubscriptionTier;
+    tierLimits: TierLimits;
+  }> {
     // IDOR Protection: Validate body businessId matches the authorized businessId from guard
     // Normalize arrays (repeated headers/query params) to single string
     const normalizedHeader = Array.isArray(authorizedBusinessId)

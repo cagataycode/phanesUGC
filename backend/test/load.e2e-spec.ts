@@ -44,7 +44,12 @@ describe('Load Tests (e2e)', () => {
     runTransaction: jest.fn(),
     getFirestore: jest.fn().mockReturnValue({
       collection: jest.fn(),
-      doc: jest.fn(),
+      doc: jest.fn().mockReturnValue({
+        get: jest.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ role: 'owner' }),
+        }),
+      }),
       runTransaction: jest.fn(),
     }),
   };

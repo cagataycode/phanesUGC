@@ -20,7 +20,6 @@ import { ScriptGeneratorService } from '../agent/stages/script-generator.service
 import { VeoPromptBuilderService } from '../agent/stages/veo-prompt-builder.service';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
 import { BusinessOwnershipGuard } from '../auth/business-ownership.guard';
-import { RolesGuard } from '../auth/roles.guard';
 import { NormalizedRequest } from '../agent/contracts/normalized-request';
 import { ProductContext } from '../agent/contracts/product-context';
 import { CreativeBrief } from '../agent/contracts/creative-brief';
@@ -28,7 +27,7 @@ import { AdScript } from '../agent/contracts/ad-script';
 import { v4 as uuidv4 } from 'uuid';
 
 @Controller('wizard')
-@UseGuards(FirebaseAuthGuard, BusinessOwnershipGuard, RolesGuard)
+@UseGuards(FirebaseAuthGuard, BusinessOwnershipGuard)
 export class WizardController {
   constructor(
     private readonly briefBuilder: BriefBuilderService,
