@@ -395,3 +395,58 @@
   - [ ] 8.5.3 Verify all dashboards are accessible
   - [ ] 8.5.4 Conduct incident simulation
   - [ ] 8.5.5 Update runbooks based on findings
+
+
+## Phase 2.9: Code Review Fixes (Security & Test Quality)
+
+### Completed ✅
+- [x] 2.9.1 Fix rate limiter timestamp type mismatch (use Timestamp.fromDate() consistently)
+- [x] 2.9.2 Add quota rollback on job creation failure (decrementQuota() method)
+- [x] 2.9.3 Fix Firestore rules membership check (use exists() on subcollection)
+- [x] 2.9.4 Fix concurrent jobs query (use videoGenerationStatus field)
+- [x] 2.9.5 Add batch delete chunking (500-op limit in service and Firebase function)
+- [x] 2.9.6 Remove duplicate BusinessOwnershipGuard from controllers (RolesGuard already checks)
+- [x] 2.9.7 Add Firebase auth mocking to e2e tests (all 3 files)
+- [x] 2.9.8 Add getFirestore() method to mockFirestore objects
+
+### Remaining E2E Test Fixes
+- [ ] 2.9.9 Update e2e test payloads to current DTO format
+  - [ ] Update security.e2e-spec.ts to use CreateAdDto (productId, createdBy, prompt_inputs, veo_config)
+  - [ ] Update load.e2e-spec.ts to use CreateAdDto
+  - [ ] Update integration.e2e-spec.ts to use CreateAdDto
+  - [ ] Create helper function createValidAdPayload() in each test file
+
+- [ ] 2.9.10 Fix rate limit mock schema mismatch
+  - [ ] Update mocks to use { requests: Array<{timestamp}>, updatedAt } format
+  - [ ] Add toDate() method to mock timestamps
+  - [ ] Apply to all 3 e2e test files
+
+- [ ] 2.9.11 Fix missing /quota endpoint test
+  - [ ] Remove or update integration test that calls GET /quota
+  - [ ] Test quota via job creation flow instead
+
+- [ ] 2.9.12 Fix hard-coded test dates in integration.e2e-spec.ts
+  - [ ] Replace hard-coded '2026-03' with dynamic date calculation
+  - [ ] Use Date() to calculate lastMonth dynamically
+
+- [ ] 2.9.13 Fix time-based performance assertions in load.e2e-spec.ts
+  - [ ] Remove or relax duration < 10000ms assertion (flaky in CI)
+  - [ ] Remove or relax throughput > 10 req/s assertion
+  - [ ] Keep functional assertions only
+
+- [ ] 2.9.14 Fix ValidationPipe test expectation in security.e2e-spec.ts
+  - [ ] Change "should strip unknown properties" test to expect 400 (not 201)
+  - [ ] Update test name to "should reject unknown properties"
+  - [ ] Verify error message contains "should not exist"
+
+### Documentation Fixes
+- [ ] 2.9.15 Fix deployment guide endpoints
+  - [ ] Remove references to /health, /ready, /api/v1/health (don't exist yet)
+  - [ ] Remove reference to GET /quota (doesn't exist)
+  - [ ] Update curl examples to use actual API endpoints
+  - [ ] Fix test commands to use npm run test:e2e with proper patterns
+
+- [ ] 2.9.16 Clean up temporary tracking documents
+  - [x] Move remaining tasks to .kiro/specs/backend-production-readiness/tasks.md
+  - [ ] Delete backend/CODE_REVIEW_FIXES_NEEDED.md
+  - [ ] Delete backend/IMPLEMENTATION_PLAN.md
