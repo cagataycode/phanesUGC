@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { FirestoreService } from '../firebase/firestore.service';
 import { StructuredLoggerService } from '../monitoring/structured-logger.service';
+import { CostTrackerService } from '../cost/cost-tracker.service';
 
 export enum SubscriptionTier {
   FREE = 'free',
@@ -11,6 +12,7 @@ export enum SubscriptionTier {
 
 export interface TierLimits {
   monthlyVideos: number;
+  monthlyCostLimit: number; // USD
   concurrentJobs: number;
   maxVideoDuration: number; // seconds
   prioritySupport: boolean;
@@ -31,24 +33,28 @@ export class QuotaService {
   private readonly tierLimits: Record<SubscriptionTier, TierLimits> = {
     [SubscriptionTier.FREE]: {
       monthlyVideos: 2,
+      monthlyCostLimit: 5.0, // $5 max
       concurrentJobs: 1,
       maxVideoDuration: 5,
       prioritySupport: false,
     },
     [SubscriptionTier.STARTER]: {
       monthlyVideos: 20,
+      monthlyCostLimit: 50.0, // $50 max
       concurrentJobs: 2,
       maxVideoDuration: 10,
       prioritySupport: false,
     },
     [SubscriptionTier.PRO]: {
       monthlyVideos: 40,
+      monthlyCostLimit: 200.0, // $200 max
       concurrentJobs: 5,
       maxVideoDuration: 10,
       prioritySupport: true,
     },
     [SubscriptionTier.ENTERPRISE]: {
       monthlyVideos: -1, // unlimited
+      monthlyCostLimit: -1, // unlimited
       concurrentJobs: 10,
       maxVideoDuration: 10,
       prioritySupport: true,
@@ -58,6 +64,8 @@ export class QuotaService {
   constructor(
     private readonly firestore: FirestoreService,
     private readonly structuredLogger: StructuredLoggerService,
+    @Inject(forwardRef(() => CostTrackerService))
+    private readonly costTracker: CostTrackerService,
   ) {}
 
   /**
@@ -304,6 +312,31 @@ export class QuotaService {
         `Failed to reset monthly quotas: ${error instanceof Error ? error.message : String(error)}`,
       );
       throw error;
+    }
+  }
+
+  /**
+   * Check if business is within monthly cost limit
+   */
+  async checkCostLimit(businessId: string): Promise<boolean> {
+    const tier = await this.getSubscriptionTier(businessId);
+    const limits = this.getTierLimits(tier);
+
+    // Unlimited cost
+    if (limits.monthlyCostLimit === -1) {
+      return true;
+    }
+
+    try {
+      const currentCost =
+        await this.costTracker.getBusinessMonthlyCost(businessId);
+      return currentCost < limits.monthlyCostLimit;
+    } catch (error) {
+      this.logger.error(
+        `Failed to check cost limit: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      // Default to allowing on error to avoid blocking users
+      return true;
     }
   }
 

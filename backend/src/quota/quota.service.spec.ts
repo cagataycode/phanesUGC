@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { QuotaService, SubscriptionTier } from './quota.service';
 import { FirestoreService } from '../firebase/firestore.service';
 import { StructuredLoggerService } from '../monitoring/structured-logger.service';
+import { CostTrackerService } from '../cost/cost-tracker.service';
 
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -31,6 +32,10 @@ describe('QuotaService', () => {
       debug: jest.fn(),
     };
 
+    const mockCostTracker = {
+      getBusinessMonthlyCost: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         QuotaService,
@@ -41,6 +46,10 @@ describe('QuotaService', () => {
         {
           provide: StructuredLoggerService,
           useValue: mockLogger,
+        },
+        {
+          provide: CostTrackerService,
+          useValue: mockCostTracker,
         },
       ],
     }).compile();
