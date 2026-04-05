@@ -1,6 +1,5 @@
 import {
   IsString,
-  IsUUID,
   IsNotEmpty,
   IsOptional,
   IsBoolean,
@@ -119,9 +118,9 @@ class VeoConfigDto {
 }
 
 export class CreateAdDto {
-  @IsUUID('4', { message: 'Business ID must be a valid UUID' })
+  @IsString()
   @IsNotEmpty()
-  businessId!: string;
+  businessId!: string; // Firestore auto-generated ID
 
   @IsString()
   @IsNotEmpty()

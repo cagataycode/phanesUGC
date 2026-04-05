@@ -212,13 +212,14 @@ describe('Security Tests (e2e)', () => {
   });
 
   describe('Input Validation', () => {
-    it('should reject invalid UUID for businessId', async () => {
+    it('should reject empty businessId', async () => {
       const response = await request(app.getHttpServer())
         .post('/ads')
         .set('Authorization', 'Bearer mock-token')
+        .set('x-business-id', '123e4567-e89b-12d3-a456-426614174000')
         .send(
           createValidAdPayload({
-            businessId: 'not-a-uuid',
+            businessId: '',
           }),
         )
         .expect(400);

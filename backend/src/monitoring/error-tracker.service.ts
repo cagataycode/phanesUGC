@@ -198,7 +198,7 @@ export class ErrorTrackerService {
 
     // Log alert (in production, this would send an email via SendGrid or Cloud Functions)
     this.logger.error(
-      `🚨 ALERT: ${appError.severity} error - ${appError.message}`,
+      `ALERT: ${appError.severity} error - ${appError.message}`,
       JSON.stringify({
         code: appError.code,
         correlationId: appError.correlationId,

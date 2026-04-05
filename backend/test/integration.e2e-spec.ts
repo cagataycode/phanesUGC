@@ -240,42 +240,66 @@ describe('Integration Tests (e2e)', () => {
         .toISOString()
         .substring(0, 7); // Format: YYYY-MM
 
-      // Mock last month's usage
-      mockFirestore.collection.mockReturnValue({
-        doc: jest.fn().mockReturnValue({
-          get: jest.fn().mockResolvedValue({
-            exists: true,
-            data: () => ({
-              ownerId: 'owner-uid',
-              subscription: { tier: 'free' }, // 2 videos
-            }),
-          }),
-          collection: jest.fn().mockReturnValue({
-            doc: jest.fn((month: string) => ({
+      // Mock last month's usage (quota was exhausted)
+      mockFirestore.collection.mockImplementation((name: string) => {
+        if (name === 'businesses') {
+          return {
+            doc: jest.fn().mockReturnValue({
               get: jest.fn().mockResolvedValue({
-                exists: month === lastMonth,
-                data: () =>
-                  month === lastMonth
-                    ? {
-                        videosCreated: 2, // Used all quota last month
-                        month: lastMonth,
-                      }
-                    : null,
+                exists: true,
+                data: () => ({
+                  ownerId: 'test-uid',
+                  subscription: { tier: 'free' }, // 2 videos per month
+                }),
               }),
-              set: jest.fn(),
-            })),
-          }),
-        }),
+              collection: jest.fn((collectionName: string) => {
+                if (collectionName === 'usage') {
+                  return {
+                    doc: jest.fn((month: string) => ({
+                      get: jest.fn().mockResolvedValue({
+                        exists: month === lastMonth, // Last month exists, current month doesn't
+                        data: () =>
+                          month === lastMonth
+                            ? {
+                                videosCreated: 2, // Used all quota last month
+                                month: lastMonth,
+                              }
+                            : null,
+                      }),
+                      set: jest.fn(),
+                    })),
+                  };
+                }
+                if (collectionName === 'rate_limits') {
+                  return {
+                    doc: jest.fn().mockReturnValue({
+                      get: jest.fn().mockResolvedValue({
+                        exists: true,
+                        data: () => ({
+                          requests: [],
+                          updatedAt: { toDate: () => new Date() },
+                        }),
+                      }),
+                      update: jest.fn(),
+                    }),
+                  };
+                }
+                return createMockCollection({});
+              }),
+            }),
+          };
+        }
+        return createMockCollection({});
       });
 
-      // Verify quota check shows reset quota for current month
+      // Verify quota check shows reset quota for current month (no usage doc = 0 used)
       const quota = await request(app.getHttpServer())
         .post('/ads')
         .set('Authorization', 'Bearer mock-token')
         .set('x-business-id', businessId)
         .send(createValidAdPayload({ businessId }));
 
-      // Should not be rejected due to quota (new month = reset quota)
+      // Should not be rejected due to quota (new month = reset quota, 0/2 used)
       // Accept 201 (success) or any non-402 status (quota not exceeded)
       expect(quota.status).not.toBe(402);
     });

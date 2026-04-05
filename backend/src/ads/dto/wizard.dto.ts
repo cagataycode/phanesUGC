@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const ProductInfoSchema = z.object({
   name: z.string().max(200).optional(),
   description: z.string().max(1000).optional(),
-  benefits: z.array(z.string().max(200)).max(30).optional(), // Increased from 10 to 20
+  benefits: z.array(z.string().max(200)).max(30).optional(), // Increased from 10 to 30
 });
 
 export const GenerateBriefSchema = z.object({
