@@ -101,8 +101,10 @@ describe('Load Tests (e2e)', () => {
               get: jest.fn().mockResolvedValue({
                 exists: true,
                 data: () => ({
-                  requests: 0,
-                  windowStart: new Date(),
+                  requests: [], // Empty array - no rate limit
+                  updatedAt: {
+                    toDate: () => new Date(),
+                  },
                 }),
               }),
               update: jest.fn(),
@@ -315,8 +317,10 @@ describe('Load Tests (e2e)', () => {
               get: jest.fn().mockResolvedValue({
                 exists: true,
                 data: () => ({
-                  requests: 0,
-                  windowStart: new Date(),
+                  requests: [], // Empty array - no rate limit
+                  updatedAt: {
+                    toDate: () => new Date(),
+                  },
                 }),
               }),
               update: jest.fn(),

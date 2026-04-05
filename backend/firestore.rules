@@ -36,11 +36,10 @@ service cloud.firestore {
         allow read, write: if false;
       }
       
-      // Agent jobs
+      // Agent jobs - backend pipeline state (backend only)
       match /agent_jobs/{jobId} {
         allow read: if isBusinessMember(businessId);
-        allow create: if isBusinessMember(businessId) && 
-          request.resource.data.businessId == businessId;
+        allow create: if false; // Backend only - prevents client manipulation
         allow update, delete: if false; // Backend only
       }
     }

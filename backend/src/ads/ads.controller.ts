@@ -55,37 +55,25 @@ export class AdsController {
       );
     }
 
-    // Atomically check and increment quota
-    const quotaResult = await this.quotaService.tryIncrementQuota(businessId);
-
-    if (!quotaResult.allowed && quotaResult.quota) {
+    // Check quota availability (without incrementing - quota is charged on completion)
+    const quota = await this.quotaService.checkQuota(businessId);
+    if (quota.videosRemaining !== -1 && quota.videosRemaining === 0) {
       throw new HttpException(
         {
           statusCode: HttpStatus.PAYMENT_REQUIRED,
           message: 'Monthly video quota exceeded. Please upgrade your plan.',
           quota: {
-            used: quotaResult.quota.videosCreated,
-            limit:
-              quotaResult.quota.videosRemaining === -1
-                ? 'unlimited'
-                : quotaResult.quota.videosRemaining +
-                  quotaResult.quota.videosCreated,
-            resetDate: quotaResult.quota.resetDate.toISOString().split('T')[0],
+            used: quota.videosCreated,
+            limit: quota.videosCreated, // videosRemaining is 0, so limit = used
+            resetDate: quota.resetDate.toISOString().split('T')[0],
           },
         },
         HttpStatus.PAYMENT_REQUIRED,
       );
     }
 
-    // Create the job (with rollback on failure)
-    try {
-      const result = await this.adsService.createJob(createAdDto);
-      return result;
-    } catch (error) {
-      // Rollback quota increment if job creation fails
-      await this.quotaService.decrementQuota(businessId);
-      throw error;
-    }
+    // Create the job (quota will be charged by orchestrator on successful completion)
+    return this.adsService.createJob(createAdDto);
   }
 
   @Get()
@@ -145,36 +133,24 @@ export class AdsController {
       );
     }
 
-    // Atomically check and increment quota
-    const quotaResult = await this.quotaService.tryIncrementQuota(businessId);
-
-    if (!quotaResult.allowed && quotaResult.quota) {
+    // Check quota availability (without incrementing - quota is charged on completion)
+    const quota = await this.quotaService.checkQuota(businessId);
+    if (quota.videosRemaining !== -1 && quota.videosRemaining === 0) {
       throw new HttpException(
         {
           statusCode: HttpStatus.PAYMENT_REQUIRED,
           message: 'Monthly video quota exceeded. Please upgrade your plan.',
           quota: {
-            used: quotaResult.quota.videosCreated,
-            limit:
-              quotaResult.quota.videosRemaining === -1
-                ? 'unlimited'
-                : quotaResult.quota.videosRemaining +
-                  quotaResult.quota.videosCreated,
-            resetDate: quotaResult.quota.resetDate.toISOString().split('T')[0],
+            used: quota.videosCreated,
+            limit: quota.videosCreated, // videosRemaining is 0, so limit = used
+            resetDate: quota.resetDate.toISOString().split('T')[0],
           },
         },
         HttpStatus.PAYMENT_REQUIRED,
       );
     }
 
-    // Create the job (with rollback on failure)
-    try {
-      const result = await this.adsService.createWizardJob(parsed);
-      return result;
-    } catch (error) {
-      // Rollback quota increment if job creation fails
-      await this.quotaService.decrementQuota(businessId);
-      throw error;
-    }
+    // Create the job (quota will be charged by orchestrator on successful completion)
+    return this.adsService.createWizardJob(parsed);
   }
 }

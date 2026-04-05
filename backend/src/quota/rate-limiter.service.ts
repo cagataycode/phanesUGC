@@ -87,6 +87,11 @@ export class RateLimiterService {
         return reqTime > windowStart;
       });
 
+      // Sort by timestamp ascending to ensure oldest request is at index 0
+      recentRequests.sort((a, b) => {
+        return a.timestamp.toDate().getTime() - b.timestamp.toDate().getTime();
+      });
+
       const requestCount = recentRequests.length;
 
       if (requestCount >= config.requestsPerMinute) {
