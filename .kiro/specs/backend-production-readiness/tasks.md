@@ -450,3 +450,47 @@
   - [x] Move remaining tasks to .kiro/specs/backend-production-readiness/tasks.md
   - [x] Delete backend/CODE_REVIEW_FIXES_NEEDED.md
   - [x] Delete backend/IMPLEMENTATION_PLAN.md
+
+
+## Phase 2.10: Critical Code Review Fixes (Pre-Merge)
+
+### Completed ✅
+- [x] 2.10.1 Fix double quota charging (CRITICAL)
+  - [x] Remove tryIncrementQuota() from controller
+  - [x] Change to checkQuota() for availability check only
+  - [x] Quota now charged only on completion by orchestrator
+  
+- [x] 2.10.2 Fix rate limiter mock schema mismatch (HIGH)
+  - [x] Update load.e2e-spec.ts mocks to use array format
+  - [x] Update integration.e2e-spec.ts mocks to use array format
+  - [x] Match actual RateLimiterService schema
+  
+- [x] 2.10.3 Remove non-existent /quota endpoint test (HIGH)
+  - [x] Remove GET /quota test from integration.e2e-spec.ts
+  - [x] Test quota via job creation flow instead
+  
+- [x] 2.10.4 Sort rate limiter array before accessing (HIGH)
+  - [x] Add sort by timestamp ascending in checkRateLimit()
+  - [x] Ensures correct resetTime/retryAfter calculations
+  
+- [x] 2.10.5 Prevent client job creation in Firestore rules (HIGH)
+  - [x] Change agent_jobs allow create to false
+  - [x] Backend-only access for pipeline state
+  
+- [x] 2.10.6 Add x-business-id header to integration tests (HIGH)
+  - [x] Fix all integration test requests to include header
+  - [x] Satisfy RolesGuard requirements
+
+### Remaining Medium Priority Issues (Can be addressed in follow-up PR)
+- [ ] 2.10.7 Align DTO and service prompt handling (MEDIUM)
+  - [ ] DTO only accepts string prompts
+  - [ ] Services still handle object prompts
+  - [ ] Either allow structured prompts in DTO or simplify services
+  
+- [ ] 2.10.8 Conditional Error Reporting initialization (MEDIUM)
+  - [ ] Gate GCP Error Reporting behind env flag
+  - [ ] Gracefully degrade when credentials unavailable
+  
+- [ ] 2.10.9 Fix deployment guide Firestore rules path (LOW)
+  - [ ] Update commands to reference backend/firestore.rules
+  - [ ] Make path explicit in documentation
