@@ -55,9 +55,10 @@ npm run build
 
 ```bash
 # Review the rules
-cat backend/firestore.rules
+cat backend/firebase/firestore.rules
 
-# Deploy to staging first
+# Deploy to staging first (run from backend/firebase/ directory)
+cd backend/firebase
 firebase use staging
 firebase deploy --only firestore:rules
 
@@ -67,6 +68,7 @@ firebase deploy --only firestore:rules
 # Deploy to production
 firebase use production
 firebase deploy --only firestore:rules
+cd ../..
 ```
 
 **Verify rules are active**:
