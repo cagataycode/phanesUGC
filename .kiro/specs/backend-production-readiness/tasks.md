@@ -421,9 +421,9 @@
   - [x] Add toDate() method to mock timestamps
   - [x] Apply to all 3 e2e test files
 
-- [ ] 2.9.11 Fix missing /quota endpoint test
-  - [ ] Remove or update integration test that calls GET /quota
-  - [ ] Test quota via job creation flow instead
+- [x] 2.9.11 Fix missing /quota endpoint test
+  - [x] Remove or update integration test that calls GET /quota
+  - [x] Test quota via job creation flow instead
 
 - [x] 2.9.12 Fix hard-coded test dates in integration.e2e-spec.ts
   - [x] Replace hard-coded '2026-03' with dynamic date calculation
@@ -440,11 +440,11 @@
   - [x] Verify error message contains "should not exist"
 
 ### Documentation Fixes
-- [ ] 2.9.15 Fix deployment guide endpoints
-  - [ ] Remove references to /health, /ready, /api/v1/health (don't exist yet)
-  - [ ] Remove reference to GET /quota (doesn't exist)
-  - [ ] Update curl examples to use actual API endpoints
-  - [ ] Fix test commands to use npm run test:e2e with proper patterns
+- [x] 2.9.15 Fix deployment guide endpoints
+  - [x] Remove references to /health, /ready, /api/v1/health (don't exist yet)
+  - [x] Remove reference to GET /quota (doesn't exist)
+  - [x] Update curl examples to use actual API endpoints
+  - [x] Fix test commands to use npm run test:e2e with proper patterns
 
 - [x] 2.9.16 Clean up temporary tracking documents
   - [x] Move remaining tasks to .kiro/specs/backend-production-readiness/tasks.md
