@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
+  Headers,
   HttpException,
   HttpStatus,
   Param,
@@ -31,8 +33,26 @@ export class AdsController {
   ) {}
 
   @Post()
-  async createJob(@Body() createAdDto: CreateAdDto) {
-    const businessId = createAdDto.businessId;
+  async createJob(
+    @Headers('x-business-id') authorizedBusinessId: string | undefined,
+    @Query('businessId') queryBusinessId: string | undefined,
+    @Body() createAdDto: CreateAdDto,
+  ) {
+    // IDOR Protection: Validate body businessId matches the authorized businessId from guard
+    const guardBusinessId = authorizedBusinessId || queryBusinessId;
+    if (!guardBusinessId) {
+      throw new ForbiddenException(
+        'Business ID must be provided via x-business-id header or query parameter',
+      );
+    }
+
+    if (createAdDto.businessId !== guardBusinessId) {
+      throw new ForbiddenException(
+        'Business ID in request body must match authorized business',
+      );
+    }
+
+    const businessId = guardBusinessId;
 
     // Get subscription tier and limits
     const tier = await this.quotaService.getSubscriptionTier(businessId);
@@ -109,9 +129,28 @@ export class AdsController {
   }
 
   @Post('wizard')
-  async createWizardJob(@Body() wizardDto: Record<string, unknown>) {
+  async createWizardJob(
+    @Headers('x-business-id') authorizedBusinessId: string | undefined,
+    @Query('businessId') queryBusinessId: string | undefined,
+    @Body() wizardDto: Record<string, unknown>,
+  ) {
     const parsed = WizardSubmitSchema.parse(wizardDto);
-    const businessId = parsed.businessId;
+
+    // IDOR Protection: Validate body businessId matches the authorized businessId from guard
+    const guardBusinessId = authorizedBusinessId || queryBusinessId;
+    if (!guardBusinessId) {
+      throw new ForbiddenException(
+        'Business ID must be provided via x-business-id header or query parameter',
+      );
+    }
+
+    if (parsed.businessId !== guardBusinessId) {
+      throw new ForbiddenException(
+        'Business ID in request body must match authorized business',
+      );
+    }
+
+    const businessId = guardBusinessId;
 
     // Get subscription tier and limits
     const tier = await this.quotaService.getSubscriptionTier(businessId);

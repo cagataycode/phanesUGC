@@ -62,7 +62,7 @@ describe('Integration Tests (e2e)', () => {
     },
     veo_config: {
       aspect_ratio: '9:16' as const,
-      duration_sec: 5,
+      duration_sec: 8, // MVP: 8 seconds only
     },
     ...overrides,
   });

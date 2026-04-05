@@ -30,16 +30,18 @@ export class ErrorTrackerService {
       this.configService.get('ENABLE_ERROR_REPORTING', { infer: true }) !==
       'false';
 
-    this.errorReportingEnabled = enableErrorReporting && !!projectId;
+    // Use local variables to determine initialization
+    let isEnabled = enableErrorReporting && !!projectId;
+    let errorReportingInstance: ErrorReporting | null = null;
 
-    if (this.errorReportingEnabled) {
+    if (isEnabled) {
       try {
         const serviceContext = {
           service: 'phanes-backend',
           version: process.env.npm_package_version || '1.0.0',
         };
 
-        this.errorReporting = new ErrorReporting({
+        errorReportingInstance = new ErrorReporting({
           projectId,
           serviceContext,
           reportMode: 'production',
@@ -52,15 +54,18 @@ export class ErrorTrackerService {
         this.logger.warn(
           `Failed to initialize Cloud Error Reporting: ${error instanceof Error ? error.message : String(error)}. Continuing with local logging only.`,
         );
-        this.errorReporting = null;
-        this.errorReportingEnabled = false;
+        errorReportingInstance = null;
+        isEnabled = false;
       }
     } else {
-      this.errorReporting = null;
       this.logger.log(
         'ErrorTracker initialized without Cloud Error Reporting (local logging only)',
       );
     }
+
+    // Assign to readonly fields once
+    this.errorReporting = errorReportingInstance;
+    this.errorReportingEnabled = isEnabled;
 
     this.alertEmail =
       this.configService.get('ALERT_EMAIL', { infer: true }) || '';
