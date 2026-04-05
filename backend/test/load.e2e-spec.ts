@@ -146,6 +146,7 @@ describe('Load Tests (e2e)', () => {
           request(app.getHttpServer())
             .post('/ads')
             .set('Authorization', 'Bearer mock-token')
+            .set('x-business-id', businessId)
             .send(createValidAdPayload({ businessId })),
         );
 

@@ -193,8 +193,9 @@ describe('Integration Tests (e2e)', () => {
 
       expect(statusResponse.body.status).toBe('processing');
 
-      // Step 4: Verify quota was consumed (by orchestrator on completion)
-      expect(quotaCount).toBe(1);
+      // Step 4: Quota is NOT incremented at job creation - only charged by orchestrator on completion
+      // Since this test doesn't simulate job completion, quotaCount remains 0
+      expect(quotaCount).toBe(0);
     });
   });
 

@@ -39,6 +39,10 @@ export class AdsController {
   /**
    * Validate businessId and perform quota/rate limit checks
    * Shared logic for createJob and createWizardJob
+   *
+   * Note: RateLimitInterceptor already calls getSubscriptionTier() for this request.
+   * This creates a redundant Firestore read. Future optimization: Pass tier through
+   * request context (e.g., attach to request in interceptor) to avoid double-read.
    */
   private async validateAndCheckLimits(
     authorizedBusinessId: string | string[] | undefined,

@@ -2,7 +2,6 @@ import {
   IsString,
   IsUUID,
   IsNotEmpty,
-  IsEnum,
   IsOptional,
   IsBoolean,
   IsInt,
@@ -82,13 +81,13 @@ class PromptInputsDto {
   @IsOptional()
   urls?: string[];
 
-  @IsEnum(['standard', 'kinetic'])
+  @IsIn(['standard', 'kinetic'])
   @IsOptional()
   subtitle_style?: 'standard' | 'kinetic';
 }
 
 class VeoConfigDto {
-  @IsEnum(['16:9', '9:16', '1:1'], {
+  @IsIn(['16:9', '9:16', '1:1'], {
     message: 'Aspect ratio must be one of: 16:9, 9:16, 1:1',
   })
   @IsNotEmpty()
@@ -107,7 +106,7 @@ class VeoConfigDto {
   @IsOptional()
   negative_prompt?: string;
 
-  @IsEnum(['allow_all', 'allow_adult'])
+  @IsIn(['allow_all', 'allow_adult'])
   @IsOptional()
   person_generation?: 'allow_all' | 'allow_adult';
 

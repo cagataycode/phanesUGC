@@ -494,3 +494,52 @@
 - [x] 2.10.9 Fix deployment guide Firestore rules path (LOW)
   - [x] Update commands to reference backend/firestore.rules
   - [x] Make path explicit in documentation
+
+## Phase 2.11: Final GitHub PR Code Review Fixes
+
+### Completed ✅
+- [x] 2.11.1 Fix @IsEnum to @IsIn for array literals (HIGH)
+  - [x] Change subtitle_style validation to @IsIn(['standard', 'kinetic'])
+  - [x] Change aspect_ratio validation to @IsIn(['16:9', '9:16', '1:1'])
+  - [x] Change person_generation validation to @IsIn(['allow_all', 'allow_adult'])
+  - [x] Remove unused IsEnum import from create-ad.dto.ts
+  
+- [x] 2.11.2 Add x-business-id header to load test POST /ads (HIGH)
+  - [x] Update all POST /ads requests in load.e2e-spec.ts
+  - [x] Add .set('x-business-id', businessId) to concurrent job creation test
+  
+- [x] 2.11.3 Fix quotaCount assertion in integration test (HIGH)
+  - [x] Change expect(quotaCount).toBe(1) to expect(quotaCount).toBe(0)
+  - [x] Add comment explaining quota charged on completion, not creation
+  
+- [x] 2.11.4 Remove jest.fn() from production mock (CRITICAL)
+  - [x] Replace jest.fn() with plain functions in @google-cloud/logging.ts
+  - [x] Change write: jest.fn().mockResolvedValue(undefined) to write: () => Promise.resolve(undefined)
+  - [x] Change entry: jest.fn(...) to entry: (...) => ({ metadata, data })
+  
+- [x] 2.11.5 Add RolesGuard back to WizardController (HIGH)
+  - [x] Restore @UseGuards(FirebaseAuthGuard, BusinessOwnershipGuard, RolesGuard)
+  - [x] RolesGuard requires x-business-id header for membership validation
+  
+- [x] 2.11.6 Fix deployment guide validation example (MEDIUM)
+  - [x] Update curl example to include x-business-id header
+  - [x] Ensure 400 validation error is reachable (not blocked by 403)
+  
+- [x] 2.11.7 Add comment about redundant Firestore read (LOW)
+  - [x] Document that RateLimitInterceptor and validateAndCheckLimits both call getSubscriptionTier()
+  - [x] Note future optimization: pass tier through request context
+  
+- [x] 2.11.8 Add comment about rate limiter race condition (LOW)
+  - [x] Document race condition between checkRateLimit() and recordRequest()
+  - [x] Note acceptable for MVP, future improvement: atomic checkAndRecordRequest()
+
+### Known Issues (Deferred to Future PRs)
+- [ ] 2.11.9 Rate limiter race condition under high concurrency (MEDIUM)
+  - Separate check and record operations allow concurrent requests to bypass limit
+  - Future: Combine into single Firestore transaction (checkAndRecordRequest)
+  - Impact: Only affects accuracy under extreme load, acceptable for MVP
+  
+- [ ] 2.11.10 Redundant getSubscriptionTier() calls (LOW)
+  - RateLimitInterceptor and controller both fetch tier separately
+  - Future: Attach tier to request context in interceptor
+  - Impact: Extra Firestore read per request, minimal cost impact

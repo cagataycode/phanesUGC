@@ -48,6 +48,10 @@ export class RateLimitInterceptor implements NestInterceptor {
     }
 
     const tier = await this.quotaService.getSubscriptionTier(businessId);
+    // Note: Race condition exists between checkRateLimit() and recordRequest() under high concurrency.
+    // Multiple concurrent requests can pass the check against the same snapshot before any updates.
+    // For MVP, this is acceptable as it only affects rate limiting accuracy under extreme load.
+    // Future improvement: Combine check+record into single Firestore transaction (checkAndRecordRequest).
     const rateLimitStatus = await this.rateLimiter.checkRateLimit(
       businessId,
       tier,
