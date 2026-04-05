@@ -543,3 +543,31 @@
   - RateLimitInterceptor and controller both fetch tier separately
   - Future: Attach tier to request context in interceptor
   - Impact: Extra Firestore read per request, minimal cost impact
+
+
+## Phase 2.12: Second Round Copilot PR Review Fixes
+
+### Completed ✅
+- [x] 2.12.1 Centralize businessId resolution to prevent IDOR (CRITICAL)
+  - [x] Create resolveAndValidateBusinessId() method for single source of truth
+  - [x] Apply to all GET endpoints (listJobs, getJob, getJobResult, selectScenario)
+  - [x] Prevent IDOR where client supplies authorized header + different query param
+  
+- [x] 2.12.2 Fix validation error response consistency (MEDIUM)
+  - [x] Change status to statusCode in wizard validation error response
+  - [x] Match Nest's default exception format and other controller errors
+  
+- [x] 2.12.3 Fix deployment guide working directory (MEDIUM)
+  - [x] Add explicit "cd backend" before Step 3 npm commands
+  - [x] Clarify expected working directory for deployment steps
+  
+- [x] 2.12.4 Improve e2e test Firestore mocks (HIGH)
+  - [x] Create comprehensive mock factories (createMockDoc, createMockCollection)
+  - [x] Support full Firestore call chains (collection().doc().get(), where().get())
+  - [x] Apply to both load.e2e-spec.ts and integration.e2e-spec.ts
+  
+- [x] 2.12.5 Add x-business-id header to all GET endpoint tests (HIGH)
+  - [x] Update load test status polling requests
+  - [x] Update load test rate limiter requests
+  - [x] Update integration test status check requests
+  - [x] Update integration test rate limit cleanup requests
