@@ -51,8 +51,11 @@ class PromptInputsDto {
   platform!: 'tiktok' | 'instagram' | 'youtube';
 
   @IsString()
-  @MaxLength(10)
   @IsNotEmpty()
+  @IsIn(['en', 'de', 'es', 'fr', 'it', 'pt', 'ja', 'ko', 'zh'], {
+    message:
+      'Language must be a valid 2-letter ISO code: en, de, es, fr, it, pt, ja, ko, zh',
+  })
   language!: string;
 
   @IsString()

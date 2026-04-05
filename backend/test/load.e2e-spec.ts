@@ -102,19 +102,38 @@ describe('Load Tests (e2e)', () => {
               subscription: { tier: 'enterprise' }, // Unlimited
             }),
           }),
-          collection: jest.fn().mockReturnValue({
-            doc: jest.fn().mockReturnValue({
-              get: jest.fn().mockResolvedValue({
-                exists: true,
-                data: () => ({
-                  requests: [], // Empty array - no rate limit
-                  updatedAt: {
-                    toDate: () => new Date(),
-                  },
+          collection: jest.fn((collectionName: string) => {
+            if (collectionName === 'projects') {
+              // Mock projects collection for JobStoreService.create()
+              return {
+                add: jest.fn().mockResolvedValue({
+                  id: `job-${Date.now()}`,
                 }),
+                doc: jest.fn().mockReturnValue({
+                  get: jest.fn().mockResolvedValue({
+                    exists: true,
+                    data: () => ({
+                      requests: [],
+                      updatedAt: { toDate: () => new Date() },
+                    }),
+                  }),
+                  update: jest.fn(),
+                }),
+              };
+            }
+            // Default collection mock
+            return {
+              doc: jest.fn().mockReturnValue({
+                get: jest.fn().mockResolvedValue({
+                  exists: true,
+                  data: () => ({
+                    requests: [],
+                    updatedAt: { toDate: () => new Date() },
+                  }),
+                }),
+                update: jest.fn(),
               }),
-              update: jest.fn(),
-            }),
+            };
           }),
         }),
       });
@@ -279,6 +298,30 @@ describe('Load Tests (e2e)', () => {
             }),
           }),
         }),
+      });
+
+      // Mock runTransaction to execute callback with transaction stub
+      mockFirestore.runTransaction.mockImplementation((callback) => {
+        const mockTransaction = {
+          get: jest.fn().mockImplementation(() => {
+            const timestamps = Array(requestCount)
+              .fill(null)
+              .map(() => ({
+                timestamp: { toDate: () => new Date() },
+              }));
+            return Promise.resolve({
+              exists: true,
+              data: () => ({
+                requests: timestamps,
+                updatedAt: { toDate: () => new Date() },
+              }),
+            });
+          }),
+          update: jest.fn().mockImplementation(() => {
+            requestCount++;
+          }),
+        };
+        return Promise.resolve(callback(mockTransaction));
       });
 
       // Make 20 concurrent requests (should block 10)

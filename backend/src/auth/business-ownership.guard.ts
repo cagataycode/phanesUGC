@@ -30,12 +30,12 @@ export class BusinessOwnershipGuard implements CanActivate {
       throw new ForbiddenException('Authentication required');
     }
 
-    // Extract businessId from header, params, query, or body
+    // Extract businessId from header, params, or query (NOT body to prevent IDOR)
+    // Body businessId is validated by DTO but not used for authorization
     let businessId =
       request.headers?.['x-business-id'] ||
       request.params?.businessId ||
-      request.query?.businessId ||
-      request.body?.businessId;
+      request.query?.businessId;
 
     // Normalize array values (query params and headers can be arrays)
     if (Array.isArray(businessId)) {
@@ -44,6 +44,19 @@ export class BusinessOwnershipGuard implements CanActivate {
 
     if (!businessId || typeof businessId !== 'string') {
       throw new ForbiddenException('Business ID required');
+    }
+
+    // Verify all provided businessId sources match (prevent IDOR via mismatched IDs)
+    const sources = [
+      request.headers?.['x-business-id'],
+      request.params?.businessId,
+      request.query?.businessId,
+    ].filter((id) => id !== undefined);
+
+    if (sources.length > 1 && !sources.every((id) => id === businessId)) {
+      throw new ForbiddenException(
+        'Business ID mismatch across request sources',
+      );
     }
 
     // Check if user is a member of the business

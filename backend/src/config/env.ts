@@ -38,8 +38,10 @@ export const envSchema = z
       .default(5 * 60 * 1000),
     // Monitoring Configuration
     LOG_LEVEL: z.enum(['debug', 'log', 'warn', 'error']).default('log'),
-    ENABLE_STRUCTURED_LOGGING: z.string().default('true'),
-    ENABLE_ERROR_REPORTING: z.string().default('true'), // Set to 'false' to disable GCP Error Reporting
+    // Default to 'false' for local dev/CI to avoid GCP client initialization overhead
+    // Set to 'true' explicitly in production
+    ENABLE_STRUCTURED_LOGGING: z.string().default('false'),
+    ENABLE_ERROR_REPORTING: z.string().default('false'),
     ALERT_EMAIL: z.string().email().optional(),
   })
   .refine(

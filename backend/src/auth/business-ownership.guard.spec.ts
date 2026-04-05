@@ -151,7 +151,7 @@ describe('BusinessOwnershipGuard', () => {
       expect(mockCollectionRef.doc).toHaveBeenCalledWith('business-from-query');
     });
 
-    it('should extract businessId from body', async () => {
+    it('should NOT extract businessId from body (IDOR prevention)', async () => {
       const context = createMockContext(
         { uid: 'user-123' },
         {},
@@ -159,23 +159,17 @@ describe('BusinessOwnershipGuard', () => {
         { businessId: 'business-from-body' },
       );
 
-      mockDocRef.get.mockResolvedValue({
-        exists: true,
-        data: () => ({ role: 'owner' }),
-      });
-
-      const result = await guard.canActivate(context);
-
-      expect(result).toBe(true);
-      expect(mockCollectionRef.doc).toHaveBeenCalledWith('business-from-body');
+      // Body businessId should be ignored for authorization
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        new ForbiddenException('Business ID required'),
+      );
     });
 
-    it('should prioritize params over query and body', async () => {
+    it('should prioritize params over query when both match', async () => {
       const context = createMockContext(
         { uid: 'user-123' },
-        { businessId: 'from-params' },
-        { businessId: 'from-query' },
-        { businessId: 'from-body' },
+        { businessId: 'same-business-id' },
+        { businessId: 'same-business-id' },
       );
 
       mockDocRef.get.mockResolvedValue({
@@ -185,7 +179,19 @@ describe('BusinessOwnershipGuard', () => {
 
       await guard.canActivate(context);
 
-      expect(mockCollectionRef.doc).toHaveBeenCalledWith('from-params');
+      expect(mockCollectionRef.doc).toHaveBeenCalledWith('same-business-id');
+    });
+
+    it('should throw if businessId sources mismatch', async () => {
+      const context = createMockContext(
+        { uid: 'user-123' },
+        { businessId: 'from-params' },
+        { businessId: 'from-query-different' },
+      );
+
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        new ForbiddenException('Business ID mismatch across request sources'),
+      );
     });
   });
 });

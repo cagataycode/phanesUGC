@@ -104,19 +104,42 @@ describe('Integration Tests (e2e)', () => {
               subscription: { tier: 'starter' }, // 20 videos
             }),
           }),
-          collection: jest.fn().mockReturnValue({
-            doc: jest.fn().mockReturnValue({
-              get: jest.fn().mockResolvedValue({
-                exists: true,
-                data: () => ({
-                  videosCreated: quotaCount,
-                  requests: 0,
-                  windowStart: new Date(),
+          collection: jest.fn((collectionName: string) => {
+            if (collectionName === 'projects') {
+              // Mock projects collection for JobStoreService.create()
+              return {
+                add: jest.fn().mockResolvedValue({
+                  id: 'test-job-integration',
                 }),
+                doc: jest.fn().mockReturnValue({
+                  get: jest.fn().mockResolvedValue({
+                    exists: true,
+                    data: () => ({
+                      videosCreated: quotaCount,
+                      requests: 0,
+                      windowStart: new Date(),
+                    }),
+                  }),
+                  set: jest.fn(),
+                  update: jest.fn(),
+                }),
+              };
+            }
+            // Default collection mock
+            return {
+              doc: jest.fn().mockReturnValue({
+                get: jest.fn().mockResolvedValue({
+                  exists: true,
+                  data: () => ({
+                    videosCreated: quotaCount,
+                    requests: 0,
+                    windowStart: new Date(),
+                  }),
+                }),
+                set: jest.fn(),
+                update: jest.fn(),
               }),
-              set: jest.fn(),
-              update: jest.fn(),
-            }),
+            };
           }),
         }),
       });
