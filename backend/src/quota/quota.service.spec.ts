@@ -127,11 +127,12 @@ describe('QuotaService', () => {
       });
     });
 
-    it('should return unlimited videos for ENTERPRISE tier', () => {
+    it('should return high limits for ENTERPRISE tier', () => {
       const limits = service.getTierLimits(SubscriptionTier.ENTERPRISE);
 
-      expect(limits.monthlyVideos).toBe(-1);
-      expect(limits.monthlyCostLimit).toBe(-1);
+      expect(limits.monthlyVideos).toBe(500);
+      expect(limits.monthlyCostLimit).toBe(1000);
+      expect(limits.concurrentJobs).toBe(10);
     });
   });
 
@@ -189,7 +190,7 @@ describe('QuotaService', () => {
       expect(quota.videosRemaining).toBe(2);
     });
 
-    it('should return unlimited quota for ENTERPRISE tier', async () => {
+    it('should return high quota for ENTERPRISE tier', async () => {
       const mockBusinessDoc = {
         exists: true,
         data: () => ({
@@ -212,7 +213,8 @@ describe('QuotaService', () => {
 
       const quota = await service.checkQuota(mockBusinessId);
 
-      expect(quota.videosRemaining).toBe(-1); // unlimited
+      expect(quota.videosRemaining).toBe(400); // 500 - 100 = 400
+      expect(quota.tier).toBe(SubscriptionTier.ENTERPRISE);
     });
   });
 
@@ -269,7 +271,7 @@ describe('QuotaService', () => {
       expect(canCreate).toBe(false);
     });
 
-    it('should return true for unlimited quota', async () => {
+    it('should return false when ENTERPRISE quota exceeded', async () => {
       const mockBusinessDoc = {
         exists: true,
         data: () => ({
@@ -282,7 +284,7 @@ describe('QuotaService', () => {
       const mockUsageDoc = {
         exists: true,
         data: () => ({
-          videosCreated: 1000,
+          videosCreated: 500, // At limit
         }),
       };
 
@@ -292,7 +294,7 @@ describe('QuotaService', () => {
 
       const canCreate = await service.canCreateJob(mockBusinessId);
 
-      expect(canCreate).toBe(true);
+      expect(canCreate).toBe(false); // 500 >= 500
     });
   });
 

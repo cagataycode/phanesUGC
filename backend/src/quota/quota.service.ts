@@ -53,8 +53,8 @@ export class QuotaService {
       prioritySupport: true,
     },
     [SubscriptionTier.ENTERPRISE]: {
-      monthlyVideos: -1, // unlimited
-      monthlyCostLimit: -1, // unlimited
+      monthlyVideos: 500,
+      monthlyCostLimit: 1000.0, // $1000 max
       concurrentJobs: 10,
       maxVideoDuration: 10,
       prioritySupport: true,

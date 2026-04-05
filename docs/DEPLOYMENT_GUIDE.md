@@ -30,14 +30,17 @@ cd backend
 # Run unit tests
 npm test
 
-# Run security tests
-npm test -- security.e2e-spec.ts
+# Run e2e tests (use test:e2e script, not npm test)
+npm run test:e2e -- security.e2e-spec
 
 # Run load tests
-npm test -- load.e2e-spec.ts
+npm run test:e2e -- load.e2e-spec
 
 # Run integration tests
-npm test -- integration.e2e-spec.ts
+npm run test:e2e -- integration.e2e-spec
+
+# Run all e2e tests
+npm run test:e2e
 
 # Run lint
 npm run lint
@@ -52,7 +55,7 @@ npm run build
 
 ```bash
 # Review the rules
-cat firestore.rules
+cat backend/firestore.rules
 
 # Deploy to staging first
 firebase use staging
@@ -83,8 +86,7 @@ npm run build
 gcloud app deploy app.staging.yaml --project=YOUR_PROJECT_ID
 
 # Run smoke tests on staging
-curl https://staging-dot-YOUR_PROJECT_ID.appspot.com/health
-curl https://staging-dot-YOUR_PROJECT_ID.appspot.com/ready
+curl https://staging-dot-YOUR_PROJECT_ID.appspot.com/
 
 # If successful, deploy to production
 gcloud app deploy app.yaml --project=YOUR_PROJECT_ID
@@ -107,7 +109,7 @@ gcloud run deploy backend-staging \
   --allow-unauthenticated
 
 # Test staging
-curl https://backend-staging-xxx.run.app/health
+curl https://backend-staging-xxx.run.app/
 
 # Deploy to production
 gcloud run deploy backend-production \
@@ -122,17 +124,13 @@ gcloud run deploy backend-production \
 ### Health Checks
 
 ```bash
-# Check health endpoint
-curl https://YOUR_DOMAIN/api/v1/health
+# Check root endpoint (basic connectivity)
+curl https://YOUR_DOMAIN/
 
 # Expected response:
-# {"status":"ok","timestamp":"2026-04-05T..."}
+# "Hello World!" (from AppController)
 
-# Check readiness
-curl https://YOUR_DOMAIN/api/v1/ready
-
-# Expected response:
-# {"status":"ready","services":{"firestore":"ok","gcs":"ok"}}
+# Note: Dedicated /health and /ready endpoints will be added in Phase 7
 ```
 
 ### Security Verification
@@ -167,22 +165,29 @@ curl -X POST "https://YOUR_DOMAIN/ads" \
 # Create a job
 curl -X POST "https://YOUR_DOMAIN/ads" \
   -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "x-business-id: YOUR_BUSINESS_ID" \
   -H "Content-Type: application/json" \
   -d '{
     "businessId": "YOUR_BUSINESS_ID",
-    "prompt": "Create a video about...",
-    "productName": "Test Product",
-    "platform": "tiktok",
-    "aspectRatio": "9:16"
+    "productId": "YOUR_PRODUCT_ID",
+    "createdBy": "YOUR_USER_ID",
+    "prompt_inputs": {
+      "prompt": "Create a video about...",
+      "platform": "tiktok",
+      "language": "en"
+    },
+    "veo_config": {
+      "aspect_ratio": "9:16",
+      "duration_sec": 5
+    }
   }'
 
 # Check job status
 curl -X GET "https://YOUR_DOMAIN/ads/JOB_ID?businessId=YOUR_BUSINESS_ID" \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "x-business-id: YOUR_BUSINESS_ID"
 
-# Check quota
-curl -X GET "https://YOUR_DOMAIN/quota?businessId=YOUR_BUSINESS_ID" \
-  -H "Authorization: Bearer YOUR_TOKEN"
+# Note: GET /quota endpoint will be added in Phase 4 (Payment Integration)
 ```
 
 ## Step 5: Monitor for 24 Hours
@@ -325,8 +330,8 @@ gcloud run services update-traffic backend-production \
 ## Useful Commands
 
 ```bash
-# Quick health check
-curl https://YOUR_DOMAIN/health
+# Quick health check (basic connectivity)
+curl https://YOUR_DOMAIN/
 
 # View real-time logs
 gcloud logging tail "resource.type=gae_app"
