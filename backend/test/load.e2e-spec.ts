@@ -351,6 +351,7 @@ describe('Load Tests (e2e)', () => {
           update: jest.fn(),
         };
 
+        // Handle both quota and rate limiter transactions (some return values, some return void)
         return callback(mockTransaction);
       });
 
