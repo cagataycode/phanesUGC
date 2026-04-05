@@ -9,33 +9,26 @@
 **Fix**: Now using `Timestamp.fromDate()` consistently
 **Commit**: 1a5d232
 
-### 2. Quota Increment Before Job Creation
+### 2. ✅ FIXED - Quota Increment Before Job Creation
 **File**: `backend/src/ads/ads.controller.ts`
 **Issue**: Quota is incremented before `adsService.createJob()`. If job creation fails, quota is consumed with no rollback
 **Impact**: Users lose quota on failed job creations
-**Fix**: Either:
-- Move increment after successful job creation
-- Add compensating decrement on failure
-- Use a "pending" state that's finalized after init
+**Fix**: Added `decrementQuota()` method and wrapped job creation in try-catch with rollback
+**Commit**: 37fbcef
 
-### 3. Firestore Rules Membership Mismatch
+### 3. ✅ FIXED - Firestore Rules Membership Mismatch
 **File**: `backend/firestore.rules`
 **Issue**: Rules check `businesses/{id}.members` array, but backend uses `businesses/{id}/members/{uid}` subcollection
 **Impact**: Rules won't reflect actual membership, causing auth failures
-**Fix**: Update rules to check subcollection:
-```javascript
-function isBusinessMember(businessId) {
-  return isAuthenticated() && 
-    (get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid ||
-     exists(/databases/$(database)/documents/businesses/$(businessId)/members/$(request.auth.uid)));
-}
-```
+**Fix**: Updated rules to use `exists()` on subcollection
+**Commit**: (previous commit)
 
-### 4. Concurrent Jobs Query Wrong Collection
+### 4. ✅ FIXED - Concurrent Jobs Query Wrong Collection
 **File**: `backend/src/quota/rate-limiter.service.ts`
 **Issue**: `checkConcurrentJobs()` queries `agent_jobs` with `status` field, but those docs use `stage` + `videoGenerationStatus`
 **Impact**: Concurrent job limit is never enforced (always returns 0)
-**Fix**: Update query to match actual schema or query the correct collection
+**Fix**: Updated query to use `videoGenerationStatus == 'in_progress'`
+**Commit**: (previous commit)
 
 ## High Priority (Test Failures)
 
@@ -98,22 +91,24 @@ jest.mock('firebase-admin', () => ({
 **Issue**: `npm test -- security.e2e-spec.ts` won't run e2e tests (wrong config)
 **Fix**: Use `npm run test:e2e` with proper patterns
 
-### 11. Duplicate Guard on ProductsController
-**File**: `backend/src/products/products.controller.ts`
+### 11. ✅ FIXED - Duplicate Guard on Controllers
+**Files**: `backend/src/products/products.controller.ts`, `avatars.controller.ts`, `assets.controller.ts`, `ads.controller.ts`
 **Issue**: Both `BusinessOwnershipGuard` and `RolesGuard` check membership (duplicate Firestore read)
 **Impact**: Extra latency and Firestore reads
-**Fix**: Remove one guard or refactor to single membership check
+**Fix**: Removed `BusinessOwnershipGuard` since `RolesGuard` already checks membership
+**Commit**: a8eaa52
 
 ## Summary
 
-**Must fix before deployment:**
-1. Rate limiter timestamp type
-2. Quota rollback on job creation failure
-3. Firestore rules membership check
-4. Concurrent jobs query
+**✅ FIXED - Must fix before deployment:**
+1. ✅ Rate limiter timestamp type
+2. ✅ Quota rollback on job creation failure
+3. ✅ Firestore rules membership check
+4. ✅ Concurrent jobs query
+5. ✅ Duplicate guards on controllers
 
-**Must fix for tests to pass:**
-5-8. All e2e test issues
+**TODO - Must fix for tests to pass:**
+5-8. All e2e test issues (auth mocking, DTO format, mock schema, missing endpoint)
 
-**Can fix later:**
-9-11. Documentation and optimization issues
+**TODO - Can fix later:**
+9-10. Documentation issues (deployment guide endpoints, test commands)

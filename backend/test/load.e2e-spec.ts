@@ -3,6 +3,25 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 
+// Mock firebase-admin before any imports
+jest.mock('firebase-admin', () => {
+  const mockAuth = {
+    verifyIdToken: jest.fn().mockResolvedValue({
+      uid: 'test-uid',
+      email: 'test@example.com',
+    }),
+  };
+
+  return {
+    auth: () => mockAuth,
+    initializeApp: jest.fn(),
+    credential: {
+      cert: jest.fn(),
+    },
+    apps: [],
+  };
+});
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
@@ -16,6 +35,11 @@ describe('Load Tests (e2e)', () => {
     collection: jest.fn(),
     doc: jest.fn(),
     runTransaction: jest.fn(),
+    getFirestore: jest.fn().mockReturnValue({
+      collection: jest.fn(),
+      doc: jest.fn(),
+      runTransaction: jest.fn(),
+    }),
   };
 
   beforeAll(async () => {
