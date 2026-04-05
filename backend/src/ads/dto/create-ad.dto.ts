@@ -121,7 +121,7 @@ export class CreateAdDto {
   @IsNotEmpty()
   businessId!: string;
 
-  @IsUUID('4', { message: 'Product ID must be a valid UUID' })
+  @IsString()
   @IsNotEmpty()
   productId!: string;
 

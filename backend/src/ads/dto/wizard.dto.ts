@@ -8,7 +8,7 @@ export const ProductInfoSchema = z.object({
 
 export const GenerateBriefSchema = z.object({
   businessId: z.string().uuid('Business ID must be a valid UUID'),
-  productId: z.string().uuid('Product ID must be a valid UUID'),
+  productId: z.string().min(1, 'Product ID is required'), // Firestore auto-generated ID
   prompt: z.string().min(5).max(2000, 'Prompt must not exceed 2000 characters'),
   platform: z.enum(['tiktok', 'instagram', 'youtube']),
   language: z.enum(['en', 'de']).optional(),
@@ -44,7 +44,7 @@ export type ProductInfoDto = z.infer<typeof ProductInfoSchema>;
 // Wizard submission DTO - for submitting pre-generated brief/script/scene
 export const WizardSubmitSchema = z.object({
   businessId: z.string().uuid('Business ID must be a valid UUID'),
-  productId: z.string().uuid('Product ID must be a valid UUID'),
+  productId: z.string().min(1, 'Product ID is required'), // Firestore auto-generated ID
   createdBy: z.string().optional(),
   prompt: z.string().max(2000, 'Prompt must not exceed 2000 characters'),
   platform: z.enum(['tiktok', 'instagram', 'youtube']),
