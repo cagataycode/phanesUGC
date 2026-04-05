@@ -5,7 +5,7 @@ import { StructuredLoggerService } from '../monitoring/structured-logger.service
 import { SubscriptionTier } from './quota.service';
 
 /* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 describe('RateLimiterService', () => {
@@ -77,7 +77,18 @@ describe('RateLimiterService', () => {
         exists: false,
       };
 
-      firestoreService.get.mockResolvedValue(mockDoc as any);
+      // Mock the chained document reference
+      const mockDocRef = {
+        get: jest.fn().mockResolvedValue(mockDoc),
+      };
+
+      firestoreService.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          collection: jest.fn().mockReturnValue({
+            doc: jest.fn().mockReturnValue(mockDocRef),
+          }),
+        }),
+      } as any);
 
       const status = await service.checkRateLimit(
         mockBusinessId,
@@ -100,7 +111,17 @@ describe('RateLimiterService', () => {
         }),
       };
 
-      firestoreService.get.mockResolvedValue(mockDoc as any);
+      const mockDocRef = {
+        get: jest.fn().mockResolvedValue(mockDoc),
+      };
+
+      firestoreService.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          collection: jest.fn().mockReturnValue({
+            doc: jest.fn().mockReturnValue(mockDocRef),
+          }),
+        }),
+      } as any);
 
       const status = await service.checkRateLimit(
         mockBusinessId,
@@ -124,7 +145,17 @@ describe('RateLimiterService', () => {
         }),
       };
 
-      firestoreService.get.mockResolvedValue(mockDoc as any);
+      const mockDocRef = {
+        get: jest.fn().mockResolvedValue(mockDoc),
+      };
+
+      firestoreService.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          collection: jest.fn().mockReturnValue({
+            doc: jest.fn().mockReturnValue(mockDocRef),
+          }),
+        }),
+      } as any);
 
       const status = await service.checkRateLimit(
         mockBusinessId,
@@ -148,7 +179,17 @@ describe('RateLimiterService', () => {
         }),
       };
 
-      firestoreService.get.mockResolvedValue(mockDoc as any);
+      const mockDocRef = {
+        get: jest.fn().mockResolvedValue(mockDoc),
+      };
+
+      firestoreService.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          collection: jest.fn().mockReturnValue({
+            doc: jest.fn().mockReturnValue(mockDocRef),
+          }),
+        }),
+      } as any);
 
       const status = await service.checkRateLimit(
         mockBusinessId,
@@ -166,10 +207,19 @@ describe('RateLimiterService', () => {
         size: 0,
       };
 
+      // Mock the chained query
+      const mockQuery = {
+        get: jest.fn().mockResolvedValue(mockSnapshot),
+      };
+
       const mockFirestoreInstance = firestoreService.getFirestore();
-      (mockFirestoreInstance.get as jest.Mock).mockResolvedValue(
-        mockSnapshot as any,
-      );
+      (mockFirestoreInstance.collection as jest.Mock).mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          collection: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnValue(mockQuery),
+          }),
+        }),
+      });
 
       const allowed = await service.checkConcurrentJobs(
         mockBusinessId,
@@ -184,10 +234,18 @@ describe('RateLimiterService', () => {
         size: 1, // FREE tier limit is 1
       };
 
+      const mockQuery = {
+        get: jest.fn().mockResolvedValue(mockSnapshot),
+      };
+
       const mockFirestoreInstance = firestoreService.getFirestore();
-      (mockFirestoreInstance.get as jest.Mock).mockResolvedValue(
-        mockSnapshot as any,
-      );
+      (mockFirestoreInstance.collection as jest.Mock).mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          collection: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnValue(mockQuery),
+          }),
+        }),
+      });
 
       const allowed = await service.checkConcurrentJobs(
         mockBusinessId,
@@ -202,10 +260,18 @@ describe('RateLimiterService', () => {
         size: 3,
       };
 
+      const mockQuery = {
+        get: jest.fn().mockResolvedValue(mockSnapshot),
+      };
+
       const mockFirestoreInstance = firestoreService.getFirestore();
-      (mockFirestoreInstance.get as jest.Mock).mockResolvedValue(
-        mockSnapshot as any,
-      );
+      (mockFirestoreInstance.collection as jest.Mock).mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          collection: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnValue(mockQuery),
+          }),
+        }),
+      });
 
       const allowed = await service.checkConcurrentJobs(
         mockBusinessId,

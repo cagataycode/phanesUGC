@@ -100,6 +100,9 @@ gcloud app deploy app.yaml --project=YOUR_PROJECT_ID
 ### Option B: Cloud Run
 
 ```bash
+# Navigate to backend directory
+cd backend
+
 # Build Docker image
 docker build -t gcr.io/YOUR_PROJECT_ID/backend:latest .
 
