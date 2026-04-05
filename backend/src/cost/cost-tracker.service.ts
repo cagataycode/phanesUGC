@@ -62,7 +62,7 @@ export class CostTrackerService {
     const cost = durationSec * pricePerSecond;
 
     this.logger.debug(
-      `Veo cost calculation: ${durationSec}s * $${pricePerSecond}/s = $${cost.toFixed(4)}`,
+      `Veo cost calculation: ${durationSec}s * ${pricePerSecond}/s = ${cost.toFixed(4)}`,
     );
 
     return cost;
@@ -80,7 +80,7 @@ export class CostTrackerService {
     const totalCost = inputCost + outputCost;
 
     this.logger.debug(
-      `Claude cost calculation: ${inputTokens} input + ${outputTokens} output = $${totalCost.toFixed(4)}`,
+      `Claude cost calculation: ${inputTokens} input + ${outputTokens} output = ${totalCost.toFixed(4)}`,
     );
 
     return totalCost;
@@ -98,7 +98,7 @@ export class CostTrackerService {
     const totalCost = inputCost + outputCost;
 
     this.logger.debug(
-      `Gemini cost calculation: ${inputTokens} input + ${outputTokens} output = $${totalCost.toFixed(4)}`,
+      `Gemini cost calculation: ${inputTokens} input + ${outputTokens} output = ${totalCost.toFixed(4)}`,
     );
 
     return totalCost;
@@ -106,6 +106,8 @@ export class CostTrackerService {
 
   /**
    * Track an API call and update job state
+   * Uses Firestore transaction to prevent race conditions when multiple API calls
+   * are tracked concurrently for the same job (read-modify-write pattern).
    * @param jobId Job identifier
    * @param businessId Business identifier
    * @param call API call cost details
@@ -124,7 +126,6 @@ export class CostTrackerService {
     };
 
     try {
-      // Get current job state
       const jobRef = this.firestore
         .getFirestore()
         .collection('businesses')
@@ -132,43 +133,49 @@ export class CostTrackerService {
         .collection('agent_jobs')
         .doc(jobId);
 
-      const jobDoc = await jobRef.get();
-      if (!jobDoc.exists) {
-        this.logger.warn(`Job ${jobId} not found, skipping cost tracking`);
-        return;
-      }
+      // Use transaction to prevent race conditions when tracking concurrent API calls
+      await this.firestore
+        .getFirestore()
+        .runTransaction(async (transaction) => {
+          const jobDoc = await transaction.get(jobRef);
 
-      const jobData = jobDoc.data() as Record<string, any> | undefined;
+          if (!jobDoc.exists) {
+            this.logger.warn(`Job ${jobId} not found, skipping cost tracking`);
+            return;
+          }
 
-      // Initialize or update apiCalls array
-      const apiCalls = (jobData?.apiCalls as ApiCallCost[]) || [];
-      apiCalls.push({
-        service: call.service,
-        operation: call.operation,
-        inputTokens: call.inputTokens,
-        outputTokens: call.outputTokens,
-        durationSeconds: call.durationSeconds,
-        cost: call.cost,
-        timestamp: call.timestamp,
-      });
+          const jobData = jobDoc.data() as Record<string, any> | undefined;
 
-      // Calculate cost breakdown
-      const costBreakdown = this.calculateCostBreakdown(apiCalls);
+          // Initialize or update apiCalls array
+          const apiCalls = (jobData?.apiCalls as ApiCallCost[]) || [];
+          apiCalls.push({
+            service: call.service,
+            operation: call.operation,
+            inputTokens: call.inputTokens,
+            outputTokens: call.outputTokens,
+            durationSeconds: call.durationSeconds,
+            cost: call.cost,
+            timestamp: call.timestamp,
+          });
 
-      // Update job document
-      await jobRef.update({
-        apiCalls,
-        costBreakdown,
-        updatedAt: new Date(),
-      });
+          // Calculate cost breakdown
+          const costBreakdown = this.calculateCostBreakdown(apiCalls);
 
-      // Log the API call
+          // Update job document atomically
+          transaction.update(jobRef, {
+            apiCalls,
+            costBreakdown,
+            updatedAt: new Date(),
+          });
+        });
+
+      // Log the API call (outside transaction)
       this.structuredLogger.log(
-        `API call tracked: ${call.service}.${call.operation} - $${call.cost.toFixed(4)}`,
+        `API call tracked: ${call.service}.${call.operation} - ${call.cost.toFixed(4)}`,
         context,
       );
 
-      // Track metrics
+      // Track metrics (outside transaction)
       this.performanceMonitor.trackCount(
         `cost.${call.service}`,
         call.cost,
@@ -322,7 +329,7 @@ export class CostTrackerService {
         });
 
       this.logger.debug(
-        `Updated monthly cost for ${businessId}: +$${cost.toFixed(4)}`,
+        `Updated monthly cost for ${businessId}: +${cost.toFixed(4)}`,
       );
     } catch (error) {
       this.logger.error(

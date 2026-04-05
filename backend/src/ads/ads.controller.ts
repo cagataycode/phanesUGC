@@ -15,6 +15,7 @@ import {
 import { AdsService } from './ads.service';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { WizardSubmitSchema } from './dto/wizard.dto';
+import { ZodError, z } from 'zod';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { PerformanceInterceptor } from '../monitoring/interceptors/performance.interceptor';
@@ -174,7 +175,24 @@ export class AdsController {
     @Query('businessId') queryBusinessId: string | string[] | undefined,
     @Body() wizardDto: Record<string, unknown>,
   ) {
-    const parsed = WizardSubmitSchema.parse(wizardDto);
+    // Parse and validate wizard DTO, converting ZodError to BadRequestException
+    let parsed: z.infer<typeof WizardSubmitSchema>;
+    try {
+      parsed = WizardSubmitSchema.parse(wizardDto);
+    } catch (err: unknown) {
+      const details =
+        err instanceof ZodError
+          ? (err.format() as Record<string, unknown>)
+          : 'Invalid request';
+      throw new HttpException(
+        {
+          status: HttpStatus.BAD_REQUEST,
+          error: 'Validation failed',
+          details,
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
 
     await this.validateAndCheckLimits(
       authorizedBusinessId,
