@@ -48,11 +48,11 @@ describe('Integration Tests (e2e)', () => {
     set: jest.fn().mockResolvedValue(undefined),
     update: jest.fn().mockResolvedValue(undefined),
     delete: jest.fn().mockResolvedValue(undefined),
-    collection: jest.fn((name: string) => createMockCollection({})),
+    collection: jest.fn(() => createMockCollection({})),
   });
 
   const createMockCollection = (docData: any) => ({
-    doc: jest.fn((id?: string) => createMockDoc(docData)),
+    doc: jest.fn(() => createMockDoc(docData)),
     add: jest.fn().mockResolvedValue({ id: 'mock-id' }),
     where: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
@@ -76,11 +76,11 @@ describe('Integration Tests (e2e)', () => {
       }
       return createMockCollection({});
     }),
-    doc: jest.fn((path: string) => createMockDoc({})),
+    doc: jest.fn(() => createMockDoc({})),
     runTransaction: jest.fn(),
     getFirestore: jest.fn().mockReturnValue({
-      collection: jest.fn((name: string) => createMockCollection({})),
-      doc: jest.fn((path: string) => createMockDoc({ role: 'owner' })),
+      collection: jest.fn(() => createMockCollection({})),
+      doc: jest.fn(() => createMockDoc({ role: 'owner' })),
     }),
   };
 
