@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Timestamp } from 'firebase-admin/firestore';
 import { FirestoreService } from '../firebase/firestore.service';
 import { StructuredLoggerService } from '../monitoring/structured-logger.service';
 import { SubscriptionTier } from './quota.service';
@@ -198,8 +199,8 @@ export class RateLimiterService {
         if (!rateLimitDoc.exists) {
           // Create new rate limit document
           transaction.set(rateLimitRef, {
-            requests: [{ timestamp: now }],
-            updatedAt: now,
+            requests: [{ timestamp: Timestamp.fromDate(now) }],
+            updatedAt: Timestamp.fromDate(now),
           });
         } else {
           const data = rateLimitDoc.data();
@@ -213,12 +214,11 @@ export class RateLimiterService {
             .filter((req) => req.timestamp.toDate() > windowStart)
             .map((req) => ({ timestamp: req.timestamp }));
 
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          recentRequests.push({ timestamp: now as any });
+          recentRequests.push({ timestamp: Timestamp.fromDate(now) });
 
           transaction.update(rateLimitRef, {
             requests: recentRequests,
-            updatedAt: now,
+            updatedAt: Timestamp.fromDate(now),
           });
         }
       });
