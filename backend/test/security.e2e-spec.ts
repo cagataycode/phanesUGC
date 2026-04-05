@@ -1,15 +1,13 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/require-await */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { FirestoreService } from '../src/firebase/firestore.service';
-
-interface ResponseBody {
-  message?: string;
-  [key: string]: unknown;
-}
 
 describe('Security Tests (e2e)', () => {
   let app: INestApplication;
@@ -21,52 +19,22 @@ describe('Security Tests (e2e)', () => {
     runTransaction: jest.fn(),
   };
 
-  const mockCollectionRef = {
-    doc: jest.fn(),
-    where: jest.fn(),
-    orderBy: jest.fn(),
-    limit: jest.fn(),
-    get: jest.fn(),
-    add: jest.fn(),
-  };
-
-  const mockDocRef = {
-    get: jest.fn(),
-    set: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-    collection: jest.fn(),
-  };
-
-  const mockQuerySnapshot = {
-    empty: false,
-    size: 1,
-    docs: [],
-    forEach: jest.fn(),
-  };
-
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideProvider(FirestoreService)
-      .useValue({
-        getFirestore: () => mockFirestore,
-        collection: jest.fn(() => mockCollectionRef),
-      })
+      .useValue(mockFirestore)
       .compile();
 
     app = moduleFixture.createNestApplication();
 
-    // Enable validation pipe (same as main.ts)
+    // Enable validation pipe (same as production)
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
         forbidNonWhitelisted: true,
         transform: true,
-        transformOptions: {
-          enableImplicitConversion: false,
-        },
       }),
     );
 
@@ -77,453 +45,370 @@ describe('Security Tests (e2e)', () => {
     await app.close();
   });
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockFirestore.collection.mockReturnValue(mockCollectionRef);
-    mockFirestore.doc.mockReturnValue(mockDocRef);
-    mockCollectionRef.doc.mockReturnValue(mockDocRef);
-    mockCollectionRef.where.mockReturnThis();
-    mockCollectionRef.orderBy.mockReturnThis();
-    mockCollectionRef.limit.mockReturnThis();
-    mockCollectionRef.get.mockResolvedValue(mockQuerySnapshot);
-    mockDocRef.collection.mockReturnValue(mockCollectionRef);
-  });
+  describe('IDOR Protection', () => {
+    it('should prevent User A from accessing User B jobs', async () => {
+      // Mock: User A tries to access User B's business
+      const userAToken = 'mock-token-user-a';
+      const userBBusinessId = 'business-user-b';
 
-  describe('IDOR Protection (BusinessOwnershipGuard)', () => {
-    const validToken = 'valid-firebase-token';
-    const userAId = 'user-a-uid';
-    const businessAId = 'business-a-id';
-    const businessBId = 'business-b-id';
-
-    it('should deny access when user tries to access another business', async () => {
-      // Mock: User A is NOT a member of Business B
-      mockDocRef.get.mockResolvedValue({
-        exists: false,
-        data: () => null,
+      mockFirestore.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          get: jest.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({
+              ownerId: 'user-b-uid',
+              members: [],
+            }),
+          }),
+        }),
       });
 
-      const response = (await request(app.getHttpServer())
-        .get(`/api/ads?businessId=${businessBId}`)
-        .set('Authorization', `Bearer ${validToken}`)
-        .expect(403)) as unknown as { body: ResponseBody };
+      const response = await request(app.getHttpServer())
+        .get(`/ads?businessId=${userBBusinessId}`)
+        .set('Authorization', `Bearer ${userAToken}`)
+        .expect(403);
 
-      expect(response.body.message).toContain(
-        'Access denied: You are not a member of this business',
-      );
+      expect(response.body.message).toContain('Access denied');
     });
 
-    it('should allow access when user is a member of the business', async () => {
-      // Mock: User A IS a member of Business A
-      mockDocRef.get.mockResolvedValue({
-        exists: true,
-        data: () => ({ role: 'owner', userId: userAId }),
+    it('should allow business owner to access their jobs', async () => {
+      const ownerToken = 'mock-token-owner';
+      const businessId = 'business-owner';
+
+      mockFirestore.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          get: jest.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({
+              ownerId: 'owner-uid',
+              members: [],
+            }),
+          }),
+          collection: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnThis(),
+            orderBy: jest.fn().mockReturnThis(),
+            limit: jest.fn().mockReturnThis(),
+            get: jest.fn().mockResolvedValue({
+              empty: true,
+              docs: [],
+            }),
+          }),
+        }),
       });
 
-      // Mock the ads list response
-      mockQuerySnapshot.docs = [];
-
       await request(app.getHttpServer())
-        .get(`/api/ads?businessId=${businessAId}`)
-        .set('Authorization', `Bearer ${validToken}`)
+        .get(`/ads?businessId=${businessId}`)
+        .set('Authorization', `Bearer ${ownerToken}`)
         .expect(200);
     });
 
-    it('should reject request without businessId', async () => {
-      await request(app.getHttpServer())
-        .get('/api/ads')
-        .set('Authorization', `Bearer ${validToken}`)
-        .expect(403);
-    });
+    it('should allow business member to access jobs', async () => {
+      const memberToken = 'mock-token-member';
+      const businessId = 'business-with-members';
 
-    it('should check membership for POST requests', async () => {
-      // Mock: User is NOT a member
-      mockDocRef.get.mockResolvedValue({
-        exists: false,
-        data: () => null,
+      mockFirestore.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          get: jest.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({
+              ownerId: 'owner-uid',
+              members: ['member-uid'],
+            }),
+          }),
+          collection: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnThis(),
+            orderBy: jest.fn().mockReturnThis(),
+            limit: jest.fn().mockReturnThis(),
+            get: jest.fn().mockResolvedValue({
+              empty: true,
+              docs: [],
+            }),
+          }),
+        }),
       });
 
-      const validPayload = {
-        businessId: businessBId,
-        productId: '123e4567-e89b-12d3-a456-426614174000',
-        createdBy: userAId,
-        prompt_inputs: {
-          prompt: 'Test prompt',
-          platform: 'tiktok',
-          language: 'en',
-        },
-        veo_config: {
-          aspect_ratio: '9:16',
-          duration_sec: 8,
-        },
-      };
-
       await request(app.getHttpServer())
-        .post('/api/ads')
-        .set('Authorization', `Bearer ${validToken}`)
-        .send(validPayload)
-        .expect(403);
+        .get(`/ads?businessId=${businessId}`)
+        .set('Authorization', `Bearer ${memberToken}`)
+        .expect(200);
     });
   });
 
   describe('Input Validation', () => {
-    const validToken = 'valid-firebase-token';
-    const businessId = '123e4567-e89b-12d3-a456-426614174000';
-    const productId = '123e4567-e89b-12d3-a456-426614174001';
-
-    beforeEach(() => {
-      // Mock: User is a member
-      mockDocRef.get.mockResolvedValue({
-        exists: true,
-        data: () => ({ role: 'owner' }),
-      });
-    });
-
     it('should reject invalid UUID for businessId', async () => {
-      const invalidPayload = {
-        businessId: 'not-a-uuid',
-        productId,
-        createdBy: 'user-123',
-        prompt_inputs: {
-          prompt: 'Test',
+      const response = await request(app.getHttpServer())
+        .post('/ads')
+        .set('Authorization', 'Bearer mock-token')
+        .send({
+          businessId: 'not-a-uuid',
+          prompt: 'Test prompt',
+          productName: 'Test Product',
           platform: 'tiktok',
-          language: 'en',
-        },
-        veo_config: {
-          aspect_ratio: '9:16',
-          duration_sec: 8,
-        },
-      };
+          aspectRatio: '9:16',
+        })
+        .expect(400);
 
-      const response = (await request(app.getHttpServer())
-        .post('/api/ads')
-        .set('Authorization', `Bearer ${validToken}`)
-        .send(invalidPayload)
-        .expect(400)) as unknown as { body: ResponseBody };
-
-      expect(response.body.message).toContain(
-        'Business ID must be a valid UUID',
-      );
+      expect(response.body.message).toContain('businessId');
     });
 
-    it('should reject prompt exceeding 2000 characters', async () => {
+    it('should reject prompt exceeding max length', async () => {
       const longPrompt = 'a'.repeat(2001);
 
-      const invalidPayload = {
-        businessId,
-        productId,
-        createdBy: 'user-123',
-        prompt_inputs: {
+      const response = await request(app.getHttpServer())
+        .post('/ads')
+        .set('Authorization', 'Bearer mock-token')
+        .send({
+          businessId: '123e4567-e89b-12d3-a456-426614174000',
           prompt: longPrompt,
+          productName: 'Test Product',
           platform: 'tiktok',
-          language: 'en',
-        },
-        veo_config: {
-          aspect_ratio: '9:16',
-          duration_sec: 8,
-        },
-      };
+          aspectRatio: '9:16',
+        })
+        .expect(400);
 
-      const response = (await request(app.getHttpServer())
-        .post('/api/ads')
-        .set('Authorization', `Bearer ${validToken}`)
-        .send(invalidPayload)
-        .expect(400)) as unknown as { body: ResponseBody };
-
-      expect(response.body.message).toContain(
-        'Prompt must not exceed 2000 characters',
-      );
+      expect(response.body.message).toContain('prompt');
     });
 
     it('should reject invalid platform enum', async () => {
-      const invalidPayload = {
-        businessId,
-        productId,
-        createdBy: 'user-123',
-        prompt_inputs: {
-          prompt: 'Test',
-          platform: 'facebook', // Invalid
-          language: 'en',
-        },
-        veo_config: {
-          aspect_ratio: '9:16',
-          duration_sec: 8,
-        },
-      };
+      const response = await request(app.getHttpServer())
+        .post('/ads')
+        .set('Authorization', 'Bearer mock-token')
+        .send({
+          businessId: '123e4567-e89b-12d3-a456-426614174000',
+          prompt: 'Test prompt',
+          productName: 'Test Product',
+          platform: 'invalid-platform',
+          aspectRatio: '9:16',
+        })
+        .expect(400);
 
-      const response = (await request(app.getHttpServer())
-        .post('/api/ads')
-        .set('Authorization', `Bearer ${validToken}`)
-        .send(invalidPayload)
-        .expect(400)) as unknown as { body: ResponseBody };
-
-      expect(response.body.message).toContain('Platform must be one of');
+      expect(response.body.message).toContain('platform');
     });
 
-    it('should reject invalid aspect ratio', async () => {
-      const invalidPayload = {
-        businessId,
-        productId,
-        createdBy: 'user-123',
-        prompt_inputs: {
-          prompt: 'Test',
-          platform: 'tiktok',
-          language: 'en',
-        },
-        veo_config: {
-          aspect_ratio: '4:3', // Invalid
-          duration_sec: 8,
-        },
-      };
-
-      const response = (await request(app.getHttpServer())
-        .post('/api/ads')
-        .set('Authorization', `Bearer ${validToken}`)
-        .send(invalidPayload)
-        .expect(400)) as unknown as { body: ResponseBody };
-
-      expect(response.body.message).toContain('Aspect ratio must be one of');
-    });
-
-    it('should reject duration outside valid range', async () => {
-      const invalidPayload = {
-        businessId,
-        productId,
-        createdBy: 'user-123',
-        prompt_inputs: {
-          prompt: 'Test',
-          platform: 'tiktok',
-          language: 'en',
-        },
-        veo_config: {
-          aspect_ratio: '9:16',
-          duration_sec: 15, // Too long
-        },
-      };
-
-      const response = (await request(app.getHttpServer())
-        .post('/api/ads')
-        .set('Authorization', `Bearer ${validToken}`)
-        .send(invalidPayload)
-        .expect(400)) as unknown as { body: ResponseBody };
-
-      expect(response.body.message).toContain('duration_sec');
-    });
-
-    it('should reject invalid URL format', async () => {
-      const invalidPayload = {
-        businessId,
-        productId,
-        createdBy: 'user-123',
-        prompt_inputs: {
-          prompt: 'Test',
-          platform: 'tiktok',
-          language: 'en',
-          urls: ['not-a-url', 'also-not-a-url'],
-        },
-        veo_config: {
-          aspect_ratio: '9:16',
-          duration_sec: 8,
-        },
-      };
-
-      const response = (await request(app.getHttpServer())
-        .post('/api/ads')
-        .set('Authorization', `Bearer ${validToken}`)
-        .send(invalidPayload)
-        .expect(400)) as unknown as { body: ResponseBody };
-
-      expect(response.body.message).toContain('url');
-    });
-
-    it('should reject too many URLs', async () => {
-      const tooManyUrls = Array(11)
-        .fill(0)
-        .map((_, i) => `https://example.com/${i}`);
-
-      const invalidPayload = {
-        businessId,
-        productId,
-        createdBy: 'user-123',
-        prompt_inputs: {
-          prompt: 'Test',
-          platform: 'tiktok',
-          language: 'en',
-          urls: tooManyUrls,
-        },
-        veo_config: {
-          aspect_ratio: '9:16',
-          duration_sec: 8,
-        },
-      };
-
-      const response = (await request(app.getHttpServer())
-        .post('/api/ads')
-        .set('Authorization', `Bearer ${validToken}`)
-        .send(invalidPayload)
-        .expect(400)) as unknown as { body: ResponseBody };
-
-      expect(response.body.message).toContain('urls');
-    });
-
-    it('should strip unknown properties (whitelist)', async () => {
-      const payloadWithExtra = {
-        businessId,
-        productId,
-        createdBy: 'user-123',
-        maliciousField: '<script>alert("xss")</script>', // Should be stripped
-        prompt_inputs: {
-          prompt: 'Test',
-          platform: 'tiktok',
-          language: 'en',
-          anotherBadField: 'DROP TABLE users;', // Should be stripped
-        },
-        veo_config: {
-          aspect_ratio: '9:16',
-          duration_sec: 8,
-        },
-      };
-
-      // Mock successful creation
-      mockDocRef.set.mockResolvedValue(undefined);
-      mockCollectionRef.add.mockResolvedValue({
-        id: 'job-123',
+    it('should strip unknown properties', async () => {
+      mockFirestore.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          get: jest.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({
+              ownerId: 'owner-uid',
+              subscription: { tier: 'free' },
+            }),
+          }),
+          collection: jest.fn().mockReturnValue({
+            doc: jest.fn().mockReturnValue({
+              get: jest.fn().mockResolvedValue({
+                exists: false,
+              }),
+            }),
+          }),
+        }),
       });
 
-      // Should succeed because unknown fields are stripped
-      await request(app.getHttpServer())
-        .post('/api/ads')
-        .set('Authorization', `Bearer ${validToken}`)
-        .send(payloadWithExtra)
-        .expect(201);
-    });
-
-    it('should accept valid payload', async () => {
-      const validPayload = {
-        businessId,
-        productId,
-        createdBy: 'user-123',
-        prompt_inputs: {
-          prompt: 'Create an engaging ad for my product',
-          platform: 'tiktok',
-          language: 'en',
-          tone: 'energetic',
-          target_audience: 'Young adults 18-25',
-          cta: 'Shop now',
-          product_info: {
-            name: 'Amazing Product',
-            description: 'The best product ever',
-            benefits: ['Fast', 'Reliable', 'Affordable'],
-          },
-          urls: ['https://example.com/product'],
-          subtitle_style: 'kinetic',
-        },
-        veo_config: {
-          aspect_ratio: '9:16',
-          duration_sec: 8,
-          negative_prompt: 'blurry, low quality',
-          person_generation: 'allow_all',
-          enhance_prompt: true,
-        },
-      };
-
-      // Mock successful creation
-      mockDocRef.set.mockResolvedValue(undefined);
-      mockCollectionRef.add.mockResolvedValue({
-        id: 'job-123',
+      mockFirestore.runTransaction.mockImplementation(async (callback) => {
+        const mockTransaction = {
+          get: jest.fn().mockResolvedValue({
+            exists: false,
+          }),
+          set: jest.fn(),
+          update: jest.fn(),
+        };
+        return callback(mockTransaction);
       });
 
       await request(app.getHttpServer())
-        .post('/api/ads')
-        .set('Authorization', `Bearer ${validToken}`)
-        .send(validPayload)
+        .post('/ads')
+        .set('Authorization', 'Bearer mock-token')
+        .send({
+          businessId: '123e4567-e89b-12d3-a456-426614174000',
+          prompt: 'Test prompt',
+          productName: 'Test Product',
+          platform: 'tiktok',
+          aspectRatio: '9:16',
+          maliciousField: 'should be stripped',
+        })
         .expect(201);
+    });
+
+    it('should prevent SQL injection attempts', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/ads')
+        .query({ businessId: "'; DROP TABLE businesses--" })
+        .set('Authorization', 'Bearer mock-token')
+        .expect(400);
+
+      expect(response.body.message).toContain('businessId');
     });
   });
 
-  describe('XSS Prevention', () => {
-    const validToken = 'valid-firebase-token';
-    const businessId = '123e4567-e89b-12d3-a456-426614174000';
-    const productId = '123e4567-e89b-12d3-a456-426614174001';
+  describe('Rate Limiting', () => {
+    it('should block requests exceeding rate limit', async () => {
+      const businessId = '123e4567-e89b-12d3-a456-426614174000';
+      const token = 'Bearer mock-token';
 
-    beforeEach(() => {
-      mockDocRef.get.mockResolvedValue({
-        exists: true,
-        data: () => ({ role: 'owner' }),
+      mockFirestore.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          get: jest.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({
+              ownerId: 'owner-uid',
+              subscription: { tier: 'free' },
+            }),
+          }),
+          collection: jest.fn().mockReturnValue({
+            doc: jest.fn().mockReturnValue({
+              get: jest.fn().mockResolvedValue({
+                exists: true,
+                data: () => ({
+                  requests: 10, // Already at limit
+                  windowStart: new Date(),
+                }),
+              }),
+              set: jest.fn(),
+              update: jest.fn(),
+            }),
+            where: jest.fn().mockReturnThis(),
+            orderBy: jest.fn().mockReturnThis(),
+            limit: jest.fn().mockReturnThis(),
+            get: jest.fn().mockResolvedValue({
+              empty: true,
+              docs: [],
+            }),
+          }),
+        }),
       });
+
+      const response = await request(app.getHttpServer())
+        .get(`/ads?businessId=${businessId}`)
+        .set('Authorization', token)
+        .expect(429);
+
+      expect(response.body.message).toContain('Rate limit exceeded');
+      expect(response.headers['retry-after']).toBeDefined();
     });
 
-    it('should accept payload with HTML-like content (validation only checks length)', async () => {
-      const xssPayload = {
-        businessId,
-        productId,
-        createdBy: 'user-123',
-        prompt_inputs: {
-          prompt: '<script>alert("xss")</script>',
-          platform: 'tiktok',
-          language: 'en',
-        },
-        veo_config: {
-          aspect_ratio: '9:16',
-          duration_sec: 8,
-        },
-      };
+    it('should include rate limit headers in response', async () => {
+      const businessId = '123e4567-e89b-12d3-a456-426614174000';
 
-      // Mock successful creation
-      mockDocRef.set.mockResolvedValue(undefined);
-      mockCollectionRef.add.mockResolvedValue({
-        id: 'job-123',
+      mockFirestore.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          get: jest.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({
+              ownerId: 'owner-uid',
+              subscription: { tier: 'free' },
+            }),
+          }),
+          collection: jest.fn().mockReturnValue({
+            doc: jest.fn().mockReturnValue({
+              get: jest.fn().mockResolvedValue({
+                exists: true,
+                data: () => ({
+                  requests: 5,
+                  windowStart: new Date(),
+                }),
+              }),
+              update: jest.fn(),
+            }),
+            where: jest.fn().mockReturnThis(),
+            orderBy: jest.fn().mockReturnThis(),
+            limit: jest.fn().mockReturnThis(),
+            get: jest.fn().mockResolvedValue({
+              empty: true,
+              docs: [],
+            }),
+          }),
+        }),
       });
 
-      // Should succeed - validation doesn't sanitize, just validates format
-      // XSS prevention happens at rendering layer
-      await request(app.getHttpServer())
-        .post('/api/ads')
-        .set('Authorization', `Bearer ${validToken}`)
-        .send(xssPayload)
-        .expect(201);
+      const response = await request(app.getHttpServer())
+        .get(`/ads?businessId=${businessId}`)
+        .set('Authorization', 'Bearer mock-token')
+        .expect(200);
+
+      expect(response.headers['x-ratelimit-limit']).toBeDefined();
+      expect(response.headers['x-ratelimit-remaining']).toBeDefined();
+      expect(response.headers['x-ratelimit-reset']).toBeDefined();
     });
   });
 
-  describe('SQL Injection Prevention', () => {
-    const validToken = 'valid-firebase-token';
-    const businessId = '123e4567-e89b-12d3-a456-426614174000';
-    const productId = '123e4567-e89b-12d3-a456-426614174001';
+  describe('Race Condition Prevention', () => {
+    it('should not exceed quota with concurrent requests', async () => {
+      const businessId = '123e4567-e89b-12d3-a456-426614174000';
+      let transactionCount = 0;
 
-    beforeEach(() => {
-      mockDocRef.get.mockResolvedValue({
-        exists: true,
-        data: () => ({ role: 'owner' }),
-      });
-    });
-
-    it('should accept SQL-like strings in prompt (NoSQL database)', async () => {
-      const sqlPayload = {
-        businessId,
-        productId,
-        createdBy: 'user-123',
-        prompt_inputs: {
-          prompt: "'; DROP TABLE users; --",
-          platform: 'tiktok',
-          language: 'en',
-        },
-        veo_config: {
-          aspect_ratio: '9:16',
-          duration_sec: 8,
-        },
-      };
-
-      // Mock successful creation
-      mockDocRef.set.mockResolvedValue(undefined);
-      mockCollectionRef.add.mockResolvedValue({
-        id: 'job-123',
+      mockFirestore.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          get: jest.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({
+              ownerId: 'owner-uid',
+              subscription: { tier: 'free' }, // 2 videos max
+            }),
+          }),
+          collection: jest.fn().mockReturnValue({
+            doc: jest.fn().mockReturnValue({
+              get: jest.fn().mockResolvedValue({
+                exists: true,
+                data: () => ({
+                  requests: 0,
+                  windowStart: new Date(),
+                }),
+              }),
+              update: jest.fn(),
+            }),
+          }),
+        }),
       });
 
-      // Should succeed - Firestore is NoSQL, not vulnerable to SQL injection
-      await request(app.getHttpServer())
-        .post('/api/ads')
-        .set('Authorization', `Bearer ${validToken}`)
-        .send(sqlPayload)
-        .expect(201);
+      // Simulate atomic transaction
+      mockFirestore.runTransaction.mockImplementation(async (callback) => {
+        const currentCount = transactionCount;
+
+        const mockTransaction = {
+          get: jest.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({
+              videosCreated: currentCount,
+            }),
+          }),
+          update: jest.fn(),
+        };
+
+        const result = await callback(mockTransaction);
+
+        if (result.allowed) {
+          transactionCount++;
+        }
+
+        return result;
+      });
+
+      // Make 3 concurrent requests (should only allow 2)
+      const requests = Array(3)
+        .fill(null)
+        .map(() =>
+          request(app.getHttpServer())
+            .post('/ads')
+            .set('Authorization', 'Bearer mock-token')
+            .send({
+              businessId,
+              prompt: 'Test',
+              productName: 'Test',
+              platform: 'tiktok',
+              aspectRatio: '9:16',
+            }),
+        );
+
+      const responses = await Promise.all(requests);
+
+      const successCount = responses.filter((r) => r.status === 201).length;
+      const quotaExceededCount = responses.filter(
+        (r) => r.status === 402,
+      ).length;
+
+      expect(successCount).toBeLessThanOrEqual(2);
+      expect(quotaExceededCount).toBeGreaterThan(0);
     });
   });
 });

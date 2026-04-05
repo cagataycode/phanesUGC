@@ -108,6 +108,7 @@ describe('QuotaService', () => {
 
       expect(limits).toEqual({
         monthlyVideos: 2,
+        monthlyCostLimit: 5.0,
         concurrentJobs: 1,
         maxVideoDuration: 5,
         prioritySupport: false,
@@ -119,6 +120,7 @@ describe('QuotaService', () => {
 
       expect(limits).toEqual({
         monthlyVideos: 40,
+        monthlyCostLimit: 200.0,
         concurrentJobs: 5,
         maxVideoDuration: 10,
         prioritySupport: true,
@@ -129,6 +131,7 @@ describe('QuotaService', () => {
       const limits = service.getTierLimits(SubscriptionTier.ENTERPRISE);
 
       expect(limits.monthlyVideos).toBe(-1);
+      expect(limits.monthlyCostLimit).toBe(-1);
     });
   });
 
