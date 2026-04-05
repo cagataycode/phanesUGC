@@ -1,3 +1,9 @@
+// Mock crawlee to avoid ESM issues in e2e tests
+jest.mock('crawlee', () => ({
+  CheerioCrawler: jest.fn(),
+  Configuration: jest.fn(),
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';

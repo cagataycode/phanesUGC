@@ -23,9 +23,15 @@ jest.mock('firebase-admin', () => {
   };
 });
 
+// Mock crawlee to avoid ESM issues in e2e tests
+jest.mock('crawlee', () => ({
+  CheerioCrawler: jest.fn(),
+  Configuration: jest.fn(),
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { FirestoreService } from '../src/firebase/firestore.service';
 
@@ -42,6 +48,23 @@ describe('Integration Tests (e2e)', () => {
       runTransaction: jest.fn(),
     }),
   };
+
+  // Helper function to create valid ad payload
+  const createValidAdPayload = (overrides = {}) => ({
+    businessId: '123e4567-e89b-12d3-a456-426614174000',
+    productId: '123e4567-e89b-12d3-a456-426614174001',
+    createdBy: 'test-uid',
+    prompt_inputs: {
+      prompt: 'Integration test video',
+      platform: 'tiktok' as const,
+      language: 'en',
+    },
+    veo_config: {
+      aspect_ratio: '9:16' as const,
+      duration_sec: 5,
+    },
+    ...overrides,
+  });
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -115,13 +138,7 @@ describe('Integration Tests (e2e)', () => {
       const createResponse = await request(app.getHttpServer())
         .post('/ads')
         .set('Authorization', 'Bearer mock-token')
-        .send({
-          businessId,
-          prompt: 'Integration test video',
-          productName: 'Test Product',
-          platform: 'tiktok',
-          aspectRatio: '9:16',
-        })
+        .send(createValidAdPayload({ businessId }))
         .expect(201);
 
       expect(createResponse.body).toHaveProperty('id');
@@ -169,7 +186,10 @@ describe('Integration Tests (e2e)', () => {
   describe('Quota Reset Flow', () => {
     it('should reset quota on month boundary', async () => {
       const businessId = '123e4567-e89b-12d3-a456-426614174000';
-      const lastMonth = '2026-03';
+      const now = new Date();
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+        .toISOString()
+        .substring(0, 7); // Format: YYYY-MM
 
       // Mock last month's usage
       mockFirestore.collection.mockReturnValue({
@@ -214,6 +234,15 @@ describe('Integration Tests (e2e)', () => {
       const businessId = '123e4567-e89b-12d3-a456-426614174000';
       const oneHourAgo = new Date(Date.now() - 61 * 60 * 1000);
 
+      // Create stale timestamps (over 1 hour old)
+      const staleTimestamps = Array(10)
+        .fill(null)
+        .map(() => ({
+          timestamp: {
+            toDate: () => oneHourAgo,
+          },
+        }));
+
       mockFirestore.collection.mockReturnValue({
         doc: jest.fn().mockReturnValue({
           get: jest.fn().mockResolvedValue({
@@ -228,8 +257,10 @@ describe('Integration Tests (e2e)', () => {
               get: jest.fn().mockResolvedValue({
                 exists: true,
                 data: () => ({
-                  requests: 10,
-                  windowStart: oneHourAgo, // Stale entry
+                  requests: staleTimestamps,
+                  updatedAt: {
+                    toDate: () => oneHourAgo,
+                  },
                 }),
               }),
               delete: jest.fn(),
@@ -308,13 +339,7 @@ describe('Integration Tests (e2e)', () => {
       const response = await request(app.getHttpServer())
         .post('/ads')
         .set('Authorization', 'Bearer mock-token')
-        .send({
-          businessId,
-          prompt: 'Transaction test',
-          productName: 'Test',
-          platform: 'tiktok',
-          aspectRatio: '9:16',
-        });
+        .send(createValidAdPayload({ businessId }));
 
       // Should eventually succeed after retry
       expect([201, 500]).toContain(response.status);

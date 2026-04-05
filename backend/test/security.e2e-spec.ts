@@ -23,9 +23,15 @@ jest.mock('firebase-admin', () => {
   };
 });
 
+// Mock crawlee to avoid ESM issues in e2e tests
+jest.mock('crawlee', () => ({
+  CheerioCrawler: jest.fn(),
+  Configuration: jest.fn(),
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { FirestoreService } from '../src/firebase/firestore.service';
 
@@ -43,6 +49,25 @@ describe('Security Tests (e2e)', () => {
       runTransaction: jest.fn(),
     }),
   };
+
+  // Helper function to create valid ad payload
+  const createValidAdPayload = (overrides = {}) => ({
+    businessId: '123e4567-e89b-12d3-a456-426614174000',
+    productId: '123e4567-e89b-12d3-a456-426614174001',
+    createdBy: 'test-uid',
+    prompt_inputs: {
+      prompt: 'Test prompt for video generation',
+      platform: 'tiktok' as const,
+      language: 'en',
+      tone: 'professional',
+      target_audience: 'young adults',
+    },
+    veo_config: {
+      aspect_ratio: '9:16' as const,
+      duration_sec: 5,
+    },
+    ...overrides,
+  });
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -164,13 +189,11 @@ describe('Security Tests (e2e)', () => {
       const response = await request(app.getHttpServer())
         .post('/ads')
         .set('Authorization', 'Bearer mock-token')
-        .send({
-          businessId: 'not-a-uuid',
-          prompt: 'Test prompt',
-          productName: 'Test Product',
-          platform: 'tiktok',
-          aspectRatio: '9:16',
-        })
+        .send(
+          createValidAdPayload({
+            businessId: 'not-a-uuid',
+          }),
+        )
         .expect(400);
 
       expect(response.body.message).toContain('businessId');
@@ -182,13 +205,15 @@ describe('Security Tests (e2e)', () => {
       const response = await request(app.getHttpServer())
         .post('/ads')
         .set('Authorization', 'Bearer mock-token')
-        .send({
-          businessId: '123e4567-e89b-12d3-a456-426614174000',
-          prompt: longPrompt,
-          productName: 'Test Product',
-          platform: 'tiktok',
-          aspectRatio: '9:16',
-        })
+        .send(
+          createValidAdPayload({
+            prompt_inputs: {
+              prompt: longPrompt,
+              platform: 'tiktok' as const,
+              language: 'en',
+            },
+          }),
+        )
         .expect(400);
 
       expect(response.body.message).toContain('prompt');
@@ -198,19 +223,21 @@ describe('Security Tests (e2e)', () => {
       const response = await request(app.getHttpServer())
         .post('/ads')
         .set('Authorization', 'Bearer mock-token')
-        .send({
-          businessId: '123e4567-e89b-12d3-a456-426614174000',
-          prompt: 'Test prompt',
-          productName: 'Test Product',
-          platform: 'invalid-platform',
-          aspectRatio: '9:16',
-        })
+        .send(
+          createValidAdPayload({
+            prompt_inputs: {
+              prompt: 'Test prompt',
+              platform: 'invalid-platform' as any,
+              language: 'en',
+            },
+          }),
+        )
         .expect(400);
 
       expect(response.body.message).toContain('platform');
     });
 
-    it('should strip unknown properties', async () => {
+    it('should reject unknown properties', async () => {
       mockFirestore.collection.mockReturnValue({
         doc: jest.fn().mockReturnValue({
           get: jest.fn().mockResolvedValue({
@@ -241,18 +268,16 @@ describe('Security Tests (e2e)', () => {
         return callback(mockTransaction);
       });
 
-      await request(app.getHttpServer())
+      const response = await request(app.getHttpServer())
         .post('/ads')
         .set('Authorization', 'Bearer mock-token')
         .send({
-          businessId: '123e4567-e89b-12d3-a456-426614174000',
-          prompt: 'Test prompt',
-          productName: 'Test Product',
-          platform: 'tiktok',
-          aspectRatio: '9:16',
-          maliciousField: 'should be stripped',
+          ...createValidAdPayload(),
+          maliciousField: 'should be rejected',
         })
-        .expect(201);
+        .expect(400);
+
+      expect(response.body.message).toContain('should not exist');
     });
 
     it('should prevent SQL injection attempts', async () => {
@@ -271,6 +296,15 @@ describe('Security Tests (e2e)', () => {
       const businessId = '123e4567-e89b-12d3-a456-426614174000';
       const token = 'Bearer mock-token';
 
+      // Create 10 recent timestamps (at limit)
+      const recentTimestamps = Array(10)
+        .fill(null)
+        .map(() => ({
+          timestamp: {
+            toDate: () => new Date(),
+          },
+        }));
+
       mockFirestore.collection.mockReturnValue({
         doc: jest.fn().mockReturnValue({
           get: jest.fn().mockResolvedValue({
@@ -285,8 +319,10 @@ describe('Security Tests (e2e)', () => {
               get: jest.fn().mockResolvedValue({
                 exists: true,
                 data: () => ({
-                  requests: 10, // Already at limit
-                  windowStart: new Date(),
+                  requests: recentTimestamps,
+                  updatedAt: {
+                    toDate: () => new Date(),
+                  },
                 }),
               }),
               set: jest.fn(),
@@ -315,6 +351,15 @@ describe('Security Tests (e2e)', () => {
     it('should include rate limit headers in response', async () => {
       const businessId = '123e4567-e89b-12d3-a456-426614174000';
 
+      // Create 5 recent timestamps (under limit)
+      const recentTimestamps = Array(5)
+        .fill(null)
+        .map(() => ({
+          timestamp: {
+            toDate: () => new Date(),
+          },
+        }));
+
       mockFirestore.collection.mockReturnValue({
         doc: jest.fn().mockReturnValue({
           get: jest.fn().mockResolvedValue({
@@ -329,8 +374,10 @@ describe('Security Tests (e2e)', () => {
               get: jest.fn().mockResolvedValue({
                 exists: true,
                 data: () => ({
-                  requests: 5,
-                  windowStart: new Date(),
+                  requests: recentTimestamps,
+                  updatedAt: {
+                    toDate: () => new Date(),
+                  },
                 }),
               }),
               update: jest.fn(),
@@ -409,20 +456,13 @@ describe('Security Tests (e2e)', () => {
         return result;
       });
 
-      // Make 3 concurrent requests (should only allow 2)
       const requests = Array(3)
         .fill(null)
         .map(() =>
           request(app.getHttpServer())
             .post('/ads')
             .set('Authorization', 'Bearer mock-token')
-            .send({
-              businessId,
-              prompt: 'Test',
-              productName: 'Test',
-              platform: 'tiktok',
-              aspectRatio: '9:16',
-            }),
+            .send(createValidAdPayload({ businessId })),
         );
 
       const responses = await Promise.all(requests);
