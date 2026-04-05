@@ -36,17 +36,30 @@ export class SubtitleGeneratorService {
       // Use chunker to split line into 3-4 word phrases
       const phrases = generateScriptSubtitles(line.text, lineDuration);
 
-      // Convert phrases to segments with absolute timing
-      phrases.forEach((phrase, phraseIndex) => {
+      // Handle edge case: if chunker returns empty (e.g., zero duration),
+      // create a single segment with the full text
+      if (phrases.length === 0 && line.text.trim()) {
         allSegments.push({
-          id: `sub-${lineIndex}-${phraseIndex}`,
-          text: phrase.text,
-          startSec: lineStartTime + phrase.start,
-          endSec: lineStartTime + phrase.end,
-          lines: phrase.lines,
+          id: `sub-${lineIndex}-0`,
+          text: line.text,
+          startSec: lineStartTime,
+          endSec: lineStartTime + lineDuration,
+          lines: [line.text],
           style,
         });
-      });
+      } else {
+        // Convert phrases to segments with absolute timing
+        phrases.forEach((phrase, phraseIndex) => {
+          allSegments.push({
+            id: `sub-${lineIndex}-${phraseIndex}`,
+            text: phrase.text,
+            startSec: lineStartTime + phrase.start,
+            endSec: lineStartTime + phrase.end,
+            lines: phrase.lines,
+            style,
+          });
+        });
+      }
 
       cumulativeTime += lineDuration;
     });

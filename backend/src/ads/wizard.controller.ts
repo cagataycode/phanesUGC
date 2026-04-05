@@ -28,7 +28,7 @@ import { AdScript } from '../agent/contracts/ad-script';
 import { v4 as uuidv4 } from 'uuid';
 
 @Controller('wizard')
-@UseGuards(FirebaseAuthGuard, BusinessOwnershipGuard, RolesGuard)
+@UseGuards(FirebaseAuthGuard, RolesGuard)
 export class WizardController {
   constructor(
     private readonly briefBuilder: BriefBuilderService,

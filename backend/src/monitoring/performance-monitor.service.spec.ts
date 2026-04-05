@@ -119,18 +119,15 @@ describe('PerformanceMonitorService', () => {
   });
 
   describe('startTimer', () => {
-    it('should start and stop a timer', () => {
+    it('should start and stop a timer', async () => {
       const context: LogContext = {
         correlationId: 'test-correlation-id',
       };
 
       const stopTimer = service.startTimer('test-operation', context);
 
-      // Simulate some work
-      const start = Date.now();
-      while (Date.now() - start < 10) {
-        // Wait 10ms
-      }
+      // Simulate some work with a small delay
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const result = stopTimer();
