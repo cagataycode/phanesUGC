@@ -111,9 +111,7 @@ export class BriefGenerationService {
     );
 
     parts.push('## User Input');
-    parts.push(
-      `Creative Direction: ${typeof prompt_inputs.prompt === 'string' ? prompt_inputs.prompt : JSON.stringify(prompt_inputs.prompt)}`,
-    );
+    parts.push(`Creative Direction: ${prompt_inputs.prompt}`);
 
     if (prompt_inputs.product_info?.name) {
       parts.push(`\n## Product Information`);
