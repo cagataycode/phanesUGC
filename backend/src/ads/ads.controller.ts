@@ -14,7 +14,6 @@ import { AdsService } from './ads.service';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { WizardSubmitSchema } from './dto/wizard.dto';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
-import { BusinessOwnershipGuard } from '../auth/business-ownership.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { PerformanceInterceptor } from '../monitoring/interceptors/performance.interceptor';
 import { RateLimitInterceptor } from '../quota/interceptors/rate-limit.interceptor';
@@ -22,7 +21,7 @@ import { QuotaService } from '../quota/quota.service';
 import { RateLimiterService } from '../quota/rate-limiter.service';
 
 @Controller('ads')
-@UseGuards(FirebaseAuthGuard, BusinessOwnershipGuard, RolesGuard)
+@UseGuards(FirebaseAuthGuard, RolesGuard)
 @UseInterceptors(PerformanceInterceptor, RateLimitInterceptor)
 export class AdsController {
   constructor(

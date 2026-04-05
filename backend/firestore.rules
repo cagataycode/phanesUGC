@@ -15,7 +15,7 @@ service cloud.firestore {
     function isBusinessMember(businessId) {
       return isAuthenticated() && 
         (get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid ||
-         request.auth.uid in get(/databases/$(database)/documents/businesses/$(businessId)).data.members);
+         exists(/databases/$(database)/documents/businesses/$(businessId)/members/$(request.auth.uid)));
     }
     
     // Businesses
