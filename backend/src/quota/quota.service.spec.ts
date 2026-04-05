@@ -127,11 +127,11 @@ describe('QuotaService', () => {
       });
     });
 
-    it('should return high limits for ENTERPRISE tier', () => {
+    it('should return unlimited limits for ENTERPRISE tier', () => {
       const limits = service.getTierLimits(SubscriptionTier.ENTERPRISE);
 
-      expect(limits.monthlyVideos).toBe(500);
-      expect(limits.monthlyCostLimit).toBe(1000);
+      expect(limits.monthlyVideos).toBe(-1); // Unlimited
+      expect(limits.monthlyCostLimit).toBe(-1); // Unlimited
       expect(limits.concurrentJobs).toBe(10);
     });
   });
@@ -190,7 +190,7 @@ describe('QuotaService', () => {
       expect(quota.videosRemaining).toBe(2);
     });
 
-    it('should return high quota for ENTERPRISE tier', async () => {
+    it('should return unlimited quota for ENTERPRISE tier', async () => {
       const mockBusinessDoc = {
         exists: true,
         data: () => ({
@@ -213,7 +213,7 @@ describe('QuotaService', () => {
 
       const quota = await service.checkQuota(mockBusinessId);
 
-      expect(quota.videosRemaining).toBe(400); // 500 - 100 = 400
+      expect(quota.videosRemaining).toBe(-1); // Unlimited
       expect(quota.tier).toBe(SubscriptionTier.ENTERPRISE);
     });
   });
@@ -271,7 +271,7 @@ describe('QuotaService', () => {
       expect(canCreate).toBe(false);
     });
 
-    it('should return false when ENTERPRISE quota exceeded', async () => {
+    it('should return true for ENTERPRISE tier (unlimited)', async () => {
       const mockBusinessDoc = {
         exists: true,
         data: () => ({
@@ -284,7 +284,7 @@ describe('QuotaService', () => {
       const mockUsageDoc = {
         exists: true,
         data: () => ({
-          videosCreated: 500, // At limit
+          videosCreated: 1000, // Any amount - unlimited
         }),
       };
 
@@ -294,7 +294,7 @@ describe('QuotaService', () => {
 
       const canCreate = await service.canCreateJob(mockBusinessId);
 
-      expect(canCreate).toBe(false); // 500 >= 500
+      expect(canCreate).toBe(true); // Unlimited
     });
   });
 

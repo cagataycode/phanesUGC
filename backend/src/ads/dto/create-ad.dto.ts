@@ -14,6 +14,7 @@ import {
   ArrayMaxSize,
   ValidateNested,
   IsObject,
+  IsIn,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -40,9 +41,11 @@ class PromptInputsDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(2000, { message: 'Prompt must not exceed 2000 characters' })
+  // Note: Currently only string prompts are supported in DTO validation.
+  // If structured prompt objects are needed, update this validation and downstream services.
   prompt!: string;
 
-  @IsEnum(['tiktok', 'instagram', 'youtube'], {
+  @IsIn(['tiktok', 'instagram', 'youtube'], {
     message: 'Platform must be one of: tiktok, instagram, youtube',
   })
   @IsNotEmpty()
@@ -92,9 +95,11 @@ class VeoConfigDto {
   aspect_ratio!: '16:9' | '9:16' | '1:1';
 
   @IsInt()
-  @Min(5)
-  @Max(10)
+  @Min(8)
+  @Max(8)
   @IsNotEmpty()
+  // MVP: Duration is fixed at 8 seconds. Vertex AI Veo supports 8|15|30|60 seconds,
+  // but the current pipeline and scene generation are optimized for 8-second ads only.
   duration_sec!: number;
 
   @IsString()
