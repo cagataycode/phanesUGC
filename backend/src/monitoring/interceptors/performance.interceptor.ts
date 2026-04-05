@@ -86,6 +86,9 @@ export class PerformanceInterceptor implements NestInterceptor {
     let requestFailed = false;
 
     // Run the whole observable chain within the correlation context
+    // Note: AsyncLocalStorage context propagates through the Observable subscription
+    // because next.handle() is called inside the run() callback, and the Observable
+    // is subscribed to synchronously by NestJS within this same context.
     return this.correlationContext.run(
       {
         correlationId,

@@ -118,10 +118,16 @@ export class QuotaService {
 
   /**
    * Check if business has quota available
+   * @param businessId - Business ID
+   * @param tier - Optional pre-fetched tier to avoid redundant Firestore reads
    */
-  async checkQuota(businessId: string): Promise<QuotaUsage> {
-    const tier = await this.getSubscriptionTier(businessId);
-    const limits = this.getTierLimits(tier);
+  async checkQuota(
+    businessId: string,
+    tier?: SubscriptionTier,
+  ): Promise<QuotaUsage> {
+    const subscriptionTier =
+      tier || (await this.getSubscriptionTier(businessId));
+    const limits = this.getTierLimits(subscriptionTier);
 
     // Get current usage from Firestore
     const usageDoc = await this.firestore
@@ -146,7 +152,7 @@ export class QuotaService {
       videosCreated,
       videosRemaining,
       resetDate,
-      tier,
+      tier: subscriptionTier,
     };
   }
 

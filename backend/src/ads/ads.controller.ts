@@ -34,12 +34,21 @@ export class AdsController {
 
   @Post()
   async createJob(
-    @Headers('x-business-id') authorizedBusinessId: string | undefined,
-    @Query('businessId') queryBusinessId: string | undefined,
+    @Headers('x-business-id')
+    authorizedBusinessId: string | string[] | undefined,
+    @Query('businessId') queryBusinessId: string | string[] | undefined,
     @Body() createAdDto: CreateAdDto,
   ) {
     // IDOR Protection: Validate body businessId matches the authorized businessId from guard
-    const guardBusinessId = authorizedBusinessId || queryBusinessId;
+    // Normalize arrays (repeated headers/query params) to single string
+    const normalizedHeader = Array.isArray(authorizedBusinessId)
+      ? authorizedBusinessId[0]
+      : authorizedBusinessId;
+    const normalizedQuery = Array.isArray(queryBusinessId)
+      ? queryBusinessId[0]
+      : queryBusinessId;
+
+    const guardBusinessId = normalizedHeader || normalizedQuery;
     if (!guardBusinessId) {
       throw new ForbiddenException(
         'Business ID must be provided via x-business-id header or query parameter',
@@ -77,7 +86,7 @@ export class AdsController {
     }
 
     // Check quota availability (without incrementing - quota is charged on completion)
-    const quota = await this.quotaService.checkQuota(businessId);
+    const quota = await this.quotaService.checkQuota(businessId, tier);
     if (quota.videosRemaining !== -1 && quota.videosRemaining === 0) {
       throw new HttpException(
         {
@@ -130,14 +139,23 @@ export class AdsController {
 
   @Post('wizard')
   async createWizardJob(
-    @Headers('x-business-id') authorizedBusinessId: string | undefined,
-    @Query('businessId') queryBusinessId: string | undefined,
+    @Headers('x-business-id')
+    authorizedBusinessId: string | string[] | undefined,
+    @Query('businessId') queryBusinessId: string | string[] | undefined,
     @Body() wizardDto: Record<string, unknown>,
   ) {
     const parsed = WizardSubmitSchema.parse(wizardDto);
 
     // IDOR Protection: Validate body businessId matches the authorized businessId from guard
-    const guardBusinessId = authorizedBusinessId || queryBusinessId;
+    // Normalize arrays (repeated headers/query params) to single string
+    const normalizedHeader = Array.isArray(authorizedBusinessId)
+      ? authorizedBusinessId[0]
+      : authorizedBusinessId;
+    const normalizedQuery = Array.isArray(queryBusinessId)
+      ? queryBusinessId[0]
+      : queryBusinessId;
+
+    const guardBusinessId = normalizedHeader || normalizedQuery;
     if (!guardBusinessId) {
       throw new ForbiddenException(
         'Business ID must be provided via x-business-id header or query parameter',
@@ -175,7 +193,7 @@ export class AdsController {
     }
 
     // Check quota availability (without incrementing - quota is charged on completion)
-    const quota = await this.quotaService.checkQuota(businessId);
+    const quota = await this.quotaService.checkQuota(businessId, tier);
     if (quota.videosRemaining !== -1 && quota.videosRemaining === 0) {
       throw new HttpException(
         {
