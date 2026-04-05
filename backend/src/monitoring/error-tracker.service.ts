@@ -16,32 +16,54 @@ import { Env } from '../config/env';
 @Injectable()
 export class ErrorTrackerService {
   private readonly logger = new Logger(ErrorTrackerService.name);
-  private readonly errorReporting: ErrorReporting;
+  private readonly errorReporting: ErrorReporting | null;
   private readonly alertEmail: string;
   private readonly errorCounts: Map<string, number> = new Map();
   private readonly errorCountsCleanup: Map<string, NodeJS.Timeout> = new Map();
   private readonly ERROR_COUNT_TTL_MS = 60 * 60 * 1000; // 1 hour
+  private readonly errorReportingEnabled: boolean;
 
   constructor(private readonly configService: ConfigService<Env>) {
-    // Initialize Cloud Error Reporting
+    // Initialize Cloud Error Reporting only if credentials are available
     const projectId = this.configService.get('GCP_PROJECT_ID', { infer: true });
-    const serviceContext = {
-      service: 'phanes-backend',
-      version: process.env.npm_package_version || '1.0.0',
-    };
+    const enableErrorReporting =
+      this.configService.get('ENABLE_ERROR_REPORTING', { infer: true }) !==
+      'false';
 
-    this.errorReporting = new ErrorReporting({
-      projectId,
-      serviceContext,
-      reportMode: 'production',
-    });
+    this.errorReportingEnabled = enableErrorReporting && !!projectId;
+
+    if (this.errorReportingEnabled) {
+      try {
+        const serviceContext = {
+          service: 'phanes-backend',
+          version: process.env.npm_package_version || '1.0.0',
+        };
+
+        this.errorReporting = new ErrorReporting({
+          projectId,
+          serviceContext,
+          reportMode: 'production',
+        });
+
+        this.logger.log(
+          `ErrorTracker initialized with Cloud Error Reporting for project: ${projectId}`,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Failed to initialize Cloud Error Reporting: ${error instanceof Error ? error.message : String(error)}. Continuing with local logging only.`,
+        );
+        this.errorReporting = null;
+        this.errorReportingEnabled = false;
+      }
+    } else {
+      this.errorReporting = null;
+      this.logger.log(
+        'ErrorTracker initialized without Cloud Error Reporting (local logging only)',
+      );
+    }
 
     this.alertEmail =
       this.configService.get('ALERT_EMAIL', { infer: true }) || '';
-
-    this.logger.log(
-      `ErrorTracker initialized for project: ${projectId}, alerts: ${this.alertEmail}`,
-    );
   }
 
   /**
@@ -97,6 +119,11 @@ export class ErrorTrackerService {
    * Report error to Cloud Error Reporting
    */
   private reportToCloudErrorReporting(error: Error, appError: AppError): void {
+    // Skip if Error Reporting is not enabled
+    if (!this.errorReportingEnabled || !this.errorReporting) {
+      return;
+    }
+
     try {
       // Add context to error for better grouping
       const errorWithContext = new Error(error.message) as Error & {
