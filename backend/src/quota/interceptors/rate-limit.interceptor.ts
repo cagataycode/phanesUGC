@@ -26,9 +26,11 @@ export class RateLimitInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest<any>();
     const response = context.switchToHttp().getResponse<Response>();
 
-    // Extract businessId from params, query, or body
+    // Extract businessId from header, params, query, or body
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     let businessId: string | undefined =
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      request.headers?.['x-business-id'] ||
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       request.params?.businessId ||
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access

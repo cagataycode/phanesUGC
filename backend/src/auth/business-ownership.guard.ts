@@ -8,6 +8,7 @@ import { FirestoreService } from '../firebase/firestore.service';
 
 interface RequestWithUser {
   user?: { uid: string };
+  headers?: { 'x-business-id'?: string | string[] };
   params?: { businessId?: string };
   query?: { businessId?: string };
   body?: { businessId?: string };
@@ -29,16 +30,15 @@ export class BusinessOwnershipGuard implements CanActivate {
       throw new ForbiddenException('Authentication required');
     }
 
-    // Extract businessId from params, query, or body
-
+    // Extract businessId from header, params, query, or body
     let businessId =
+      request.headers?.['x-business-id'] ||
       request.params?.businessId ||
       request.query?.businessId ||
       request.body?.businessId;
 
-    // Normalize array values (query params can be arrays)
+    // Normalize array values (query params and headers can be arrays)
     if (Array.isArray(businessId)) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       businessId = businessId[0];
     }
 
