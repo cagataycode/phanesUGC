@@ -77,10 +77,15 @@ export class AdsController {
       );
     }
 
-    // Create the job
-    const result = await this.adsService.createJob(createAdDto);
-
-    return result;
+    // Create the job (with rollback on failure)
+    try {
+      const result = await this.adsService.createJob(createAdDto);
+      return result;
+    } catch (error) {
+      // Rollback quota increment if job creation fails
+      await this.quotaService.decrementQuota(businessId);
+      throw error;
+    }
   }
 
   @Get()
@@ -162,9 +167,14 @@ export class AdsController {
       );
     }
 
-    // Create the job
-    const result = await this.adsService.createWizardJob(parsed);
-
-    return result;
+    // Create the job (with rollback on failure)
+    try {
+      const result = await this.adsService.createWizardJob(parsed);
+      return result;
+    } catch (error) {
+      // Rollback quota increment if job creation fails
+      await this.quotaService.decrementQuota(businessId);
+      throw error;
+    }
   }
 }

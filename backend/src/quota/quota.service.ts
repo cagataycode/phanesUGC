@@ -247,6 +247,45 @@ export class QuotaService {
   }
 
   /**
+   * Decrement quota (rollback) when job creation fails after quota was incremented
+   */
+  async decrementQuota(businessId: string): Promise<void> {
+    const monthKey = this.getCurrentMonthKey();
+
+    const usageRef = this.firestore
+      .collection('businesses')
+      .doc(businessId)
+      .collection('usage')
+      .doc(monthKey);
+
+    try {
+      await this.firestore.runTransaction(async (transaction) => {
+        const usageDoc = await transaction.get(usageRef);
+        if (usageDoc.exists) {
+          const currentCount = (usageDoc.data()?.videosCreated as number) || 0;
+          if (currentCount > 0) {
+            transaction.update(usageRef, {
+              videosCreated: currentCount - 1,
+              updatedAt: new Date(),
+            });
+          }
+        }
+      });
+
+      this.structuredLogger.log('Quota usage decremented (rollback)', {
+        correlationId: 'quota-decrement',
+        businessId,
+        month: monthKey,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to decrement quota: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Increment usage counter for a business
    * @deprecated Use tryIncrementQuota() instead for atomic check-and-increment
    */
