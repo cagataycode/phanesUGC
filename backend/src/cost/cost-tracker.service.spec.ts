@@ -151,26 +151,23 @@ describe('CostTrackerService', () => {
   describe('trackApiCall', () => {
     const jobId = 'test-job-123';
     const businessId = 'test-business-456';
+    let mockTransaction: any;
 
     beforeEach(() => {
-      // Mock the nested collection structure for agent_jobs
-      mockSubDocRef.get.mockResolvedValue({
-        exists: true,
-        data: () => ({
-          apiCalls: [],
-        }),
-      } as any);
-      mockSubDocRef.update.mockResolvedValue(undefined as any);
-      mockFirestore.runTransaction.mockImplementation((callback) => {
-        const transaction = {
-          get: jest.fn().mockResolvedValue({
-            exists: true,
-            data: () => ({ monthlyCosts: {} }),
+      // Mock transaction for trackApiCall (reads job doc, updates it)
+      mockTransaction = {
+        get: jest.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({
+            apiCalls: [],
           }),
-          update: jest.fn(),
-        };
+        }),
+        update: jest.fn(),
+      };
+
+      mockFirestore.runTransaction.mockImplementation((callback) => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        return Promise.resolve(callback(transaction));
+        return Promise.resolve(callback(mockTransaction));
       });
     });
 
@@ -185,7 +182,9 @@ describe('CostTrackerService', () => {
 
       await service.trackApiCall(jobId, businessId, call);
 
-      expect(mockSubDocRef.update).toHaveBeenCalledWith(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      expect(mockTransaction.update).toHaveBeenCalledWith(
+        expect.anything(), // jobRef
         expect.objectContaining({
           apiCalls: expect.arrayContaining([
             expect.objectContaining({
@@ -224,7 +223,9 @@ describe('CostTrackerService', () => {
 
       await service.trackApiCall(jobId, businessId, call);
 
-      expect(mockSubDocRef.update).toHaveBeenCalledWith(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      expect(mockTransaction.update).toHaveBeenCalledWith(
+        expect.anything(), // jobRef
         expect.objectContaining({
           costBreakdown: expect.objectContaining({
             claudeCalls: 0.0105,
@@ -246,7 +247,9 @@ describe('CostTrackerService', () => {
 
       await service.trackApiCall(jobId, businessId, call);
 
-      expect(mockSubDocRef.update).toHaveBeenCalledWith(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      expect(mockTransaction.update).toHaveBeenCalledWith(
+        expect.anything(), // jobRef
         expect.objectContaining({
           costBreakdown: expect.objectContaining({
             geminiCalls: 0.00625,
@@ -257,7 +260,8 @@ describe('CostTrackerService', () => {
     });
 
     it('should accumulate multiple API calls', async () => {
-      mockSubDocRef.get.mockResolvedValue({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      mockTransaction.get.mockResolvedValue({
         exists: true,
         data: () => ({
           apiCalls: [
@@ -283,7 +287,9 @@ describe('CostTrackerService', () => {
 
       await service.trackApiCall(jobId, businessId, call);
 
-      expect(mockSubDocRef.update).toHaveBeenCalledWith(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      expect(mockTransaction.update).toHaveBeenCalledWith(
+        expect.anything(), // jobRef
         expect.objectContaining({
           apiCalls: expect.arrayContaining([
             expect.objectContaining({ service: 'claude' }),
@@ -299,7 +305,8 @@ describe('CostTrackerService', () => {
     });
 
     it('should skip tracking if job does not exist', async () => {
-      mockSubDocRef.get.mockResolvedValue({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      mockTransaction.get.mockResolvedValue({
         exists: false,
       } as any);
 
@@ -313,11 +320,15 @@ describe('CostTrackerService', () => {
 
       await service.trackApiCall(jobId, businessId, call);
 
-      expect(mockSubDocRef.update).not.toHaveBeenCalled();
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      expect(mockTransaction.update).not.toHaveBeenCalled();
     });
 
     it('should handle errors gracefully', async () => {
-      mockSubDocRef.get.mockRejectedValue(new Error('Firestore error'));
+      // Mock runTransaction to reject directly
+      mockFirestore.runTransaction.mockRejectedValue(
+        new Error('Firestore error'),
+      );
 
       const call: ApiCallCost = {
         service: 'veo',
