@@ -23,5 +23,5 @@ export const AgentConstants = {
   DEFAULT_LANGUAGE: 'en',
   DEFAULT_PLATFORM: 'tiktok' as const,
   DEFAULT_ASPECT_RATIO: '9:16' as const,
-  DEFAULT_SUBTITLE_STYLE: 'kinetic' as const,
+  DEFAULT_SUBTITLE_STYLE: 'standard' as const,
 } as const;

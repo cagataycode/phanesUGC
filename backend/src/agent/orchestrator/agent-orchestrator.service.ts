@@ -110,7 +110,7 @@ export class AgentOrchestratorService {
       tone: promptInputs.tone,
       targetAudience: promptInputs.target_audience,
       cta: promptInputs.cta,
-      subtitleStyle: promptInputs.subtitle_style || 'kinetic',
+      subtitleStyle: promptInputs.subtitle_style || 'standard',
       disableBackgroundMusic: false,
       disableCaptions: false,
       disableCtaOverlay: false,

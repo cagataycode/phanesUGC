@@ -42,7 +42,7 @@ export class DtoMapper {
         target_audience: request.targetAudience,
         tone: brief?.tone || request.tone,
         cta: brief?.cta || request.cta,
-        subtitle_style: request.subtitleStyle || 'kinetic',
+        subtitle_style: request.subtitleStyle || 'standard',
       },
       veo_config: {
         aspect_ratio: request.aspectRatio,

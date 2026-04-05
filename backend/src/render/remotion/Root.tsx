@@ -13,7 +13,7 @@ const defaultProps: RenderRequest = {
   durationInFrames: 1,
   width: 1080,
   height: 1920,
-  subtitleStyle: 'kinetic',
+  subtitleStyle: 'standard',
 };
 
 const SubtitleComponent: React.FC<RenderRequest> = (props) => {
