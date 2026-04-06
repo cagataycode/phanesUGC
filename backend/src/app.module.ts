@@ -11,12 +11,18 @@ import { ProductsModule } from './products/products.module';
 import { AvatarsModule } from './avatars/avatars.module';
 import { AssetsModule } from './assets/assets.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
+import { PaymentModule } from './payment/payment.module';
 import { validateEnv } from './config/env';
 import { RenderModule } from './render/render.module';
 import { ScraperModule } from './scraper/scraper.module';
 
-@Module({
-  imports: [
+/**
+ * Create the application module imports.
+ * PaymentModule is always imported; when ENABLE_PAYMENTS is disabled,
+ * StripeService will not initialize and payment endpoints will return errors.
+ */
+function createAppModuleImports(): any[] {
+  return [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
@@ -33,7 +39,12 @@ import { ScraperModule } from './scraper/scraper.module';
     AssetsModule,
     ScraperModule,
     MonitoringModule,
-  ],
+    PaymentModule, // Always imported - conditionally registers providers internally
+  ];
+}
+
+@Module({
+  imports: createAppModuleImports(),
   controllers: [AppController],
   providers: [AppService],
 })

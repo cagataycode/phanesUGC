@@ -1,19 +1,22 @@
 import { z } from 'zod';
 
 export const ProductInfoSchema = z.object({
-  name: z.string().max(200).optional(),
-  description: z.string().max(1000).optional(),
-  benefits: z.array(z.string().max(200)).max(30).optional(), // Increased from 10 to 30
+  name: z.string().max(300).optional(),
+  description: z.string().max(5000).optional(),
+  benefits: z.array(z.string().max(200)).max(30).optional(),
 });
 
 export const GenerateBriefSchema = z.object({
   businessId: z.string().min(1, 'Business ID is required'), // Firestore auto-generated ID
   productId: z.string().min(1, 'Product ID is required'), // Firestore auto-generated ID
-  prompt: z.string().min(5).max(2000, 'Prompt must not exceed 2000 characters'),
+  prompt: z
+    .string()
+    .min(5)
+    .max(10000, 'Prompt must not exceed 10000 characters'),
   platform: z.enum(['tiktok', 'instagram', 'youtube']),
   language: z.enum(['en', 'de']).optional(),
-  tone: z.string().max(50).optional(),
-  target_audience: z.string().max(200).optional(),
+  tone: z.string().max(200).optional(),
+  target_audience: z.string().max(1000).optional(),
   cta: z.string().max(100).optional(),
   product_info: ProductInfoSchema.optional(),
 });
@@ -30,8 +33,8 @@ export const GenerateSceneSchema = z.object({
   aspectRatio: z.enum(['9:16', '1:1', '16:9']),
   platform: z.enum(['tiktok', 'instagram', 'youtube']),
   language: z.enum(['en', 'de']).optional(),
-  tone: z.string().max(50).optional(),
-  target_audience: z.string().max(200).optional(),
+  tone: z.string().max(200).optional(),
+  target_audience: z.string().max(1000).optional(),
   cta: z.string().max(100).optional(),
   product_info: ProductInfoSchema.optional(),
 });
@@ -46,11 +49,11 @@ export const WizardSubmitSchema = z.object({
   businessId: z.string().min(1, 'Business ID is required'), // Firestore auto-generated ID
   productId: z.string().min(1, 'Product ID is required'), // Firestore auto-generated ID
   createdBy: z.string().optional(),
-  prompt: z.string().max(2000, 'Prompt must not exceed 2000 characters'),
+  prompt: z.string().max(10000, 'Prompt must not exceed 10000 characters'),
   platform: z.enum(['tiktok', 'instagram', 'youtube']),
   language: z.enum(['en', 'de']).optional(),
-  tone: z.string().max(50).optional(),
-  target_audience: z.string().max(200).optional(),
+  tone: z.string().max(200).optional(),
+  target_audience: z.string().max(1000).optional(),
   cta: z.string().max(100).optional(),
   product_info: ProductInfoSchema.optional(),
   aspect_ratio: z.enum(['9:16', '1:1', '16:9']),

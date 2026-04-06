@@ -8,6 +8,7 @@ export enum SubscriptionTier {
   STARTER = 'starter',
   PRO = 'pro',
   ENTERPRISE = 'enterprise',
+  ADMIN = 'admin',
 }
 
 export interface TierLimits {
@@ -53,10 +54,17 @@ export class QuotaService {
       prioritySupport: true,
     },
     [SubscriptionTier.ENTERPRISE]: {
-      monthlyVideos: -1, // Unlimited
-      monthlyCostLimit: -1, // Unlimited
+      monthlyVideos: 100,
+      monthlyCostLimit: 500.0, // $500 max
       concurrentJobs: 10,
       maxVideoDuration: 10,
+      prioritySupport: true,
+    },
+    [SubscriptionTier.ADMIN]: {
+      monthlyVideos: -1, // Unlimited
+      monthlyCostLimit: -1, // Unlimited
+      concurrentJobs: 20,
+      maxVideoDuration: 60,
       prioritySupport: true,
     },
   };
@@ -70,6 +78,8 @@ export class QuotaService {
 
   /**
    * Get subscription tier for a business
+   * Handles subscription status: active, canceled, past_due
+   * Downgrades to FREE if subscription is not active
    */
   async getSubscriptionTier(businessId: string): Promise<SubscriptionTier> {
     try {
@@ -86,9 +96,18 @@ export class QuotaService {
       }
 
       const data = businessDoc.data() as
-        | { subscription?: { tier?: string } }
+        | { subscription?: { tier?: string; status?: string } }
         | undefined;
       const tierValue = data?.subscription?.tier;
+      const status = data?.subscription?.status;
+
+      // Check subscription status - only 'active' subscriptions get paid tier access
+      if (status && status !== 'active') {
+        this.logger.log(
+          `Business ${businessId} has non-active subscription status: ${status}, using FREE tier`,
+        );
+        return SubscriptionTier.FREE;
+      }
 
       // Validate tier value
       const validTiers = Object.values(SubscriptionTier);

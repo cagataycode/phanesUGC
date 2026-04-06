@@ -8,7 +8,11 @@ service cloud.firestore {
 
     match /businesses/{bizId} {
       allow read: if isMember(bizId);
-      allow write: if isOwnerOrAdmin(bizId);
+      // Allow write but prevent modification of subscription field
+      allow create: if isOwnerOrAdmin(bizId);
+      allow update: if isOwnerOrAdmin(bizId) && 
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscription']);
+      allow delete: if isOwnerOrAdmin(bizId);
 
       match /members/{uid} {
         allow read: if isMember(bizId);
@@ -39,6 +43,24 @@ service cloud.firestore {
           allow read: if isMember(bizId);
           allow write: if isMember(bizId);
         }
+      }
+
+      // Usage tracking (quota system)
+      match /usage/{monthKey} {
+        allow read: if isMember(bizId);
+        allow write: if false; // Only backend can write
+      }
+
+      // Rate limiting
+      match /rate_limits/{doc} {
+        allow read: if isMember(bizId);
+        allow write: if false; // Only backend can write
+      }
+
+      // Agent jobs (cost tracking)
+      match /agent_jobs/{jobId} {
+        allow read: if isMember(bizId);
+        allow write: if false; // Only backend can write
       }
     }
 
