@@ -6,15 +6,18 @@ import {
   Post,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { AdsService } from './ads.service';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { WizardSubmitSchema } from './dto/wizard.dto';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
+import { PerformanceInterceptor } from '../monitoring/interceptors/performance.interceptor';
 
 @Controller('ads')
 @UseGuards(FirebaseAuthGuard, RolesGuard)
+@UseInterceptors(PerformanceInterceptor)
 export class AdsController {
   constructor(private readonly adsService: AdsService) {}
 

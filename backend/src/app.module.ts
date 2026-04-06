@@ -10,6 +10,7 @@ import { UsersModule } from './users/users.module';
 import { ProductsModule } from './products/products.module';
 import { AvatarsModule } from './avatars/avatars.module';
 import { AssetsModule } from './assets/assets.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
 import { validateEnv } from './config/env';
 import { RenderModule } from './render/render.module';
 import { ScraperModule } from './scraper/scraper.module';
@@ -31,6 +32,7 @@ import { ScraperModule } from './scraper/scraper.module';
     AvatarsModule,
     AssetsModule,
     ScraperModule,
+    MonitoringModule,
   ],
   controllers: [AppController],
   providers: [AppService],

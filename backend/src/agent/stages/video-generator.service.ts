@@ -3,6 +3,8 @@ import { VeoPrompt } from '../contracts/veo-prompt';
 import { VeoOutput } from '../contracts/veo-output';
 import { VertexAiService } from '../../ai/vertex-ai.service';
 import { GcsStorageService } from '../../storage/gcs-storage.service';
+import { StructuredLoggerService } from '../../monitoring/structured-logger.service';
+import { PerformanceMonitorService } from '../../monitoring/performance-monitor.service';
 
 /**
  * VideoGeneratorService - Generates video using Veo 3.1
@@ -16,10 +18,25 @@ export class VideoGeneratorService {
   constructor(
     private readonly vertexAi: VertexAiService,
     private readonly gcsStorage: GcsStorageService,
+    private readonly structuredLogger: StructuredLoggerService,
+    private readonly performanceMonitor: PerformanceMonitorService,
   ) {}
 
-  async generate(prompt: VeoPrompt): Promise<VeoOutput> {
+  async generate(prompt: VeoPrompt, correlationId: string): Promise<VeoOutput> {
     this.logger.log(`Generating video for project ${prompt.projectId}`);
+
+    const context = {
+      correlationId,
+      jobId: prompt.projectId,
+      sceneId: prompt.sceneId,
+    };
+
+    this.structuredLogger.log('Starting Veo video generation', {
+      ...context,
+      aspectRatio: prompt.aspectRatio,
+      durationSeconds: prompt.durationSeconds,
+      model: prompt.generationConfig.model,
+    });
 
     const startTime = Date.now();
 
@@ -44,6 +61,11 @@ export class VideoGeneratorService {
     );
 
     if (!result.downloadUrl) {
+      this.structuredLogger.error(
+        'Veo generation completed but no video URL returned',
+        new Error('No video URL in Veo response'),
+        context,
+      );
       throw new Error('Veo generation completed but no video URL returned');
     }
 
@@ -54,6 +76,7 @@ export class VideoGeneratorService {
     );
 
     const generationTimeSec = (Date.now() - startTime) / 1000;
+    const latency = Date.now() - startTime;
 
     // Calculate expected resolution based on aspect ratio
     const resolution = this.getResolutionForAspectRatio(prompt.aspectRatio);
@@ -75,6 +98,30 @@ export class VideoGeneratorService {
       generatedAt: new Date(),
     };
 
+    // Log performance metrics
+    this.performanceMonitor.trackLatency(
+      'veo',
+      'generate-video',
+      latency,
+      {
+        ...context,
+        model: prompt.generationConfig.model,
+        durationSeconds: prompt.durationSeconds,
+        aspectRatio: prompt.aspectRatio,
+        fileSizeMB: (importResult.sizeBytes / 1024 / 1024).toFixed(2),
+        operationId: result.providerJobId,
+      },
+      'success',
+    );
+
+    this.structuredLogger.log('Veo video generation completed', {
+      ...context,
+      gcsPath: importResult.path,
+      durationSeconds: prompt.durationSeconds,
+      fileSizeMB: (importResult.sizeBytes / 1024 / 1024).toFixed(2),
+      generationTimeSec: generationTimeSec.toFixed(2),
+    });
+
     this.logger.log(
       `Video generated successfully: ${importResult.path} (${prompt.durationSeconds}s, ${(importResult.sizeBytes / 1024 / 1024).toFixed(2)}MB)`,
     );
@@ -93,12 +140,19 @@ export class VideoGeneratorService {
       gcsPath: string;
       timestamp: Date;
     }>,
+    correlationId: string = 'unknown',
   ): Promise<{
     output: VeoOutput;
     attemptId: string;
     isReused: boolean;
   }> {
     const attemptId = `${prompt.projectId}-${prompt.sceneId}-${Date.now()}`;
+
+    const context = {
+      correlationId,
+      jobId: prompt.projectId,
+      sceneId: prompt.sceneId,
+    };
 
     // Check if we have a recent successful attempt (within last 5 minutes)
     if (existingAttempts && existingAttempts.length > 0) {
@@ -113,6 +167,12 @@ export class VideoGeneratorService {
         this.logger.log(
           `Reusing existing Veo output from attempt ${recentAttempt.attemptId} (idempotency)`,
         );
+
+        this.structuredLogger.log('Reusing cached Veo output (idempotency)', {
+          ...context,
+          attemptId: recentAttempt.attemptId,
+          gcsPath: recentAttempt.gcsPath,
+        });
 
         // Reconstruct VeoOutput from cached attempt
         const resolution = this.getResolutionForAspectRatio(prompt.aspectRatio);
@@ -142,7 +202,11 @@ export class VideoGeneratorService {
     }
 
     // No recent attempt found, generate new video
-    const output = await this.generate(prompt);
+    this.structuredLogger.log(
+      'No cached Veo output found, generating new video',
+      context,
+    );
+    const output = await this.generate(prompt, correlationId);
 
     return {
       output,

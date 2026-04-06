@@ -11,6 +11,8 @@ import {
   GenerateContentResult,
 } from '@google/generative-ai';
 import { Env } from '../config/env';
+import { StructuredLoggerService } from '../monitoring/structured-logger.service';
+import { PerformanceMonitorService } from '../monitoring/performance-monitor.service';
 
 interface BedrockResponseContent {
   type: string;
@@ -40,7 +42,11 @@ export class LlmService {
   private readonly geminiModel?: GenerativeModel;
   private readonly hasFallback: boolean;
 
-  constructor(private readonly configService: ConfigService<Env>) {
+  constructor(
+    private readonly configService: ConfigService<Env>,
+    private readonly structuredLogger: StructuredLoggerService,
+    private readonly performanceMonitor: PerformanceMonitorService,
+  ) {
     // Initialize AWS Bedrock (Primary Provider)
     const awsAccessKeyId = this.configService.get('AWS_ACCESS_KEY_ID', {
       infer: true,
@@ -130,10 +136,16 @@ export class LlmService {
   async generateContent(
     systemPrompt: string,
     userPrompt: string,
+    correlationId?: string,
   ): Promise<unknown> {
+    const context = {
+      correlationId: correlationId || 'unknown',
+      service: 'llm',
+    };
+
     // Try AWS Bedrock first (Primary Provider)
     try {
-      return await this.generateWithBedrock(systemPrompt, userPrompt);
+      return await this.generateWithBedrock(systemPrompt, userPrompt, context);
     } catch (bedrockError) {
       const bedrockMessage =
         bedrockError instanceof Error
@@ -147,7 +159,20 @@ export class LlmService {
       if (this.hasFallback && this.geminiModel) {
         try {
           this.logger.log('Using Gemini fallback provider');
-          return await this.generateWithGemini(systemPrompt, userPrompt);
+
+          // Log fallback event
+          this.structuredLogger.logFallback(
+            'bedrock-claude',
+            'gemini',
+            bedrockMessage,
+            context,
+          );
+
+          return await this.generateWithGemini(
+            systemPrompt,
+            userPrompt,
+            context,
+          );
         } catch (geminiError) {
           const geminiMessage =
             geminiError instanceof Error
@@ -156,6 +181,13 @@ export class LlmService {
           this.logger.error(
             `Both providers failed. Bedrock: ${bedrockMessage}, Gemini: ${geminiMessage}`,
           );
+
+          this.structuredLogger.error(
+            'All LLM providers failed',
+            new Error(`Bedrock: ${bedrockMessage}, Gemini: ${geminiMessage}`),
+            context,
+          );
+
           throw new Error(
             `LLM generation failed on all providers. Primary (Bedrock): ${bedrockMessage}, Fallback (Gemini): ${geminiMessage}`,
           );
@@ -164,6 +196,13 @@ export class LlmService {
         this.logger.error(
           `AWS Bedrock failed and no fallback available: ${bedrockMessage}`,
         );
+
+        this.structuredLogger.error(
+          'LLM generation failed with no fallback',
+          bedrockError as Error,
+          context,
+        );
+
         throw new Error(
           `LLM generation failed: ${bedrockMessage} (no fallback configured)`,
         );
@@ -180,80 +219,120 @@ export class LlmService {
   private async generateWithBedrock(
     systemPrompt: string,
     userPrompt: string,
+    context: { correlationId: string; service: string },
   ): Promise<unknown> {
     this.logger.debug('Generating content with AWS Bedrock Claude');
 
-    // Build Claude request with JSON mode (not strict schema)
-    const requestBody = {
-      anthropic_version: 'bedrock-2023-05-31',
-      max_tokens: 4096,
-      temperature: 0.7,
-      system: systemPrompt,
-      messages: [
+    const startTime = Date.now();
+
+    try {
+      // Build Claude request with JSON mode (not strict schema)
+      const requestBody = {
+        anthropic_version: 'bedrock-2023-05-31',
+        max_tokens: 4096,
+        temperature: 0.7,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: userPrompt,
+              },
+            ],
+          },
+        ],
+      };
+
+      const input: InvokeModelCommandInput = {
+        modelId: this.bedrockModelId,
+        contentType: 'application/json',
+        accept: 'application/json',
+        body: JSON.stringify(requestBody),
+      };
+
+      const command = new InvokeModelCommand(input);
+      const response = await this.bedrockClient.send(command);
+
+      const latency = Date.now() - startTime;
+
+      // Parse Bedrock response
+      const responseBody = JSON.parse(
+        new TextDecoder().decode(response.body),
+      ) as BedrockResponse;
+
+      this.logger.debug(
+        `Bedrock response: stop_reason=${responseBody.stop_reason}`,
+      );
+
+      // Extract text from Claude's response structure
+      if (
+        !responseBody.content ||
+        !Array.isArray(responseBody.content) ||
+        responseBody.content.length === 0
+      ) {
+        throw new Error('Invalid response structure from Bedrock Claude');
+      }
+
+      const textContent = responseBody.content.find(
+        (block) => block.type === 'text',
+      );
+
+      if (!textContent?.text) {
+        throw new Error('No text content in Bedrock Claude response');
+      }
+
+      this.logger.debug(
+        `Bedrock response length: ${textContent.text.length} chars`,
+      );
+
+      // Parse JSON from response text, stripping markdown code blocks if present
+      let jsonText: string = textContent.text.trim();
+
+      // Remove markdown code blocks (```json ... ``` or ``` ... ```)
+      // Handle both Unix (\n) and Windows (\r\n) line endings
+      if (jsonText.startsWith('```')) {
+        jsonText = jsonText
+          .replace(/^```(?:json)?(?:\r?\n)?/, '')
+          .replace(/(?:\r?\n)?```\s*$/, '');
+      }
+
+      const result = JSON.parse(jsonText) as unknown;
+
+      // Log API call with performance metrics (success)
+      this.performanceMonitor.trackLatency(
+        'bedrock-claude',
+        'generate-content',
+        latency,
         {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: userPrompt,
-            },
-          ],
+          ...context,
+          modelId: this.bedrockModelId,
+          responseLength: textContent.text.length,
+          stopReason: responseBody.stop_reason,
         },
-      ],
-    };
+        'success',
+      );
 
-    const input: InvokeModelCommandInput = {
-      modelId: this.bedrockModelId,
-      contentType: 'application/json',
-      accept: 'application/json',
-      body: JSON.stringify(requestBody),
-    };
+      return result;
+    } catch (error) {
+      const latency = Date.now() - startTime;
 
-    const command = new InvokeModelCommand(input);
-    const response = await this.bedrockClient.send(command);
+      // Log API call with performance metrics (failure)
+      this.performanceMonitor.trackLatency(
+        'bedrock-claude',
+        'generate-content',
+        latency,
+        {
+          ...context,
+          modelId: this.bedrockModelId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'failure',
+      );
 
-    // Parse Bedrock response
-    const responseBody = JSON.parse(
-      new TextDecoder().decode(response.body),
-    ) as BedrockResponse;
-
-    this.logger.debug(
-      `Bedrock response: stop_reason=${responseBody.stop_reason}`,
-    );
-
-    // Extract text from Claude's response structure
-    if (
-      !responseBody.content ||
-      !Array.isArray(responseBody.content) ||
-      responseBody.content.length === 0
-    ) {
-      throw new Error('Invalid response structure from Bedrock Claude');
+      throw error;
     }
-
-    const textContent = responseBody.content.find(
-      (block) => block.type === 'text',
-    );
-
-    if (!textContent?.text) {
-      throw new Error('No text content in Bedrock Claude response');
-    }
-
-    this.logger.debug(
-      `Bedrock response length: ${textContent.text.length} chars`,
-    );
-
-    // Parse JSON from response text, stripping markdown code blocks if present
-    let jsonText: string = textContent.text.trim();
-
-    // Remove markdown code blocks (```json ... ``` or ``` ... ```)
-    // Handle both Unix (\n) and Windows (\r\n) line endings
-    if (jsonText.startsWith('```')) {
-      jsonText = jsonText
-        .replace(/^```(?:json)?(?:\r?\n)?/, '')
-        .replace(/(?:\r?\n)?```\s*$/, '');
-    }
-
-    return JSON.parse(jsonText) as unknown;
   }
 
   /**
@@ -262,6 +341,7 @@ export class LlmService {
   private async generateWithGemini(
     systemPrompt: string,
     userPrompt: string,
+    context: { correlationId: string; service: string },
   ): Promise<unknown> {
     if (!this.geminiModel) {
       throw new Error('Gemini fallback not initialized');
@@ -269,15 +349,53 @@ export class LlmService {
 
     this.logger.debug('Generating content with Gemini fallback');
 
-    const result: GenerateContentResult =
-      await this.geminiModel.generateContent({
-        systemInstruction: systemPrompt,
-        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      });
+    const startTime = Date.now();
 
-    const responseText = result.response.text();
-    this.logger.debug(`Gemini response length: ${responseText.length} chars`);
+    try {
+      const result: GenerateContentResult =
+        await this.geminiModel.generateContent({
+          systemInstruction: systemPrompt,
+          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+        });
 
-    return JSON.parse(responseText) as unknown;
+      const latency = Date.now() - startTime;
+
+      const responseText = result.response.text();
+      this.logger.debug(`Gemini response length: ${responseText.length} chars`);
+
+      const parsedResult = JSON.parse(responseText) as unknown;
+
+      // Log API call with performance metrics (success)
+      this.performanceMonitor.trackLatency(
+        'gemini',
+        'generate-content',
+        latency,
+        {
+          ...context,
+          modelId: 'gemini-2.5-pro',
+          responseLength: responseText.length,
+        },
+        'success',
+      );
+
+      return parsedResult;
+    } catch (error) {
+      const latency = Date.now() - startTime;
+
+      // Log API call with performance metrics (failure)
+      this.performanceMonitor.trackLatency(
+        'gemini',
+        'generate-content',
+        latency,
+        {
+          ...context,
+          modelId: 'gemini-2.5-pro',
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'failure',
+      );
+
+      throw error;
+    }
   }
 }

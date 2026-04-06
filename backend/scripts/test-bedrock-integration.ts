@@ -7,6 +7,8 @@
  */
 
 import { LlmService } from '../src/ai/llm.service';
+import { StructuredLoggerService } from '../src/monitoring/structured-logger.service';
+import { PerformanceMonitorService } from '../src/monitoring/performance-monitor.service';
 
 // Mock ConfigService with real environment variables
 class TestConfigService {
@@ -20,7 +22,9 @@ async function testBriefGeneration() {
   console.log('=' .repeat(60));
 
   const configService = new TestConfigService() as any;
-  const llmService = new LlmService(configService);
+  const structuredLogger = new StructuredLoggerService(configService);
+  const performanceMonitor = new PerformanceMonitorService(structuredLogger);
+  const llmService = new LlmService(configService, structuredLogger, performanceMonitor);
 
   const systemPrompt = `You are an expert advertising strategist. Generate a creative brief for a short-form video ad.
 
@@ -58,7 +62,9 @@ async function testScriptGeneration() {
   console.log('=' .repeat(60));
 
   const configService = new TestConfigService() as any;
-  const llmService = new LlmService(configService);
+  const structuredLogger = new StructuredLoggerService(configService);
+  const performanceMonitor = new PerformanceMonitorService(structuredLogger);
+  const llmService = new LlmService(configService, structuredLogger, performanceMonitor);
 
   const systemPrompt = `You are an expert scriptwriter. Generate an 8-second ad script.
 
@@ -96,7 +102,9 @@ async function testScenarioGeneration() {
   console.log('=' .repeat(60));
 
   const configService = new TestConfigService() as any;
-  const llmService = new LlmService(configService);
+  const structuredLogger = new StructuredLoggerService(configService);
+  const performanceMonitor = new PerformanceMonitorService(structuredLogger);
+  const llmService = new LlmService(configService, structuredLogger, performanceMonitor);
 
   const systemPrompt = `You are a creative director. Generate 2 distinct ad scenarios.
 
@@ -150,7 +158,9 @@ async function testComplexStructure() {
   console.log('=' .repeat(60));
 
   const configService = new TestConfigService() as any;
-  const llmService = new LlmService(configService);
+  const structuredLogger = new StructuredLoggerService(configService);
+  const performanceMonitor = new PerformanceMonitorService(structuredLogger);
+  const llmService = new LlmService(configService, structuredLogger, performanceMonitor);
 
   const systemPrompt = `You are a scene director. Generate a video scene prompt.
 

@@ -34,6 +34,9 @@ export interface AgentJobState {
   /** Business identifier */
   businessId: string;
 
+  /** Correlation ID for distributed tracing (optional for backward compatibility) */
+  correlationId?: string;
+
   /** Current stage */
   stage: AgentStage;
 
@@ -101,6 +104,17 @@ export interface AgentJobState {
 
   /** Expiry for scenario selection */
   scenarioExpiresAt?: Date;
+
+  /** Performance metrics */
+  performanceMetrics?: {
+    stageDurations: Partial<Record<AgentStage, number>>;
+    apiCalls: Array<{
+      service: string;
+      operation: string;
+      latency: number;
+      timestamp: Date;
+    }>;
+  };
 }
 
 /**

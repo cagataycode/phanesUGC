@@ -36,6 +36,10 @@ export const envSchema = z
       .int()
       .positive()
       .default(5 * 60 * 1000),
+    // Monitoring Configuration
+    LOG_LEVEL: z.enum(['debug', 'log', 'warn', 'error']).default('log'),
+    ENABLE_STRUCTURED_LOGGING: z.string().default('true'),
+    ALERT_EMAIL: z.string().email().optional(),
   })
   .refine(
     (data) => {

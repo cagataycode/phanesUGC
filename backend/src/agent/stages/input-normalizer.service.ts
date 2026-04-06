@@ -1,5 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { NormalizedRequest } from '../contracts/normalized-request';
+import { StructuredLoggerService } from '../../monitoring/structured-logger.service';
 
 /**
  * InputNormalizerService - Validates and normalizes user input
@@ -9,6 +10,8 @@ import { NormalizedRequest } from '../contracts/normalized-request';
 @Injectable()
 export class InputNormalizerService {
   private readonly logger = new Logger(InputNormalizerService.name);
+
+  constructor(private readonly structuredLogger: StructuredLoggerService) {}
 
   private readonly VALID_PLATFORMS = [
     'tiktok',
@@ -25,8 +28,17 @@ export class InputNormalizerService {
     jobId: string,
     businessId: string,
     rawInput: Partial<NormalizedRequest>,
+    correlationId?: string,
   ): Promise<NormalizedRequest> {
     this.logger.log(`Normalizing input for job ${jobId}`);
+
+    const context = {
+      correlationId: correlationId || 'unknown',
+      jobId,
+      businessId,
+    };
+
+    this.structuredLogger.log('Normalizing input', context);
 
     // Validate IDs
     this.validateId(jobId, 'jobId');
@@ -66,6 +78,13 @@ export class InputNormalizerService {
       disableCtaOverlay: Boolean(rawInput.disableCtaOverlay),
       normalizedAt: new Date(),
     };
+
+    this.structuredLogger.log('Input normalized successfully', {
+      ...context,
+      platform: normalized.platform,
+      aspectRatio: normalized.aspectRatio,
+      language: normalized.language,
+    });
 
     return Promise.resolve(normalized);
   }

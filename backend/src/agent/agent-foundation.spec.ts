@@ -5,6 +5,7 @@ import { QualityGatesService } from './orchestrator/quality-gates.service';
 import { InputNormalizerService } from './stages/input-normalizer.service';
 import { ScenarioGeneratorService } from './stages/scenario-generator.service';
 import { LlmService } from '../ai/llm.service';
+import { StructuredLoggerService } from '../monitoring/structured-logger.service';
 import {
   isValidTransition,
   getPipelineStage,
@@ -200,6 +201,16 @@ describe('Agent Foundation - Scenario Generation', () => {
         providers: [
           InputNormalizerService,
           ScenarioGeneratorService,
+          {
+            provide: StructuredLoggerService,
+            useValue: {
+              log: jest.fn(),
+              error: jest.fn(),
+              warn: jest.fn(),
+              debug: jest.fn(),
+              generateCorrelationId: jest.fn(() => 'test-correlation-id'),
+            },
+          },
           {
             provide: LlmService,
             useValue: mockLlmService,
