@@ -1,5 +1,5 @@
 import { Module, DynamicModule } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AdsModule } from './ads/ads.module';
@@ -12,7 +12,7 @@ import { AvatarsModule } from './avatars/avatars.module';
 import { AssetsModule } from './assets/assets.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { PaymentModule } from './payment/payment.module';
-import { validateEnv, Env } from './config/env';
+import { validateEnv } from './config/env';
 import { RenderModule } from './render/render.module';
 import { ScraperModule } from './scraper/scraper.module';
 
