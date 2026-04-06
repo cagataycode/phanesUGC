@@ -30,9 +30,35 @@ export class StripeService {
     private readonly firestore: FirestoreService,
     private readonly structuredLogger: StructuredLoggerService,
   ) {
+    // Validate required Stripe configuration
     const secretKey = this.configService.get('STRIPE_SECRET_KEY', {
       infer: true,
     });
+    const webhookSecret = this.configService.get('STRIPE_WEBHOOK_SECRET', {
+      infer: true,
+    });
+    const starterPriceId = this.configService.get('STRIPE_STARTER_PRICE_ID', {
+      infer: true,
+    });
+    const proPriceId = this.configService.get('STRIPE_PRO_PRICE_ID', {
+      infer: true,
+    });
+    const enterprisePriceId = this.configService.get(
+      'STRIPE_ENTERPRISE_PRICE_ID',
+      { infer: true },
+    );
+
+    if (
+      !secretKey ||
+      !webhookSecret ||
+      !starterPriceId ||
+      !proPriceId ||
+      !enterprisePriceId
+    ) {
+      throw new Error(
+        'Missing required Stripe configuration. Ensure ENABLE_PAYMENTS=true and all STRIPE_* variables are set.',
+      );
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
     this.stripe = new Stripe(secretKey, {
@@ -42,13 +68,9 @@ export class StripeService {
 
     // Load price IDs from config
     this.priceIds = {
-      starter: this.configService.get('STRIPE_STARTER_PRICE_ID', {
-        infer: true,
-      }),
-      pro: this.configService.get('STRIPE_PRO_PRICE_ID', { infer: true }),
-      enterprise: this.configService.get('STRIPE_ENTERPRISE_PRICE_ID', {
-        infer: true,
-      }),
+      starter: starterPriceId,
+      pro: proPriceId,
+      enterprise: enterprisePriceId,
     };
 
     this.logger.log('Stripe service initialized');
@@ -646,7 +668,16 @@ export class StripeService {
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const metadata = subscription.metadata as StripeCustomerMetadata;
-      const { businessId } = metadata;
+      const { businessId, userId } = metadata;
+
+      // Validate required metadata
+      if (!businessId || !userId) {
+        this.logger.error(
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          `Subscription created without required metadata. subscriptionId=${subscription.id as string}`,
+        );
+        return; // Skip processing - subscription created outside our flow
+      }
 
       // Determine tier from price ID
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
@@ -699,7 +730,16 @@ export class StripeService {
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const metadata = subscription.metadata as StripeCustomerMetadata;
-      const { businessId } = metadata;
+      const { businessId, userId } = metadata;
+
+      // Validate required metadata
+      if (!businessId || !userId) {
+        this.logger.error(
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          `Subscription updated without required metadata. subscriptionId=${subscription.id as string}`,
+        );
+        return; // Skip processing - subscription created outside our flow
+      }
 
       // Determine tier from price ID
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
@@ -756,7 +796,16 @@ export class StripeService {
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const metadata = subscription.metadata as StripeCustomerMetadata;
-      const { businessId } = metadata;
+      const { businessId, userId } = metadata;
+
+      // Validate required metadata
+      if (!businessId || !userId) {
+        this.logger.error(
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          `Subscription deleted without required metadata. subscriptionId=${subscription.id as string}`,
+        );
+        return; // Skip processing - subscription created outside our flow
+      }
 
       // Downgrade to Free tier but keep data (GDPR compliant)
       await this.firestore
@@ -831,7 +880,15 @@ export class StripeService {
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const metadata = subscription.metadata as StripeCustomerMetadata;
-      const { businessId } = metadata;
+      const { businessId, userId } = metadata;
+
+      // Validate required metadata
+      if (!businessId || !userId) {
+        this.logger.error(
+          `Payment failed for subscription without required metadata. subscriptionId=${subscriptionId as string}`,
+        );
+        return; // Skip processing - subscription created outside our flow
+      }
 
       // Immediate downgrade to Free tier (per requirements)
       await this.firestore
