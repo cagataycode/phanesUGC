@@ -1,0 +1,84 @@
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { QuotaService } from '../quota.service';
+import { RateLimiterService } from '../rate-limiter.service';
+import { Response } from 'express';
+
+@Injectable()
+export class RateLimitInterceptor implements NestInterceptor {
+  constructor(
+    private readonly quotaService: QuotaService,
+    private readonly rateLimiter: RateLimiterService,
+  ) {}
+
+  async intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Promise<Observable<any>> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const request = context.switchToHttp().getRequest<any>();
+    const response = context.switchToHttp().getResponse<Response>();
+
+    // Extract businessId from header, params, or query (NOT body - to prevent spoofing)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    let businessId: string | undefined =
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      request.headers?.['x-business-id'] ||
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      request.params?.businessId ||
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      request.query?.businessId;
+
+    // Normalize array values (query params can be arrays)
+    if (Array.isArray(businessId)) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      businessId = businessId[0];
+    }
+
+    if (!businessId || typeof businessId !== 'string') {
+      // No businessId, skip rate limiting
+      return next.handle();
+    }
+
+    const tier = await this.quotaService.getSubscriptionTier(businessId);
+    // Note: Race condition exists between checkRateLimit() and recordRequest() under high concurrency.
+    // Multiple concurrent requests can pass the check against the same snapshot before any updates.
+    // For MVP, this is acceptable as it only affects rate limiting accuracy under extreme load.
+    // Future improvement: Combine check+record into single Firestore transaction (checkAndRecordRequest).
+    const rateLimitStatus = await this.rateLimiter.checkRateLimit(
+      businessId,
+      tier,
+    );
+
+    // Set rate limit headers
+    const config = this.rateLimiter.getRateLimitConfig(tier);
+    response.setHeader('X-RateLimit-Limit', config.requestsPerMinute);
+    response.setHeader(
+      'X-RateLimit-Remaining',
+      rateLimitStatus.requestsRemaining,
+    );
+    response.setHeader(
+      'X-RateLimit-Reset',
+      rateLimitStatus.resetTime.toISOString(),
+    );
+
+    if (!rateLimitStatus.allowed) {
+      response.setHeader('Retry-After', rateLimitStatus.retryAfter || 60);
+      throw new HttpException(
+        'Rate limit exceeded',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    await this.rateLimiter.recordRequest(businessId);
+
+    return next.handle();
+  }
+}

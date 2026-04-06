@@ -44,62 +44,62 @@
 
 ## Phase 2: Cost & Quota Management
 
-- [ ] 2.1 Create cost tracking module
-  - [ ] 2.1.1 Create `backend/src/cost/cost.module.ts`
-  - [ ] 2.1.2 Create `backend/src/cost/cost-tracker.service.ts`
-  - [ ] 2.1.3 Create `backend/src/cost/pricing-config.ts`
+- [x] 2.1 Create cost tracking module
+  - [x] 2.1.1 Create `backend/src/cost/cost.module.ts`
+  - [x] 2.1.2 Create `backend/src/cost/cost-tracker.service.ts`
+  - [x] 2.1.3 Create `backend/src/cost/pricing-config.ts`
 
-- [ ] 2.2 Implement CostTracker service
-  - [ ] 2.2.1 Add pricing constants (Veo Fast $0.15/sec, Standard $0.40/sec, Claude/Gemini token rates)
-  - [ ] 2.2.2 Implement calculateVeoCost method
-  - [ ] 2.2.3 Implement calculateClaudeCost method
-  - [ ] 2.2.4 Implement calculateGeminiCost method
-  - [ ] 2.2.5 Implement trackApiCall method (store in Firestore)
-  - [ ] 2.2.6 Implement getJobCost method
-  - [ ] 2.2.7 Implement getBusinessMonthlyCost method
-  - [ ] 2.2.8 Write unit tests for cost calculations
+- [x] 2.2 Implement CostTracker service
+  - [x] 2.2.1 Add pricing constants (Veo Fast $0.15/sec, Standard $0.40/sec, Claude/Gemini token rates)
+  - [x] 2.2.2 Implement calculateVeoCost method
+  - [x] 2.2.3 Implement calculateClaudeCost method
+  - [x] 2.2.4 Implement calculateGeminiCost method
+  - [x] 2.2.5 Implement trackApiCall method (store in Firestore)
+  - [x] 2.2.6 Implement getJobCost method
+  - [x] 2.2.7 Implement getBusinessMonthlyCost method
+  - [x] 2.2.8 Write unit tests for cost calculations
 
-- [ ] 2.3 Integrate cost tracking into pipeline
-  - [ ] 2.3.1 Add costBreakdown and apiCalls fields to AgentJobState
-  - [ ] 2.3.2 Track Veo costs in VideoGeneratorService
-  - [ ] 2.3.3 Track Claude costs in LLMService
-  - [ ] 2.3.4 Track Gemini costs in LLMService (fallback)
-  - [ ] 2.3.5 Calculate total job cost in AgentOrchestratorService
-  - [ ] 2.3.6 Store cost data in Firestore project document
+- [x] 2.3 Integrate cost tracking into pipeline
+  - [x] 2.3.1 Add costBreakdown and apiCalls fields to AgentJobState
+  - [x] 2.3.2 Track Veo costs in VideoGeneratorService
+  - [x] 2.3.3 Track Claude costs in LLMService
+  - [x] 2.3.4 Track Gemini costs in LLMService (fallback)
+  - [x] 2.3.5 Calculate total job cost in AgentOrchestratorService
+  - [x] 2.3.6 Store cost data in Firestore project document
 
-- [ ] 2.4 Create quota management module
-  - [ ] 2.4.1 Create `backend/src/quota/quota.module.ts`
-  - [ ] 2.4.2 Create `backend/src/quota/quota.service.ts`
-  - [ ] 2.4.3 Create `backend/src/quota/rate-limiter.service.ts`
+- [x] 2.4 Create quota management module
+  - [x] 2.4.1 Create `backend/src/quota/quota.module.ts`
+  - [x] 2.4.2 Create `backend/src/quota/quota.service.ts`
+  - [x] 2.4.3 Create `backend/src/quota/rate-limiter.service.ts`
 
-- [ ] 2.5 Implement QuotaService
-  - [ ] 2.5.1 Define subscription tier limits (Free: 2, Starter: 20, Pro: 40, Enterprise: custom)
-  - [ ] 2.5.2 Implement getSubscriptionTier method
-  - [ ] 2.5.3 Implement checkQuota method
-  - [ ] 2.5.4 Implement canCreateJob method
-  - [ ] 2.5.5 Implement incrementUsage method
-  - [ ] 2.5.6 Implement resetMonthlyQuotas method
-  - [ ] 2.5.7 Write unit tests for QuotaService
+- [x] 2.5 Implement QuotaService
+  - [x] 2.5.1 Define subscription tier limits (Free: 2, Starter: 20, Pro: 40, Enterprise: custom)
+  - [x] 2.5.2 Implement getSubscriptionTier method
+  - [x] 2.5.3 Implement checkQuota method
+  - [x] 2.5.4 Implement canCreateJob method
+  - [x] 2.5.5 Implement incrementUsage method
+  - [x] 2.5.6 Implement resetMonthlyQuotas method
+  - [x] 2.5.7 Write unit tests for QuotaService
 
-- [ ] 2.6 Implement RateLimiter service
-  - [ ] 2.6.1 Define rate limit configs per tier
-  - [ ] 2.6.2 Implement checkRateLimit method (10 req/min)
-  - [ ] 2.6.3 Implement checkConcurrentJobs method
-  - [ ] 2.6.4 Implement recordRequest method
-  - [ ] 2.6.5 Implement cleanupStaleEntries method
-  - [ ] 2.6.6 Write unit tests for RateLimiter
+- [x] 2.6 Implement RateLimiter service
+  - [x] 2.6.1 Define rate limit configs per tier
+  - [x] 2.6.2 Implement checkRateLimit method (10 req/min)
+  - [x] 2.6.3 Implement checkConcurrentJobs method
+  - [x] 2.6.4 Implement recordRequest method
+  - [x] 2.6.5 Implement cleanupStaleEntries method
+  - [x] 2.6.6 Write unit tests for RateLimiter
 
-- [ ] 2.7 Integrate quota enforcement
-  - [ ] 2.7.1 Add quota check to AdsController.createJob
-  - [ ] 2.7.2 Add rate limit check to AdsController
-  - [ ] 2.7.3 Return 429 status with descriptive error
-  - [ ] 2.7.4 Add X-RateLimit headers to responses
-  - [ ] 2.7.5 Increment usage counter on job completion
+- [x] 2.7 Integrate quota enforcement
+  - [x] 2.7.1 Add quota check to AdsController.createJob
+  - [x] 2.7.2 Add rate limit check to AdsController
+  - [x] 2.7.3 Return 429 status with descriptive error
+  - [x] 2.7.4 Add X-RateLimit headers to responses
+  - [x] 2.7.5 Increment usage counter on job completion
 
-- [ ] 2.8 Create scheduled functions
-  - [ ] 2.8.1 Create Cloud Function for monthly quota reset
-  - [ ] 2.8.2 Create Cloud Function for rate limit cleanup
-  - [ ] 2.8.3 Schedule functions with Cloud Scheduler
+- [x] 2.8 Create scheduled functions
+  - [x] 2.8.1 Create Cloud Function for monthly quota reset
+  - [x] 2.8.2 Create Cloud Function for rate limit cleanup
+  - [x] 2.8.3 Schedule functions with Cloud Scheduler
 
 ## Phase 3: Security Hardening
 
@@ -395,3 +395,179 @@
   - [ ] 8.5.3 Verify all dashboards are accessible
   - [ ] 8.5.4 Conduct incident simulation
   - [ ] 8.5.5 Update runbooks based on findings
+
+
+## Phase 2.9: Code Review Fixes (Security & Test Quality)
+
+### Completed ✅
+- [x] 2.9.1 Fix rate limiter timestamp type mismatch (use Timestamp.fromDate() consistently)
+- [x] 2.9.2 Add quota rollback on job creation failure (decrementQuota() method)
+- [x] 2.9.3 Fix Firestore rules membership check (use exists() on subcollection)
+- [x] 2.9.4 Fix concurrent jobs query (use videoGenerationStatus field)
+- [x] 2.9.5 Add batch delete chunking (500-op limit in service and Firebase function)
+- [x] 2.9.6 Remove duplicate BusinessOwnershipGuard from controllers (RolesGuard already checks)
+- [x] 2.9.7 Add Firebase auth mocking to e2e tests (all 3 files)
+- [x] 2.9.8 Add getFirestore() method to mockFirestore objects
+
+### Remaining E2E Test Fixes
+- [x] 2.9.9 Update e2e test payloads to current DTO format
+  - [x] Update security.e2e-spec.ts to use CreateAdDto (productId, createdBy, prompt_inputs, veo_config)
+  - [x] Update load.e2e-spec.ts to use CreateAdDto
+  - [x] Update integration.e2e-spec.ts to use CreateAdDto
+  - [x] Create helper function createValidAdPayload() in each test file
+
+- [x] 2.9.10 Fix rate limit mock schema mismatch
+  - [x] Update mocks to use { requests: Array<{timestamp}>, updatedAt } format
+  - [x] Add toDate() method to mock timestamps
+  - [x] Apply to all 3 e2e test files
+
+- [x] 2.9.11 Fix missing /quota endpoint test
+  - [x] Remove or update integration test that calls GET /quota
+  - [x] Test quota via job creation flow instead
+
+- [x] 2.9.12 Fix hard-coded test dates in integration.e2e-spec.ts
+  - [x] Replace hard-coded '2026-03' with dynamic date calculation
+  - [x] Use Date() to calculate lastMonth dynamically
+
+- [x] 2.9.13 Fix time-based performance assertions in load.e2e-spec.ts
+  - [x] Remove or relax duration < 10000ms assertion (flaky in CI)
+  - [x] Remove or relax throughput > 10 req/s assertion
+  - [x] Keep functional assertions only
+
+- [x] 2.9.14 Fix ValidationPipe test expectation in security.e2e-spec.ts
+  - [x] Change "should strip unknown properties" test to expect 400 (not 201)
+  - [x] Update test name to "should reject unknown properties"
+  - [x] Verify error message contains "should not exist"
+
+### Documentation Fixes
+- [x] 2.9.15 Fix deployment guide endpoints
+  - [x] Remove references to /health, /ready, /api/v1/health (don't exist yet)
+  - [x] Remove reference to GET /quota (doesn't exist)
+  - [x] Update curl examples to use actual API endpoints
+  - [x] Fix test commands to use npm run test:e2e with proper patterns
+
+- [x] 2.9.16 Clean up temporary tracking documents
+  - [x] Move remaining tasks to .kiro/specs/backend-production-readiness/tasks.md
+  - [x] Delete backend/CODE_REVIEW_FIXES_NEEDED.md
+  - [x] Delete backend/IMPLEMENTATION_PLAN.md
+
+
+## Phase 2.10: Critical Code Review Fixes (Pre-Merge)
+
+### Completed ✅
+- [x] 2.10.1 Fix double quota charging (CRITICAL)
+  - [x] Remove tryIncrementQuota() from controller
+  - [x] Change to checkQuota() for availability check only
+  - [x] Quota now charged only on completion by orchestrator
+  
+- [x] 2.10.2 Fix rate limiter mock schema mismatch (HIGH)
+  - [x] Update load.e2e-spec.ts mocks to use array format
+  - [x] Update integration.e2e-spec.ts mocks to use array format
+  - [x] Match actual RateLimiterService schema
+  
+- [x] 2.10.3 Remove non-existent /quota endpoint test (HIGH)
+  - [x] Remove GET /quota test from integration.e2e-spec.ts
+  - [x] Test quota via job creation flow instead
+  
+- [x] 2.10.4 Sort rate limiter array before accessing (HIGH)
+  - [x] Add sort by timestamp ascending in checkRateLimit()
+  - [x] Ensures correct resetTime/retryAfter calculations
+  
+- [x] 2.10.5 Prevent client job creation in Firestore rules (HIGH)
+  - [x] Change agent_jobs allow create to false
+  - [x] Backend-only access for pipeline state
+  
+- [x] 2.10.6 Add x-business-id header to integration tests (HIGH)
+  - [x] Fix all integration test requests to include header
+  - [x] Satisfy RolesGuard requirements
+
+### Remaining Medium Priority Issues (Can be addressed in follow-up PR)
+- [x] 2.10.7 Align DTO and service prompt handling (MEDIUM)
+  - [x] DTO only accepts string prompts
+  - [x] Services still handle object prompts
+  - [x] Either allow structured prompts in DTO or simplify services
+  
+- [x] 2.10.8 Conditional Error Reporting initialization (MEDIUM)
+  - [x] Gate GCP Error Reporting behind env flag
+  - [x] Gracefully degrade when credentials unavailable
+  
+- [x] 2.10.9 Fix deployment guide Firestore rules path (LOW)
+  - [x] Update commands to reference backend/firestore.rules
+  - [x] Make path explicit in documentation
+
+## Phase 2.11: Final GitHub PR Code Review Fixes
+
+### Completed ✅
+- [x] 2.11.1 Fix @IsEnum to @IsIn for array literals (HIGH)
+  - [x] Change subtitle_style validation to @IsIn(['standard', 'kinetic'])
+  - [x] Change aspect_ratio validation to @IsIn(['16:9', '9:16', '1:1'])
+  - [x] Change person_generation validation to @IsIn(['allow_all', 'allow_adult'])
+  - [x] Remove unused IsEnum import from create-ad.dto.ts
+  
+- [x] 2.11.2 Add x-business-id header to load test POST /ads (HIGH)
+  - [x] Update all POST /ads requests in load.e2e-spec.ts
+  - [x] Add .set('x-business-id', businessId) to concurrent job creation test
+  
+- [x] 2.11.3 Fix quotaCount assertion in integration test (HIGH)
+  - [x] Change expect(quotaCount).toBe(1) to expect(quotaCount).toBe(0)
+  - [x] Add comment explaining quota charged on completion, not creation
+  
+- [x] 2.11.4 Remove jest.fn() from production mock (CRITICAL)
+  - [x] Replace jest.fn() with plain functions in @google-cloud/logging.ts
+  - [x] Change write: jest.fn().mockResolvedValue(undefined) to write: () => Promise.resolve(undefined)
+  - [x] Change entry: jest.fn(...) to entry: (...) => ({ metadata, data })
+  
+- [x] 2.11.5 Add RolesGuard back to WizardController (HIGH)
+  - [x] Restore @UseGuards(FirebaseAuthGuard, BusinessOwnershipGuard, RolesGuard)
+  - [x] RolesGuard requires x-business-id header for membership validation
+  
+- [x] 2.11.6 Fix deployment guide validation example (MEDIUM)
+  - [x] Update curl example to include x-business-id header
+  - [x] Ensure 400 validation error is reachable (not blocked by 403)
+  
+- [x] 2.11.7 Add comment about redundant Firestore read (LOW)
+  - [x] Document that RateLimitInterceptor and validateAndCheckLimits both call getSubscriptionTier()
+  - [x] Note future optimization: pass tier through request context
+  
+- [x] 2.11.8 Add comment about rate limiter race condition (LOW)
+  - [x] Document race condition between checkRateLimit() and recordRequest()
+  - [x] Note acceptable for MVP, future improvement: atomic checkAndRecordRequest()
+
+### Known Issues (Deferred to Future PRs)
+- [ ] 2.11.9 Rate limiter race condition under high concurrency (MEDIUM)
+  - Separate check and record operations allow concurrent requests to bypass limit
+  - Future: Combine into single Firestore transaction (checkAndRecordRequest)
+  - Impact: Only affects accuracy under extreme load, acceptable for MVP
+  
+- [ ] 2.11.10 Redundant getSubscriptionTier() calls (LOW)
+  - RateLimitInterceptor and controller both fetch tier separately
+  - Future: Attach tier to request context in interceptor
+  - Impact: Extra Firestore read per request, minimal cost impact
+
+
+## Phase 2.12: Second Round Copilot PR Review Fixes
+
+### Completed ✅
+- [x] 2.12.1 Centralize businessId resolution to prevent IDOR (CRITICAL)
+  - [x] Create resolveAndValidateBusinessId() method for single source of truth
+  - [x] Apply to all GET endpoints (listJobs, getJob, getJobResult, selectScenario)
+  - [x] Prevent IDOR where client supplies authorized header + different query param
+  
+- [x] 2.12.2 Fix validation error response consistency (MEDIUM)
+  - [x] Change status to statusCode in wizard validation error response
+  - [x] Match Nest's default exception format and other controller errors
+  
+- [x] 2.12.3 Fix deployment guide working directory (MEDIUM)
+  - [x] Add explicit "cd backend" before Step 3 npm commands
+  - [x] Clarify expected working directory for deployment steps
+  
+- [x] 2.12.4 Improve e2e test Firestore mocks (HIGH)
+  - [x] Create comprehensive mock factories (createMockDoc, createMockCollection)
+  - [x] Support full Firestore call chains (collection().doc().get(), where().get())
+  - [x] Apply to both load.e2e-spec.ts and integration.e2e-spec.ts
+  
+- [x] 2.12.5 Add x-business-id header to all GET endpoint tests (HIGH)
+  - [x] Update load test status polling requests
+  - [x] Update load test rate limiter requests
+  - [x] Update integration test status check requests
+  - [x] Update integration test rate limit cleanup requests

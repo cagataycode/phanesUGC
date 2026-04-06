@@ -16,32 +16,59 @@ import { Env } from '../config/env';
 @Injectable()
 export class ErrorTrackerService {
   private readonly logger = new Logger(ErrorTrackerService.name);
-  private readonly errorReporting: ErrorReporting;
+  private readonly errorReporting: ErrorReporting | null;
   private readonly alertEmail: string;
   private readonly errorCounts: Map<string, number> = new Map();
   private readonly errorCountsCleanup: Map<string, NodeJS.Timeout> = new Map();
   private readonly ERROR_COUNT_TTL_MS = 60 * 60 * 1000; // 1 hour
+  private readonly errorReportingEnabled: boolean;
 
   constructor(private readonly configService: ConfigService<Env>) {
-    // Initialize Cloud Error Reporting
+    // Initialize Cloud Error Reporting only if credentials are available
     const projectId = this.configService.get('GCP_PROJECT_ID', { infer: true });
-    const serviceContext = {
-      service: 'phanes-backend',
-      version: process.env.npm_package_version || '1.0.0',
-    };
+    const enableErrorReporting =
+      this.configService.get('ENABLE_ERROR_REPORTING', { infer: true }) !==
+      'false';
 
-    this.errorReporting = new ErrorReporting({
-      projectId,
-      serviceContext,
-      reportMode: 'production',
-    });
+    // Use local variables to determine initialization
+    let isEnabled = enableErrorReporting && !!projectId;
+    let errorReportingInstance: ErrorReporting | null = null;
+
+    if (isEnabled) {
+      try {
+        const serviceContext = {
+          service: 'phanes-backend',
+          version: process.env.npm_package_version || '1.0.0',
+        };
+
+        errorReportingInstance = new ErrorReporting({
+          projectId,
+          serviceContext,
+          reportMode: 'production',
+        });
+
+        this.logger.log(
+          `ErrorTracker initialized with Cloud Error Reporting for project: ${projectId}`,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Failed to initialize Cloud Error Reporting: ${error instanceof Error ? error.message : String(error)}. Continuing with local logging only.`,
+        );
+        errorReportingInstance = null;
+        isEnabled = false;
+      }
+    } else {
+      this.logger.log(
+        'ErrorTracker initialized without Cloud Error Reporting (local logging only)',
+      );
+    }
+
+    // Assign to readonly fields once
+    this.errorReporting = errorReportingInstance;
+    this.errorReportingEnabled = isEnabled;
 
     this.alertEmail =
       this.configService.get('ALERT_EMAIL', { infer: true }) || '';
-
-    this.logger.log(
-      `ErrorTracker initialized for project: ${projectId}, alerts: ${this.alertEmail}`,
-    );
   }
 
   /**
@@ -97,6 +124,11 @@ export class ErrorTrackerService {
    * Report error to Cloud Error Reporting
    */
   private reportToCloudErrorReporting(error: Error, appError: AppError): void {
+    // Skip if Error Reporting is not enabled
+    if (!this.errorReportingEnabled || !this.errorReporting) {
+      return;
+    }
+
     try {
       // Add context to error for better grouping
       const errorWithContext = new Error(error.message) as Error & {
@@ -166,7 +198,7 @@ export class ErrorTrackerService {
 
     // Log alert (in production, this would send an email via SendGrid or Cloud Functions)
     this.logger.error(
-      `🚨 ALERT: ${appError.severity} error - ${appError.message}`,
+      `ALERT: ${appError.severity} error - ${appError.message}`,
       JSON.stringify({
         code: appError.code,
         correlationId: appError.correlationId,

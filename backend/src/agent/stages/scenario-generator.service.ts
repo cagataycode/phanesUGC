@@ -14,14 +14,24 @@ export class ScenarioGeneratorService {
 
   constructor(private readonly llm: LlmService) {}
 
-  async generate(jobId: string, brief: CreativeBrief): Promise<ScenarioSet> {
+  async generate(
+    jobId: string,
+    brief: CreativeBrief,
+    businessId?: string,
+  ): Promise<ScenarioSet> {
     this.logger.log(`Generating scenarios for job ${jobId}`);
 
     const systemPrompt = this.buildSystemPrompt();
     const userPrompt = this.buildUserPrompt(brief);
 
     try {
-      const response = await this.llm.generateContent(systemPrompt, userPrompt);
+      const response = await this.llm.generateContent(
+        systemPrompt,
+        userPrompt,
+        jobId, // correlationId
+        jobId, // jobId for cost tracking
+        businessId, // businessId for cost tracking
+      );
 
       const scenarios = this.parseResponse(response);
       const now = new Date();

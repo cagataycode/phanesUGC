@@ -17,6 +17,7 @@ import { QualityGatesService } from './quality-gates.service';
 import { StructuredLoggerService } from '../../monitoring/structured-logger.service';
 import { PerformanceMonitorService } from '../../monitoring/performance-monitor.service';
 import { ErrorTrackerService } from '../../monitoring/error-tracker.service';
+import { QuotaService } from '../../quota/quota.service';
 import { ErrorSeverity } from '../../monitoring/types';
 import { NormalizedRequest } from '../contracts/normalized-request';
 import { CreativeBrief } from '../contracts/creative-brief';
@@ -60,6 +61,7 @@ export class AgentOrchestratorService {
     private readonly structuredLogger: StructuredLoggerService,
     private readonly performanceMonitor: PerformanceMonitorService,
     private readonly errorTracker: ErrorTrackerService,
+    private readonly quotaService: QuotaService,
   ) {}
 
   /**
@@ -475,7 +477,12 @@ export class AgentOrchestratorService {
 
       // Stage 4: Generate 4 scenarios (generator has internal fallback on errors)
       const scenarioSet = await this.retryPolicy.execute(
-        () => this.scenarioGenerator.generate(state.jobId, creativeBrief),
+        () =>
+          this.scenarioGenerator.generate(
+            state.jobId,
+            creativeBrief,
+            state.businessId,
+          ),
         this.createRetryContext(
           jobId,
           businessId,
@@ -871,6 +878,20 @@ export class AgentOrchestratorService {
       state.videoGenerationStatus = 'completed';
       state.videoGenerationCompletedAt = new Date();
       await this.saveState(state);
+
+      // Increment quota usage on successful completion
+      try {
+        await this.quotaService.incrementUsage(state.businessId);
+        this.structuredLogger.log('Quota usage incremented', {
+          ...context,
+          businessId: state.businessId,
+        });
+      } catch (error) {
+        // Log but don't fail the job if quota increment fails
+        this.logger.error(
+          `Failed to increment quota usage: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
 
       timer();
       this.structuredLogger.log('Video generation completed', {

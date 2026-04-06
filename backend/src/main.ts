@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { Env } from './config/env';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -11,6 +12,18 @@ async function bootstrap() {
   const port = configService.get('PORT', { infer: true }) ?? 3000;
 
   app.useGlobalFilters(new AllExceptionsFilter());
+
+  // Enable global validation
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // Strip properties that don't have decorators
+      forbidNonWhitelisted: true, // Throw error on unknown properties
+      transform: true, // Auto-transform payloads to DTO instances
+      transformOptions: {
+        enableImplicitConversion: false, // Explicit type conversion only
+      },
+    }),
+  );
 
   app.enableCors({
     origin: [

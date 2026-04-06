@@ -1,0 +1,15 @@
+// NOTE: This file is intentionally a non-canonical placeholder.
+// The single source of truth for Firestore security rules is:
+// backend/firebase/firestore.rules
+//
+// Keep deployment configuration and future rule changes pointed at that file.
+// This deny-all fallback exists only to avoid maintaining a second ruleset here.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

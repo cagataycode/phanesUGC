@@ -9,11 +9,25 @@
 import { LlmService } from '../src/ai/llm.service';
 import { StructuredLoggerService } from '../src/monitoring/structured-logger.service';
 import { PerformanceMonitorService } from '../src/monitoring/performance-monitor.service';
+import { CostTrackerService } from '../src/cost/cost-tracker.service';
 
 // Mock ConfigService with real environment variables
 class TestConfigService {
   get(key: string) {
     return process.env[key];
+  }
+}
+
+// Mock CostTrackerService for testing
+class MockCostTrackerService {
+  calculateClaudeCost() {
+    return 0.01;
+  }
+  calculateGeminiCost() {
+    return 0.005;
+  }
+  async trackApiCall() {
+    // No-op for testing
   }
 }
 
@@ -24,7 +38,8 @@ async function testBriefGeneration() {
   const configService = new TestConfigService() as any;
   const structuredLogger = new StructuredLoggerService(configService);
   const performanceMonitor = new PerformanceMonitorService(structuredLogger);
-  const llmService = new LlmService(configService, structuredLogger, performanceMonitor);
+  const costTracker = new MockCostTrackerService() as any;
+  const llmService = new LlmService(configService, structuredLogger, performanceMonitor, costTracker);
 
   const systemPrompt = `You are an expert advertising strategist. Generate a creative brief for a short-form video ad.
 
@@ -64,7 +79,8 @@ async function testScriptGeneration() {
   const configService = new TestConfigService() as any;
   const structuredLogger = new StructuredLoggerService(configService);
   const performanceMonitor = new PerformanceMonitorService(structuredLogger);
-  const llmService = new LlmService(configService, structuredLogger, performanceMonitor);
+  const costTracker = new MockCostTrackerService() as any;
+  const llmService = new LlmService(configService, structuredLogger, performanceMonitor, costTracker);
 
   const systemPrompt = `You are an expert scriptwriter. Generate an 8-second ad script.
 
@@ -104,7 +120,8 @@ async function testScenarioGeneration() {
   const configService = new TestConfigService() as any;
   const structuredLogger = new StructuredLoggerService(configService);
   const performanceMonitor = new PerformanceMonitorService(structuredLogger);
-  const llmService = new LlmService(configService, structuredLogger, performanceMonitor);
+  const costTracker = new MockCostTrackerService() as any;
+  const llmService = new LlmService(configService, structuredLogger, performanceMonitor, costTracker);
 
   const systemPrompt = `You are a creative director. Generate 2 distinct ad scenarios.
 
@@ -160,7 +177,8 @@ async function testComplexStructure() {
   const configService = new TestConfigService() as any;
   const structuredLogger = new StructuredLoggerService(configService);
   const performanceMonitor = new PerformanceMonitorService(structuredLogger);
-  const llmService = new LlmService(configService, structuredLogger, performanceMonitor);
+  const costTracker = new MockCostTrackerService() as any;
+  const llmService = new LlmService(configService, structuredLogger, performanceMonitor, costTracker);
 
   const systemPrompt = `You are a scene director. Generate a video scene prompt.
 

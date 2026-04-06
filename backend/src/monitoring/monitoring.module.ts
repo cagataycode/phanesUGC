@@ -5,16 +5,19 @@ import { PerformanceMonitorService } from './performance-monitor.service';
 import { ErrorTrackerService } from './error-tracker.service';
 import { CorrelationContextService } from './correlation-context.service';
 import { PerformanceInterceptor } from './interceptors/performance.interceptor';
+import { AuditLoggerService } from './audit-logger.service';
+import { FirebaseModule } from '../firebase/firebase.module';
 
 @Global()
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, FirebaseModule],
   providers: [
     CorrelationContextService,
     StructuredLoggerService,
     PerformanceMonitorService,
     ErrorTrackerService,
     PerformanceInterceptor,
+    AuditLoggerService,
   ],
   exports: [
     CorrelationContextService,
@@ -22,6 +25,7 @@ import { PerformanceInterceptor } from './interceptors/performance.interceptor';
     PerformanceMonitorService,
     ErrorTrackerService,
     PerformanceInterceptor,
+    AuditLoggerService,
   ],
 })
 export class MonitoringModule {}
