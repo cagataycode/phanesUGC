@@ -174,6 +174,60 @@ export class StripeService {
     cancelUrl?: string,
   ): Promise<{ sessionId: string; url: string }> {
     try {
+      // Validate redirect URLs to prevent open redirects
+      const allowedDomains = ['app.phanes.ai', 'localhost'];
+      const defaultSuccessUrl =
+        'https://app.phanes.ai/settings/billing?success=true';
+      const defaultCancelUrl =
+        'https://app.phanes.ai/settings/billing?canceled=true';
+
+      let validatedSuccessUrl = defaultSuccessUrl;
+      let validatedCancelUrl = defaultCancelUrl;
+
+      if (successUrl) {
+        try {
+          const url = new URL(successUrl);
+          if (
+            allowedDomains.some(
+              (domain) =>
+                url.hostname === domain || url.hostname.endsWith(`.${domain}`),
+            )
+          ) {
+            validatedSuccessUrl = successUrl;
+          } else {
+            this.logger.warn(
+              `Invalid success URL domain: ${url.hostname}, using default`,
+            );
+          }
+        } catch {
+          this.logger.warn(
+            `Invalid success URL format: ${successUrl}, using default`,
+          );
+        }
+      }
+
+      if (cancelUrl) {
+        try {
+          const url = new URL(cancelUrl);
+          if (
+            allowedDomains.some(
+              (domain) =>
+                url.hostname === domain || url.hostname.endsWith(`.${domain}`),
+            )
+          ) {
+            validatedCancelUrl = cancelUrl;
+          } else {
+            this.logger.warn(
+              `Invalid cancel URL domain: ${url.hostname}, using default`,
+            );
+          }
+        } catch {
+          this.logger.warn(
+            `Invalid cancel URL format: ${cancelUrl}, using default`,
+          );
+        }
+      }
+
       const customerId = await this.getOrCreateCustomer(
         userId,
         businessId,
@@ -201,10 +255,8 @@ export class StripeService {
             quantity: 1,
           },
         ],
-        success_url:
-          successUrl || 'https://app.phanes.ai/settings/billing?success=true',
-        cancel_url:
-          cancelUrl || 'https://app.phanes.ai/settings/billing?canceled=true',
+        success_url: validatedSuccessUrl,
+        cancel_url: validatedCancelUrl,
         subscription_data: {
           metadata: {
             userId,
@@ -213,15 +265,8 @@ export class StripeService {
         },
       };
 
-      // Handle promo code
+      // Handle promo code - single API call for validation and ID retrieval
       if (promoCode) {
-        // Validate promo code first
-        const isValid = await this.validatePromoCode(promoCode);
-        if (!isValid) {
-          throw new BadRequestException('Invalid promo code');
-        }
-
-        // Get promotion code ID from Stripe
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         const promoCodes = await this.stripe.promotionCodes.list({
           code: promoCode,
@@ -230,14 +275,16 @@ export class StripeService {
         });
 
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        if (promoCodes.data && promoCodes.data.length > 0) {
-          sessionParams.discounts = [
-            {
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-              promotion_code: promoCodes.data[0].id,
-            },
-          ];
+        if (!promoCodes.data || promoCodes.data.length === 0) {
+          throw new BadRequestException('Invalid promo code');
         }
+
+        sessionParams.discounts = [
+          {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+            promotion_code: promoCodes.data[0].id,
+          },
+        ];
       } else {
         // Allow users to enter promo codes during checkout
         sessionParams.allow_promotion_codes = true;

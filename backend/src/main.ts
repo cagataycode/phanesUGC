@@ -6,7 +6,7 @@ import { Env } from './config/env';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create(AppModule.forRoot(), {
     rawBody: true, // Enable raw body for webhook signature verification
   });
   const configService = app.get(ConfigService<Env>);

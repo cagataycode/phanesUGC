@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, DynamicModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -16,27 +16,39 @@ import { validateEnv } from './config/env';
 import { RenderModule } from './render/render.module';
 import { ScraperModule } from './scraper/scraper.module';
 
-@Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: ['.env.local', '.env'],
-      validate: validateEnv,
-    }),
-    FirebaseModule,
-    StorageModule,
-    AuthModule,
-    UsersModule,
-    RenderModule,
-    AdsModule,
-    ProductsModule,
-    AvatarsModule,
-    AssetsModule,
-    ScraperModule,
-    MonitoringModule,
-    PaymentModule,
-  ],
-  controllers: [AppController],
-  providers: [AppService],
-})
-export class AppModule {}
+@Module({})
+export class AppModule {
+  static forRoot(): DynamicModule {
+    const imports: any[] = [
+      ConfigModule.forRoot({
+        isGlobal: true,
+        envFilePath: ['.env.local', '.env'],
+        validate: validateEnv,
+      }),
+      FirebaseModule,
+      StorageModule,
+      AuthModule,
+      UsersModule,
+      RenderModule,
+      AdsModule,
+      ProductsModule,
+      AvatarsModule,
+      AssetsModule,
+      ScraperModule,
+      MonitoringModule,
+    ];
+
+    // Conditionally add PaymentModule if payments are enabled
+    const enablePayments = process.env.ENABLE_PAYMENTS === 'true';
+    if (enablePayments) {
+      imports.push(PaymentModule);
+    }
+
+    return {
+      module: AppModule,
+      imports,
+      controllers: [AppController],
+      providers: [AppService],
+    };
+  }
+}

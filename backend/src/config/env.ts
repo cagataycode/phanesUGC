@@ -43,13 +43,14 @@ export const envSchema = z
     ENABLE_STRUCTURED_LOGGING: z.enum(['true', 'false']).default('false'),
     ENABLE_ERROR_REPORTING: z.enum(['true', 'false']).default('false'),
     ALERT_EMAIL: z.string().email().optional(),
-    // Stripe Configuration
-    STRIPE_SECRET_KEY: z.string().min(1),
-    STRIPE_WEBHOOK_SECRET: z.string().min(1),
-    STRIPE_STARTER_PRICE_ID: z.string().min(1),
-    STRIPE_PRO_PRICE_ID: z.string().min(1),
-    STRIPE_ENTERPRISE_PRICE_ID: z.string().min(1),
-    STRIPE_BILLING_PORTAL_RETURN_URL: z.string().url(),
+    // Stripe Configuration (optional - only required if payment features are enabled)
+    ENABLE_PAYMENTS: z.enum(['true', 'false']).default('false'),
+    STRIPE_SECRET_KEY: z.string().min(1).optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
+    STRIPE_STARTER_PRICE_ID: z.string().min(1).optional(),
+    STRIPE_PRO_PRICE_ID: z.string().min(1).optional(),
+    STRIPE_ENTERPRISE_PRICE_ID: z.string().min(1).optional(),
+    STRIPE_BILLING_PORTAL_RETURN_URL: z.string().url().optional(),
   })
   .refine(
     (data) => {
@@ -74,6 +75,27 @@ export const envSchema = z
       message:
         'AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must both be provided or both be omitted, and AWS_SESSION_TOKEN may only be provided when both are set',
       path: ['AWS_ACCESS_KEY_ID'],
+    },
+  )
+  .refine(
+    (data) => {
+      // If payments are enabled, all Stripe config must be provided
+      if (data.ENABLE_PAYMENTS === 'true') {
+        return !!(
+          data.STRIPE_SECRET_KEY &&
+          data.STRIPE_WEBHOOK_SECRET &&
+          data.STRIPE_STARTER_PRICE_ID &&
+          data.STRIPE_PRO_PRICE_ID &&
+          data.STRIPE_ENTERPRISE_PRICE_ID &&
+          data.STRIPE_BILLING_PORTAL_RETURN_URL
+        );
+      }
+      return true;
+    },
+    {
+      message:
+        'All Stripe configuration variables must be provided when ENABLE_PAYMENTS=true',
+      path: ['STRIPE_SECRET_KEY'],
     },
   );
 

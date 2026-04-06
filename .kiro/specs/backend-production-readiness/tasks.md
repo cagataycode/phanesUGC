@@ -156,7 +156,7 @@
 
 - [ ] 4.2 Implement InputValidator service
   - [ ] 4.2.1 Add class-validator decorators to all DTOs
-  - [ ] 4.2.2 Add string length validation (prompt: 10000, productName: 300, description: 5000, tone: 200, targetAudience: 1000)
+  - [x] 4.2.2 Add string length validation (prompt: 10000, productName: 300, description: 5000, tone: 200, targetAudience: 1000, negativePrompt: 1000)
   - [ ] 4.2.3 Add enum validation for platform, aspectRatio, tone, language
   - [ ] 4.2.4 Implement sanitizeText method (XSS prevention)
   - [ ] 4.2.5 Implement validateUrl method
