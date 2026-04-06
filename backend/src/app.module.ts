@@ -11,6 +11,7 @@ import { ProductsModule } from './products/products.module';
 import { AvatarsModule } from './avatars/avatars.module';
 import { AssetsModule } from './assets/assets.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
+import { PaymentModule } from './payment/payment.module';
 import { validateEnv } from './config/env';
 import { RenderModule } from './render/render.module';
 import { ScraperModule } from './scraper/scraper.module';
@@ -33,6 +34,7 @@ import { ScraperModule } from './scraper/scraper.module';
     AssetsModule,
     ScraperModule,
     MonitoringModule,
+    PaymentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
