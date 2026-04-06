@@ -181,12 +181,20 @@ describe('QuotaService', () => {
       });
     });
 
-    it('should return unlimited limits for ENTERPRISE tier', () => {
+    it('should return limits for ENTERPRISE tier', () => {
       const limits = service.getTierLimits(SubscriptionTier.ENTERPRISE);
+
+      expect(limits.monthlyVideos).toBe(100);
+      expect(limits.monthlyCostLimit).toBe(500);
+      expect(limits.concurrentJobs).toBe(10);
+    });
+
+    it('should return unlimited limits for ADMIN tier', () => {
+      const limits = service.getTierLimits(SubscriptionTier.ADMIN);
 
       expect(limits.monthlyVideos).toBe(-1); // Unlimited
       expect(limits.monthlyCostLimit).toBe(-1); // Unlimited
-      expect(limits.concurrentJobs).toBe(10);
+      expect(limits.concurrentJobs).toBe(20);
     });
   });
 
@@ -244,7 +252,7 @@ describe('QuotaService', () => {
       expect(quota.videosRemaining).toBe(2);
     });
 
-    it('should return unlimited quota for ENTERPRISE tier', async () => {
+    it('should return quota for ENTERPRISE tier', async () => {
       const mockBusinessDoc = {
         exists: true,
         data: () => ({
@@ -257,7 +265,34 @@ describe('QuotaService', () => {
       const mockUsageDoc = {
         exists: true,
         data: () => ({
-          videosCreated: 100,
+          videosCreated: 50,
+        }),
+      };
+
+      firestoreService.get
+        .mockResolvedValueOnce(mockBusinessDoc as any)
+        .mockResolvedValueOnce(mockUsageDoc as any);
+
+      const quota = await service.checkQuota(mockBusinessId);
+
+      expect(quota.videosRemaining).toBe(50); // 100 - 50
+      expect(quota.tier).toBe(SubscriptionTier.ENTERPRISE);
+    });
+
+    it('should return unlimited quota for ADMIN tier', async () => {
+      const mockBusinessDoc = {
+        exists: true,
+        data: () => ({
+          subscription: {
+            tier: SubscriptionTier.ADMIN,
+          },
+        }),
+      };
+
+      const mockUsageDoc = {
+        exists: true,
+        data: () => ({
+          videosCreated: 1000,
         }),
       };
 
@@ -268,7 +303,7 @@ describe('QuotaService', () => {
       const quota = await service.checkQuota(mockBusinessId);
 
       expect(quota.videosRemaining).toBe(-1); // Unlimited
-      expect(quota.tier).toBe(SubscriptionTier.ENTERPRISE);
+      expect(quota.tier).toBe(SubscriptionTier.ADMIN);
     });
   });
 
@@ -325,12 +360,38 @@ describe('QuotaService', () => {
       expect(canCreate).toBe(false);
     });
 
-    it('should return true for ENTERPRISE tier (unlimited)', async () => {
+    it('should return true for ENTERPRISE tier with quota available', async () => {
       const mockBusinessDoc = {
         exists: true,
         data: () => ({
           subscription: {
             tier: SubscriptionTier.ENTERPRISE,
+          },
+        }),
+      };
+
+      const mockUsageDoc = {
+        exists: true,
+        data: () => ({
+          videosCreated: 50, // 50 out of 100
+        }),
+      };
+
+      firestoreService.get
+        .mockResolvedValueOnce(mockBusinessDoc as any)
+        .mockResolvedValueOnce(mockUsageDoc as any);
+
+      const canCreate = await service.canCreateJob(mockBusinessId);
+
+      expect(canCreate).toBe(true);
+    });
+
+    it('should return true for ADMIN tier (unlimited)', async () => {
+      const mockBusinessDoc = {
+        exists: true,
+        data: () => ({
+          subscription: {
+            tier: SubscriptionTier.ADMIN,
           },
         }),
       };

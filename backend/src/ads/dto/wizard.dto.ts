@@ -9,7 +9,10 @@ export const ProductInfoSchema = z.object({
 export const GenerateBriefSchema = z.object({
   businessId: z.string().min(1, 'Business ID is required'), // Firestore auto-generated ID
   productId: z.string().min(1, 'Product ID is required'), // Firestore auto-generated ID
-  prompt: z.string().min(5).max(10000, 'Prompt must not exceed 10000 characters'),
+  prompt: z
+    .string()
+    .min(5)
+    .max(10000, 'Prompt must not exceed 10000 characters'),
   platform: z.enum(['tiktok', 'instagram', 'youtube']),
   language: z.enum(['en', 'de']).optional(),
   tone: z.string().max(200).optional(),
