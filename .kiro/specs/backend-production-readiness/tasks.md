@@ -103,13 +103,13 @@
 
 ## Phase 3: Payment Integration
 
-- [ ] 3.1 Create payment module
-  - [ ] 3.1.1 Create `backend/src/payment/payment.module.ts`
-  - [ ] 3.1.2 Create `backend/src/payment/stripe.service.ts`
-  - [ ] 3.1.3 Create `backend/src/payment/subscription.controller.ts`
-  - [ ] 3.1.4 Create `backend/src/payment/webhook.controller.ts`
+- [x] 3.1 Create payment module
+  - [x] 3.1.1 Create `backend/src/payment/payment.module.ts`
+  - [x] 3.1.2 Create `backend/src/payment/stripe.service.ts`
+  - [x] 3.1.3 Create `backend/src/payment/subscription.controller.ts`
+  - [x] 3.1.4 Create `backend/src/payment/webhook.controller.ts`
 
-- [ ] 3.2 Implement StripeService
+- [-] 3.2 Implement StripeService
   - [ ] 3.2.1 Install and configure Stripe SDK
   - [ ] 3.2.2 Implement createCustomer method
   - [ ] 3.2.3 Implement createCheckoutSession method

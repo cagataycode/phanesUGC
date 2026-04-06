@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { StripeService } from './stripe.service';
+import { FirestoreService } from '../firebase/firestore.service';
+import { StructuredLoggerService } from '../monitoring/structured-logger.service';
 
 describe('StripeService', () => {
   let service: StripeService;
@@ -26,6 +28,19 @@ describe('StripeService', () => {
             }),
           },
         },
+        {
+          provide: FirestoreService,
+          useValue: {
+            collection: jest.fn(),
+          },
+        },
+        {
+          provide: StructuredLoggerService,
+          useValue: {
+            log: jest.fn(),
+            error: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -41,5 +56,11 @@ describe('StripeService', () => {
     const stripeClient = service.getStripeClient();
     expect(stripeClient).toBeDefined();
     expect(typeof stripeClient).toBe('object');
+  });
+
+  it('should return correct price IDs', () => {
+    expect(service.getPriceId('starter')).toBe('price_starter');
+    expect(service.getPriceId('pro')).toBe('price_pro');
+    expect(service.getPriceId('enterprise')).toBe('price_enterprise');
   });
 });

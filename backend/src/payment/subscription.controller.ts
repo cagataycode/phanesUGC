@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  UseGuards,
+  Headers,
+  BadRequestException,
+} from '@nestjs/common';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
 import { GetUser } from '../auth/get-user.decorator';
 import { StripeService } from './stripe.service';
@@ -11,41 +19,57 @@ export class SubscriptionController {
   constructor(private readonly stripeService: StripeService) {}
 
   @Post('checkout')
-  createCheckoutSession(
+  async createCheckoutSession(
     @GetUser() user: { uid: string; email?: string },
+    @Headers('x-business-id') businessId: string,
     @Body() dto: CreateCheckoutSessionDto,
   ) {
-    // TODO: Implement in Phase 3
-    return {
-      message: 'Checkout session creation - to be implemented',
-      tier: dto.tier,
-    };
+    if (!businessId) {
+      throw new BadRequestException('x-business-id header is required');
+    }
+
+    const result = await this.stripeService.createCheckoutSession(
+      user.uid,
+      businessId,
+      dto.tier,
+      user.email,
+      dto.promoCode,
+      dto.successUrl,
+      dto.cancelUrl,
+    );
+
+    return result;
   }
 
   @Post('cancel')
-  cancelSubscription(@GetUser() user: { uid: string }) {
-    // TODO: Implement in Phase 3
-    return {
-      message: 'Subscription cancellation - to be implemented',
-      userId: user.uid,
-    };
+  async cancelSubscription(
+    @GetUser() user: { uid: string },
+    @Headers('x-business-id') businessId: string,
+  ) {
+    if (!businessId) {
+      throw new BadRequestException('x-business-id header is required');
+    }
+
+    const result = await this.stripeService.cancelSubscription(businessId);
+    return result;
   }
 
   @Get('portal')
-  getBillingPortal(@GetUser() user: { uid: string }) {
-    // TODO: Implement in Phase 3
-    return {
-      message: 'Billing portal - to be implemented',
-      userId: user.uid,
-    };
+  async getBillingPortal(
+    @GetUser() user: { uid: string },
+    @Headers('x-business-id') businessId: string,
+  ) {
+    if (!businessId) {
+      throw new BadRequestException('x-business-id header is required');
+    }
+
+    const url = await this.stripeService.getBillingPortalUrl(businessId);
+    return { url };
   }
 
   @Post('promo-codes/validate')
-  validatePromoCode(@Body() dto: ValidatePromoCodeDto) {
-    // TODO: Implement in Phase 3
-    return {
-      message: 'Promo code validation - to be implemented',
-      code: dto.code,
-    };
+  async validatePromoCode(@Body() dto: ValidatePromoCodeDto) {
+    const details = await this.stripeService.getPromoCodeDetails(dto.code);
+    return details;
   }
 }
