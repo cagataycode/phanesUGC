@@ -434,13 +434,21 @@ export class StripeService {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const coupon = promoCode.coupon;
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const hasPercentOff = coupon.percent_off != null;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const hasAmountOff = coupon.amount_off != null;
+
+      if (!hasPercentOff && !hasAmountOff) {
+        return { valid: false };
+      }
+
       return {
         valid: true,
         discount: {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          type: coupon.percent_off ? 'percentage' : 'fixed',
+          type: hasPercentOff ? 'percentage' : 'fixed',
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
-          value: coupon.percent_off || coupon.amount_off / 100, // Convert minor units to major units
+          value: hasPercentOff ? coupon.percent_off : coupon.amount_off / 100, // Convert minor units to major units
         },
       };
     } catch (error) {
@@ -472,18 +480,30 @@ export class StripeService {
         webhookSecret,
       );
 
-      // Check for duplicate events (idempotency)
+      // Check for duplicate events (idempotency) using atomic create
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const eventId = event.id;
-      const eventDoc = await this.firestore
+      const eventRef = this.firestore
         .collection('stripe_events')
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        .doc(eventId)
-        .get();
+        .doc(eventId);
 
-      if (eventDoc.exists) {
-        this.logger.log(`Event ${eventId as string} already processed`);
-        return { received: true };
+      try {
+        // Atomically create the event document - will fail if already exists
+        await eventRef.create({
+          processed: false,
+          receivedAt: new Date(),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+          type: event.type,
+        });
+      } catch (error: any) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        if (error.code === 6 || error.code === 'already-exists') {
+          // Event already processed
+          this.logger.log(`Event ${eventId as string} already processed`);
+          return { received: true };
+        }
+        throw error;
       }
 
       // Process event based on type
@@ -502,7 +522,7 @@ export class StripeService {
           await this.handleSubscriptionDeleted(event.data.object);
           break;
         case 'invoice.payment_succeeded':
-        case 'invoice_payment.paid': // Newer event type, same handling
+        case 'invoice.paid': // Alternative event type
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           this.handlePaymentSucceeded(event.data.object);
           break;
@@ -516,16 +536,10 @@ export class StripeService {
       }
 
       // Mark event as processed
-      await this.firestore
-        .collection('stripe_events')
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        .doc(eventId)
-        .set({
-          processed: true,
-          processedAt: new Date(),
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-          type: event.type,
-        });
+      await eventRef.update({
+        processed: true,
+        processedAt: new Date(),
+      });
 
       return { received: true };
     } catch (error) {

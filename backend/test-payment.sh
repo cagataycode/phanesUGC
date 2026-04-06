@@ -29,6 +29,7 @@ echo "----------------------------"
 curl -X POST http://localhost:3000/api/v1/subscriptions/promo-codes/validate \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer test-token" \
+  -H "x-business-id: test-business-123" \
   -d '{
     "code": "TESTCODE"
   }' | jq '.'

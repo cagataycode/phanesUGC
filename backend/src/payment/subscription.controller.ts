@@ -63,7 +63,14 @@ export class SubscriptionController {
   }
 
   @Post('promo-codes/validate')
-  async validatePromoCode(@Body() dto: ValidatePromoCodeDto) {
+  async validatePromoCode(
+    @Headers('x-business-id') businessId: string,
+    @Body() dto: ValidatePromoCodeDto,
+  ) {
+    if (!businessId) {
+      throw new BadRequestException('x-business-id header is required');
+    }
+
     const details = await this.stripeService.getPromoCodeDetails(dto.code);
     return details;
   }
