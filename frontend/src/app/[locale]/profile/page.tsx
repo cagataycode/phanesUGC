@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useAuth } from "@/lib/firebase/auth-provider";
 import { useTranslations } from "next-intl";
+import { SubscriptionManagement } from "@/components/subscription-management";
 
 const PLACEHOLDER_CREDITS = 42;
 
@@ -20,14 +21,13 @@ type SectionKey =
   | "management";
 
 export default function ProfilePage() {
-  const { user, platformContext, loading } = useAuth();
+  const { user, platformContext } = useAuth();
   const t = useTranslations("profile");
   const [activeSection, setActiveSection] = useState<SectionKey>("overview");
 
   const displayName = user?.displayName || t("fallbackName");
   const email = user?.email || t("fallbackEmail");
   const initial = getInitial(user?.displayName, user?.email).toUpperCase();
-  const entitlements = platformContext?.entitlements;
   const usedCredits = 8;
   const generatedAds = 3;
   const productLinks = 1;
@@ -192,79 +192,7 @@ export default function ProfilePage() {
               activeSection === "access" ||
               activeSection === "usage") && (
               <section className="grid gap-6 lg:grid-cols-2">
-                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-                  <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                    {t("subscriptionAccess")}
-                  </h2>
-                  <div className="mt-5 space-y-4">
-                    <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
-                      <p className="text-xs text-muted-foreground">
-                        {t("subscriptionTier")}
-                      </p>
-                      <p className="mt-1 text-sm font-medium text-foreground capitalize">
-                        {platformContext?.subscription_tier || t("free")}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
-                      <p className="text-xs text-muted-foreground">
-                        {t("entitlementSource")}
-                      </p>
-                      <p className="mt-1 text-sm font-medium text-foreground capitalize">
-                        {platformContext?.entitlement_source ||
-                          t("subscription")}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
-                      <p className="text-xs text-muted-foreground">
-                        {t("entitlements")}
-                      </p>
-                      <div className="mt-3 space-y-2 text-sm text-foreground">
-                        <div className="flex items-center justify-between gap-3">
-                          <span>{t("canGenerateAds")}</span>
-                          <span className="font-medium">
-                            {entitlements?.can_generate_ads
-                              ? t("enabled")
-                              : t("disabled")}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <span>{t("canRenderFinal")}</span>
-                          <span className="font-medium">
-                            {entitlements?.can_render_final
-                              ? t("enabled")
-                              : t("disabled")}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <span>{t("canRegenerateScene")}</span>
-                          <span className="font-medium">
-                            {entitlements?.can_regenerate_scene
-                              ? t("enabled")
-                              : t("disabled")}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <span>{t("maxDuration")}</span>
-                          <span className="font-medium">
-                            {entitlements?.max_duration_sec ?? 0}s
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-border bg-background/70 px-4 py-3">
-                      <p className="text-xs text-muted-foreground">
-                        {t("sessionStatus")}
-                      </p>
-                      <p className="mt-1 text-sm font-medium text-foreground">
-                        {loading
-                          ? t("checkingSession")
-                          : user
-                            ? t("authenticated")
-                            : t("signedOut")}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <SubscriptionManagement />
 
                 <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
                   <h2 className="text-xl font-semibold tracking-tight text-foreground">

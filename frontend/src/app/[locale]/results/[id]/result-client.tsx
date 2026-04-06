@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { getAdJobResult, type AdJobResultResponse } from "@/lib/api";
@@ -9,6 +9,39 @@ import { useAuth } from "@/lib/firebase/auth-provider";
 type ResultClientProps = {
   id: string;
 };
+
+const POLL_INTERVAL_MS = 5000;
+
+function LoadingScreen({ progress }: { progress: number }) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background bg-mesh-blur">
+      <div className="flex flex-col items-center gap-6 rounded-2xl border border-border bg-card/80 p-10 shadow-xl backdrop-blur-sm">
+        <div className="relative h-16 w-16">
+          <div className="absolute inset-0 animate-spin rounded-full border-4 border-muted border-t-primary" />
+        </div>
+        <div className="space-y-2 text-center">
+          <h2 className="text-xl font-semibold text-foreground">
+            Generating your video
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            This may take a few minutes. Please wait...
+          </p>
+        </div>
+        <div className="w-full max-w-xs space-y-2">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full bg-primary transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="text-center text-xs text-muted-foreground">
+            {progress}% complete
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** Renders a single key-value row in the summary table. */
 function SummaryRow({
@@ -52,48 +85,71 @@ export function ResultClient({ id }: ResultClientProps) {
   const [result, setResult] = useState<AdJobResultResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const isJobComplete = useCallback((res: AdJobResultResponse | null) => {
+    if (!res) return false;
+    const status = res.pipeline?.status;
+    return status === "completed" || status === "failed";
+  }, []);
+
+  const calculateProgress = useCallback((res: AdJobResultResponse | null) => {
+    if (!res?.pipeline?.stages) return 0;
+    const stages = Object.values(res.pipeline.stages);
+    if (stages.length === 0) return 0;
+    const doneCount = stages.filter((s) => s === "done").length;
+    return Math.round((doneCount / stages.length) * 100);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
+    let pollTimeout: NodeJS.Timeout | null = null;
 
-    if (authLoading) return; // Wait for AuthProvider to finish loading
+    if (authLoading) return;
 
-    async function loadResult() {
-      const businessId = platformContext?.account_id || "test-business-id";
+    const businessId = platformContext?.account_id || "test-business-id";
 
+    async function pollForResult() {
       try {
-        setLoading(true);
-        setError(null);
-
         const response = await getAdJobResult(id, businessId);
 
-        if (!cancelled) {
-          setResult(response);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : "Failed to load result",
-          );
-        }
-      } finally {
-        if (!cancelled) {
+        if (cancelled) return;
+
+        setResult(response);
+        setProgress(calculateProgress(response));
+
+        if (!isJobComplete(response)) {
+          setIsGenerating(true);
+          pollTimeout = setTimeout(pollForResult, POLL_INTERVAL_MS);
+        } else {
+          setIsGenerating(false);
           setLoading(false);
         }
+      } catch (err) {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Failed to load result");
+        setIsGenerating(false);
+        setLoading(false);
       }
     }
 
-    void loadResult();
+    void pollForResult();
 
     return () => {
       cancelled = true;
+      if (pollTimeout) clearTimeout(pollTimeout);
     };
-  }, [id, platformContext, authLoading]);
+  }, [id, platformContext, authLoading, isJobComplete, calculateProgress]);
 
   const formatDate = (iso: string | null) => {
     if (!iso) return "—";
     return new Date(iso).toLocaleString();
   };
+
+  if (isGenerating) {
+    return <LoadingScreen progress={progress} />;
+  }
 
   return (
     <div className="relative min-h-screen bg-background bg-mesh-blur font-sans">
