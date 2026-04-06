@@ -101,87 +101,87 @@
   - [x] 2.8.2 Create Cloud Function for rate limit cleanup
   - [x] 2.8.3 Schedule functions with Cloud Scheduler
 
-## Phase 3: Security Hardening
+## Phase 3: Payment Integration
 
-- [ ] 3.1 Create security module
-  - [ ] 3.1.1 Create `backend/src/security/security.module.ts`
-  - [ ] 3.1.2 Create `backend/src/security/input-validator.service.ts`
-  - [ ] 3.1.3 Create `backend/src/security/signed-url.service.ts`
+- [ ] 3.1 Create payment module
+  - [ ] 3.1.1 Create `backend/src/payment/payment.module.ts`
+  - [ ] 3.1.2 Create `backend/src/payment/stripe.service.ts`
+  - [ ] 3.1.3 Create `backend/src/payment/subscription.controller.ts`
+  - [ ] 3.1.4 Create `backend/src/payment/webhook.controller.ts`
 
-- [ ] 3.2 Implement InputValidator service
-  - [ ] 3.2.1 Add class-validator decorators to all DTOs
-  - [ ] 3.2.2 Add string length validation (prompt: 2000, productName: 200, description: 1000)
-  - [ ] 3.2.3 Add enum validation for platform, aspectRatio, tone, language
-  - [ ] 3.2.4 Implement sanitizeText method (XSS prevention)
-  - [ ] 3.2.5 Implement validateUrl method
-  - [ ] 3.2.6 Implement validateFileUpload method (50MB limit, type validation)
-  - [ ] 3.2.7 Write unit tests for InputValidator
+- [ ] 3.2 Implement StripeService
+  - [ ] 3.2.1 Install and configure Stripe SDK
+  - [ ] 3.2.2 Implement createCustomer method
+  - [ ] 3.2.3 Implement createCheckoutSession method
+  - [ ] 3.2.4 Implement handleWebhook method (signature validation)
+  - [ ] 3.2.5 Implement cancelSubscription method
+  - [ ] 3.2.6 Implement getBillingPortalUrl method
+  - [ ] 3.2.7 Implement validatePromoCode method
+  - [ ] 3.2.8 Write unit tests for StripeService
 
-- [ ] 3.3 Implement SignedUrlService
-  - [ ] 3.3.1 Implement generateSignedUrl with configurable expiry (15min/1hr)
-  - [ ] 3.3.2 Implement validateAccess method (check user permissions)
-  - [ ] 3.3.3 Implement logUrlGeneration for audit trail
-  - [ ] 3.3.4 Update GcsStorageService to use SignedUrlService
-  - [ ] 3.3.5 Write unit tests for SignedUrlService
+- [ ] 3.3 Implement webhook handlers
+  - [ ] 3.3.1 Handle subscription.created event
+  - [ ] 3.3.2 Handle subscription.updated event
+  - [ ] 3.3.3 Handle subscription.deleted event
+  - [ ] 3.3.4 Handle invoice.payment_succeeded event
+  - [ ] 3.3.5 Handle invoice.payment_failed event
+  - [ ] 3.3.6 Update business subscription in Firestore
 
-- [ ] 3.4 Update API controllers with validation
-  - [ ] 3.4.1 Add ValidationPipe to all controllers
-  - [ ] 3.4.2 Update CreateAdDto with validation decorators
-  - [ ] 3.4.3 Update WizardDto with validation decorators
-  - [ ] 3.4.4 Add file upload validation to AssetsController
-  - [ ] 3.4.5 Return 400 with validation errors
+- [ ] 3.4 Create subscription API endpoints
+  - [ ] 3.4.1 POST /api/v1/subscriptions/checkout
+  - [ ] 3.4.2 POST /api/v1/subscriptions/cancel
+  - [ ] 3.4.3 GET /api/v1/subscriptions/portal
+  - [ ] 3.4.4 POST /api/v1/webhooks/stripe
+  - [ ] 3.4.5 POST /api/v1/promo-codes/validate
 
-- [ ] 3.5 Configure CORS and security headers
-  - [ ] 3.5.1 Configure CORS whitelist in main.ts
-  - [ ] 3.5.2 Add helmet middleware for security headers
-  - [ ] 3.5.3 Configure CSP headers
-  - [ ] 3.5.4 Add environment-based CORS config
+- [ ] 3.5 Implement promo code system
+  - [ ] 3.5.1 Create promo_codes collection schema
+  - [ ] 3.5.2 Implement promo code validation
+  - [ ] 3.5.3 Track redemption counts
+  - [ ] 3.5.4 Apply promo codes in checkout session
+  - [ ] 3.5.5 Write integration tests for promo codes
 
-## Phase 4: Payment Integration
+- [ ] 3.6 Update subscription tier resolution
+  - [ ] 3.6.1 Update QuotaService to read from subscription document
+  - [ ] 3.6.2 Handle subscription status (active, canceled, past_due)
+  - [ ] 3.6.3 Downgrade to Free tier on cancellation
+  - [ ] 3.6.4 Write integration tests for subscription lifecycle
 
-- [ ] 4.1 Create payment module
-  - [ ] 4.1.1 Create `backend/src/payment/payment.module.ts`
-  - [ ] 4.1.2 Create `backend/src/payment/stripe.service.ts`
-  - [ ] 4.1.3 Create `backend/src/payment/subscription.controller.ts`
-  - [ ] 4.1.4 Create `backend/src/payment/webhook.controller.ts`
+## Phase 4: Security Hardening
 
-- [ ] 4.2 Implement StripeService
-  - [ ] 4.2.1 Install and configure Stripe SDK
-  - [ ] 4.2.2 Implement createCustomer method
-  - [ ] 4.2.3 Implement createCheckoutSession method
-  - [ ] 4.2.4 Implement handleWebhook method (signature validation)
-  - [ ] 4.2.5 Implement cancelSubscription method
-  - [ ] 4.2.6 Implement getBillingPortalUrl method
-  - [ ] 4.2.7 Implement validatePromoCode method
-  - [ ] 4.2.8 Write unit tests for StripeService
+- [ ] 4.1 Create security module
+  - [ ] 4.1.1 Create `backend/src/security/security.module.ts`
+  - [ ] 4.1.2 Create `backend/src/security/input-validator.service.ts`
+  - [ ] 4.1.3 Create `backend/src/security/signed-url.service.ts`
 
-- [ ] 4.3 Implement webhook handlers
-  - [ ] 4.3.1 Handle subscription.created event
-  - [ ] 4.3.2 Handle subscription.updated event
-  - [ ] 4.3.3 Handle subscription.deleted event
-  - [ ] 4.3.4 Handle invoice.payment_succeeded event
-  - [ ] 4.3.5 Handle invoice.payment_failed event
-  - [ ] 4.3.6 Update business subscription in Firestore
+- [ ] 4.2 Implement InputValidator service
+  - [ ] 4.2.1 Add class-validator decorators to all DTOs
+  - [ ] 4.2.2 Add string length validation (prompt: 2000, productName: 200, description: 1000)
+  - [ ] 4.2.3 Add enum validation for platform, aspectRatio, tone, language
+  - [ ] 4.2.4 Implement sanitizeText method (XSS prevention)
+  - [ ] 4.2.5 Implement validateUrl method
+  - [ ] 4.2.6 Implement validateFileUpload method (50MB limit, type validation)
+  - [ ] 4.2.7 Write unit tests for InputValidator
 
-- [ ] 4.4 Create subscription API endpoints
-  - [ ] 4.4.1 POST /api/v1/subscriptions/checkout
-  - [ ] 4.4.2 POST /api/v1/subscriptions/cancel
-  - [ ] 4.4.3 GET /api/v1/subscriptions/portal
-  - [ ] 4.4.4 POST /api/v1/webhooks/stripe
-  - [ ] 4.4.5 POST /api/v1/promo-codes/validate
+- [ ] 4.3 Implement SignedUrlService
+  - [ ] 4.3.1 Implement generateSignedUrl with configurable expiry (15min/1hr)
+  - [ ] 4.3.2 Implement validateAccess method (check user permissions)
+  - [ ] 4.3.3 Implement logUrlGeneration for audit trail
+  - [ ] 4.3.4 Update GcsStorageService to use SignedUrlService
+  - [ ] 4.3.5 Write unit tests for SignedUrlService
 
-- [ ] 4.5 Implement promo code system
-  - [ ] 4.5.1 Create promo_codes collection schema
-  - [ ] 4.5.2 Implement promo code validation
-  - [ ] 4.5.3 Track redemption counts
-  - [ ] 4.5.4 Apply promo codes in checkout session
-  - [ ] 4.5.5 Write integration tests for promo codes
+- [ ] 4.4 Update API controllers with validation
+  - [ ] 4.4.1 Add ValidationPipe to all controllers
+  - [ ] 4.4.2 Update CreateAdDto with validation decorators
+  - [ ] 4.4.3 Update WizardDto with validation decorators
+  - [ ] 4.4.4 Add file upload validation to AssetsController
+  - [ ] 4.4.5 Return 400 with validation errors
 
-- [ ] 4.6 Update subscription tier resolution
-  - [ ] 4.6.1 Update QuotaService to read from subscription document
-  - [ ] 4.6.2 Handle subscription status (active, canceled, past_due)
-  - [ ] 4.6.3 Downgrade to Free tier on cancellation
-  - [ ] 4.6.4 Write integration tests for subscription lifecycle
+- [ ] 4.5 Configure CORS and security headers
+  - [ ] 4.5.1 Configure CORS whitelist in main.ts
+  - [ ] 4.5.2 Add helmet middleware for security headers
+  - [ ] 4.5.3 Configure CSP headers
+  - [ ] 4.5.4 Add environment-based CORS config
 
 ## Phase 5: Social Publishing
 

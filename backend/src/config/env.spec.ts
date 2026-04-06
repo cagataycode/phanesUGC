@@ -13,6 +13,13 @@ describe('Environment Configuration Validation (env.ts)', () => {
     AWS_ACCESS_KEY_ID: 'test-access-key',
     AWS_SECRET_ACCESS_KEY: 'test-secret-key',
     GEMINI_API_KEY: 'test-gemini-key',
+    // Stripe configuration
+    STRIPE_SECRET_KEY: 'sk_test_123',
+    STRIPE_WEBHOOK_SECRET: 'whsec_123',
+    STRIPE_STARTER_PRICE_ID: 'price_starter',
+    STRIPE_PRO_PRICE_ID: 'price_pro',
+    STRIPE_ENTERPRISE_PRICE_ID: 'price_enterprise',
+    STRIPE_BILLING_PORTAL_RETURN_URL: 'https://app.phanes.ai/settings',
   };
 
   it('should validate and return a valid configuration object', () => {

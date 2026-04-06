@@ -43,6 +43,13 @@ export const envSchema = z
     ENABLE_STRUCTURED_LOGGING: z.enum(['true', 'false']).default('false'),
     ENABLE_ERROR_REPORTING: z.enum(['true', 'false']).default('false'),
     ALERT_EMAIL: z.string().email().optional(),
+    // Stripe Configuration
+    STRIPE_SECRET_KEY: z.string().min(1),
+    STRIPE_WEBHOOK_SECRET: z.string().min(1),
+    STRIPE_STARTER_PRICE_ID: z.string().min(1),
+    STRIPE_PRO_PRICE_ID: z.string().min(1),
+    STRIPE_ENTERPRISE_PRICE_ID: z.string().min(1),
+    STRIPE_BILLING_PORTAL_RETURN_URL: z.string().url(),
   })
   .refine(
     (data) => {
