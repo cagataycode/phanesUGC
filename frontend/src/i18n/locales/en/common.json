@@ -105,6 +105,10 @@
     "sessionStatus": "Session status",
     "checkingSession": "Checking session…",
     "authenticated": "Authenticated",
-    "signedOut": "Signed out"
+    "signedOut": "Signed out",
+    "manageSubscription": "Manage subscription",
+    "signInToManage": "Sign in to manage your subscription",
+    "stripeNotConfigured": "Payment system not configured",
+    "alreadySubscribed": "You already have an active subscription. You can upgrade or change your plan below."
   }
 }

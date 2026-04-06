@@ -103,6 +103,10 @@
     "sessionStatus": "Sitzungsstatus",
     "checkingSession": "Sitzung wird geprüft…",
     "authenticated": "Angemeldet",
-    "signedOut": "Abgemeldet"
+    "signedOut": "Abgemeldet",
+    "manageSubscription": "Abo verwalten",
+    "signInToManage": "Anmelden um Ihr Abonnement zu verwalten",
+    "stripeNotConfigured": "Zahlungssystem nicht konfiguriert",
+    "alreadySubscribed": "Sie haben bereits ein aktives Abonnement. Sie können unten Ihr Upgrade oder Planänderung vornehmen."
   }
 }
