@@ -40,6 +40,24 @@ service cloud.firestore {
           allow write: if isMember(bizId);
         }
       }
+
+      // Usage tracking (quota system)
+      match /usage/{monthKey} {
+        allow read: if isMember(bizId);
+        allow write: if false; // Only backend can write
+      }
+
+      // Rate limiting
+      match /rate_limits/{doc} {
+        allow read: if isMember(bizId);
+        allow write: if false; // Only backend can write
+      }
+
+      // Agent jobs (cost tracking)
+      match /agent_jobs/{jobId} {
+        allow read: if isMember(bizId);
+        allow write: if false; // Only backend can write
+      }
     }
 
     function isMember(bizId) {

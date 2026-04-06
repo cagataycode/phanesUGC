@@ -8,6 +8,7 @@ export enum SubscriptionTier {
   STARTER = 'starter',
   PRO = 'pro',
   ENTERPRISE = 'enterprise',
+  ADMIN = 'admin',
 }
 
 export interface TierLimits {
@@ -53,10 +54,17 @@ export class QuotaService {
       prioritySupport: true,
     },
     [SubscriptionTier.ENTERPRISE]: {
-      monthlyVideos: -1, // Unlimited
-      monthlyCostLimit: -1, // Unlimited
+      monthlyVideos: 100,
+      monthlyCostLimit: 500.0, // $500 max
       concurrentJobs: 10,
       maxVideoDuration: 10,
+      prioritySupport: true,
+    },
+    [SubscriptionTier.ADMIN]: {
+      monthlyVideos: -1, // Unlimited
+      monthlyCostLimit: -1, // Unlimited
+      concurrentJobs: 20,
+      maxVideoDuration: 60,
       prioritySupport: true,
     },
   };

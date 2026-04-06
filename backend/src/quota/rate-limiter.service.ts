@@ -39,6 +39,10 @@ export class RateLimiterService {
         requestsPerMinute: 100,
         concurrentJobs: 10,
       },
+      [SubscriptionTier.ADMIN]: {
+        requestsPerMinute: 200,
+        concurrentJobs: 20,
+      },
     };
 
   constructor(
