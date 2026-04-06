@@ -1,4 +1,4 @@
-import { Module, DynamicModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -18,11 +18,11 @@ import { ScraperModule } from './scraper/scraper.module';
 
 /**
  * Create app module imports with conditional PaymentModule
- * NOTE: This reads from process.env before ConfigModule loads .env files,
- * so ENABLE_PAYMENTS must be set as an actual environment variable, not just in .env files
+ * Always imports PaymentModule - the module itself will conditionally register
+ * Stripe-related providers based on ENABLE_PAYMENTS config
  */
 function createAppModuleImports(): any[] {
-  const imports: any[] = [
+  return [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
@@ -39,18 +39,8 @@ function createAppModuleImports(): any[] {
     AssetsModule,
     ScraperModule,
     MonitoringModule,
+    PaymentModule, // Always imported - conditionally registers providers internally
   ];
-
-  // Conditionally add PaymentModule if payments are enabled
-  // NOTE: This checks process.env directly before .env files are loaded
-  // For production, set ENABLE_PAYMENTS as an environment variable
-  // For local dev, it will be loaded from .env files during ConfigModule initialization
-  const enablePayments = process.env.ENABLE_PAYMENTS === 'true';
-  if (enablePayments) {
-    imports.push(PaymentModule);
-  }
-
-  return imports;
 }
 
 @Module({
@@ -58,13 +48,4 @@ function createAppModuleImports(): any[] {
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {
-  static forRoot(): DynamicModule {
-    return {
-      module: AppModule,
-      imports: createAppModuleImports(),
-      controllers: [AppController],
-      providers: [AppService],
-    };
-  }
-}
+export class AppModule {}

@@ -8,7 +8,11 @@ service cloud.firestore {
 
     match /businesses/{bizId} {
       allow read: if isMember(bizId);
-      allow write: if isOwnerOrAdmin(bizId);
+      // Allow write but prevent modification of subscription field
+      allow create: if isOwnerOrAdmin(bizId);
+      allow update: if isOwnerOrAdmin(bizId) && 
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscription']);
+      allow delete: if isOwnerOrAdmin(bizId);
 
       match /members/{uid} {
         allow read: if isMember(bizId);

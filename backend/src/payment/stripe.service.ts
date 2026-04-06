@@ -187,16 +187,20 @@ export class StripeService {
       if (successUrl) {
         try {
           const url = new URL(successUrl);
-          if (
-            allowedDomains.some(
-              (domain) =>
-                url.hostname === domain || url.hostname.endsWith(`.${domain}`),
-            )
-          ) {
+          // Require HTTPS for non-localhost domains
+          const isLocalhost =
+            url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+          const isHttps = url.protocol === 'https:';
+          const isAllowedDomain = allowedDomains.some(
+            (domain) =>
+              url.hostname === domain || url.hostname.endsWith(`.${domain}`),
+          );
+
+          if (isAllowedDomain && (isHttps || isLocalhost)) {
             validatedSuccessUrl = successUrl;
           } else {
             this.logger.warn(
-              `Invalid success URL domain: ${url.hostname}, using default`,
+              `Invalid success URL (domain: ${url.hostname}, protocol: ${url.protocol}), using default`,
             );
           }
         } catch {
@@ -209,16 +213,20 @@ export class StripeService {
       if (cancelUrl) {
         try {
           const url = new URL(cancelUrl);
-          if (
-            allowedDomains.some(
-              (domain) =>
-                url.hostname === domain || url.hostname.endsWith(`.${domain}`),
-            )
-          ) {
+          // Require HTTPS for non-localhost domains
+          const isLocalhost =
+            url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+          const isHttps = url.protocol === 'https:';
+          const isAllowedDomain = allowedDomains.some(
+            (domain) =>
+              url.hostname === domain || url.hostname.endsWith(`.${domain}`),
+          );
+
+          if (isAllowedDomain && (isHttps || isLocalhost)) {
             validatedCancelUrl = cancelUrl;
           } else {
             this.logger.warn(
-              `Invalid cancel URL domain: ${url.hostname}, using default`,
+              `Invalid cancel URL (domain: ${url.hostname}, protocol: ${url.protocol}), using default`,
             );
           }
         } catch {
@@ -528,6 +536,10 @@ export class StripeService {
       );
 
       // Check for duplicate events (idempotency) using atomic create
+      // NOTE: There's a small concurrency window where two simultaneous webhook deliveries
+      // could both pass the processed check and process the same event. This is acceptable
+      // for MVP as Stripe webhooks are designed to be idempotent and our handlers are safe
+      // to run multiple times. Future improvement: add a "processing" lock with lease timeout.
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const eventId = event.id;
       const eventRef = this.firestore
