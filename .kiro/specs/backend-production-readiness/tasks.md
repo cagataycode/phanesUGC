@@ -141,11 +141,11 @@
   - [x] 3.5.4 Apply promo codes in checkout session
   - [x] 3.5.5 Write integration tests for promo codes
 
-- [ ] 3.6 Update subscription tier resolution
-  - [ ] 3.6.1 Update QuotaService to read from subscription document
-  - [ ] 3.6.2 Handle subscription status (active, canceled, past_due)
-  - [ ] 3.6.3 Downgrade to Free tier on cancellation
-  - [ ] 3.6.4 Write integration tests for subscription lifecycle
+- [x] 3.6 Update subscription tier resolution
+  - [x] 3.6.1 Update QuotaService to read from subscription document
+  - [x] 3.6.2 Handle subscription status (active, canceled, past_due)
+  - [x] 3.6.3 Downgrade to Free tier on cancellation
+  - [x] 3.6.4 Write integration tests for subscription lifecycle
 
 ## Phase 4: Security Hardening
 
