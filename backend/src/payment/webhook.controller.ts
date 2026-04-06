@@ -9,7 +9,7 @@ import type { RawBodyRequest } from '@nestjs/common';
 import { Request } from 'express';
 import { StripeService } from './stripe.service';
 
-@Controller('api/v1/webhooks/stripe')
+@Controller('v1/webhooks/stripe')
 export class WebhookController {
   constructor(private readonly stripeService: StripeService) {}
 

@@ -13,7 +13,7 @@ import { StripeService } from './stripe.service';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { ValidatePromoCodeDto } from './dto/validate-promo-code.dto';
 
-@Controller('api/v1/subscriptions')
+@Controller('v1/subscriptions')
 @UseGuards(FirebaseAuthGuard)
 export class SubscriptionController {
   constructor(private readonly stripeService: StripeService) {}
