@@ -501,6 +501,7 @@ export class StripeService {
           await this.handleSubscriptionDeleted(event.data.object);
           break;
         case 'invoice.payment_succeeded':
+        case 'invoice_payment.paid': // Newer event type, same handling
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           this.handlePaymentSucceeded(event.data.object);
           break;

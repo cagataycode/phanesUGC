@@ -57,7 +57,22 @@ export class StructuredLoggerService {
       const projectId = this.configService.get('GCP_PROJECT_ID', {
         infer: true,
       });
-      this.cloudLogging = new Logging({ projectId }) as unknown as CloudLogging;
+
+      // Use Firebase service account credentials for Cloud Logging
+      const privateKey = this.configService.get('FIREBASE_PRIVATE_KEY', {
+        infer: true,
+      });
+      const clientEmail = this.configService.get('FIREBASE_CLIENT_EMAIL', {
+        infer: true,
+      });
+
+      this.cloudLogging = new Logging({
+        projectId,
+        credentials: {
+          client_email: clientEmail,
+          private_key: privateKey,
+        },
+      }) as unknown as CloudLogging;
       this.cloudLogger = this.cloudLogging.log('backend-app');
     }
 
