@@ -18,19 +18,19 @@ import { Type } from 'class-transformer';
 
 class ProductInfoDto {
   @IsString()
-  @MaxLength(200)
+  @MaxLength(300)
   @IsOptional()
   name?: string;
 
   @IsString()
-  @MaxLength(1000)
+  @MaxLength(5000)
   @IsOptional()
   description?: string;
 
   @IsArray()
   @IsString({ each: true })
   @MaxLength(200, { each: true })
-  @ArrayMaxSize(30) // Aligned with wizard.dto.ts ProductInfoSchema
+  @ArrayMaxSize(30)
   @IsOptional()
   benefits?: string[];
 }
@@ -38,7 +38,7 @@ class ProductInfoDto {
 class PromptInputsDto {
   @IsString()
   @IsNotEmpty()
-  @MaxLength(2000, { message: 'Prompt must not exceed 2000 characters' })
+  @MaxLength(10000, { message: 'Prompt must not exceed 10000 characters' })
   // Note: Currently only string prompts are supported in DTO validation.
   // If structured prompt objects are needed, update this validation and downstream services.
   prompt!: string;
@@ -58,12 +58,12 @@ class PromptInputsDto {
   language!: string;
 
   @IsString()
-  @MaxLength(50)
+  @MaxLength(200)
   @IsOptional()
   tone?: string;
 
   @IsString()
-  @MaxLength(200)
+  @MaxLength(1000)
   @IsOptional()
   target_audience?: string;
 
@@ -104,7 +104,7 @@ class VeoConfigDto {
   duration_sec!: number;
 
   @IsString()
-  @MaxLength(500)
+  @MaxLength(1000)
   @IsOptional()
   negative_prompt?: string;
 
