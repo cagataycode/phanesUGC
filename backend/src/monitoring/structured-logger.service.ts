@@ -66,11 +66,14 @@ export class StructuredLoggerService {
         infer: true,
       });
 
+      // Normalize private key - replace escaped newlines with actual newlines
+      const normalizedPrivateKey = privateKey?.replace(/\\n/g, '\n');
+
       this.cloudLogging = new Logging({
         projectId,
         credentials: {
           client_email: clientEmail,
-          private_key: privateKey,
+          private_key: normalizedPrivateKey,
         },
       }) as unknown as CloudLogging;
       this.cloudLogger = this.cloudLogging.log('backend-app');

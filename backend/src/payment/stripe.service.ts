@@ -4,6 +4,7 @@ import { FirestoreService } from '../firebase/firestore.service';
 import { StructuredLoggerService } from '../monitoring/structured-logger.service';
 import { Env } from '../config/env';
 
+// Stripe SDK uses CommonJS exports
 // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
 const Stripe = require('stripe');
 
@@ -33,7 +34,7 @@ export class StripeService {
       infer: true,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
     this.stripe = new Stripe(secretKey, {
       apiVersion: '2024-12-18.acacia', // Latest stable API version as of 2026
       typescript: true,
@@ -439,7 +440,7 @@ export class StripeService {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           type: coupon.percent_off ? 'percentage' : 'fixed',
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
-          value: coupon.percent_off || coupon.amount_off / 100, // Convert cents to euros
+          value: coupon.percent_off || coupon.amount_off / 100, // Convert minor units to major units
         },
       };
     } catch (error) {
@@ -528,12 +529,25 @@ export class StripeService {
 
       return { received: true };
     } catch (error) {
-      this.logger.error(
-        `Webhook error: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      // Return 200 to prevent Stripe from retrying
-      // Log the error for investigation
-      return { received: true };
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Webhook error: ${message}`);
+
+      // Re-throw BadRequestException (signature verification failures)
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      // Check for signature-related errors
+      const normalizedMessage = message.toLowerCase();
+      if (
+        normalizedMessage.includes('signature') ||
+        normalizedMessage.includes('webhook')
+      ) {
+        throw new BadRequestException('Invalid Stripe webhook signature');
+      }
+
+      // Re-throw other errors so Stripe retries (5xx response)
+      throw error;
     }
   }
 

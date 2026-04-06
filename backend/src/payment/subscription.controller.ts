@@ -8,13 +8,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
+import { BusinessOwnershipGuard } from '../auth/business-ownership.guard';
 import { GetUser } from '../auth/get-user.decorator';
 import { StripeService } from './stripe.service';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { ValidatePromoCodeDto } from './dto/validate-promo-code.dto';
 
 @Controller('v1/subscriptions')
-@UseGuards(FirebaseAuthGuard)
+@UseGuards(FirebaseAuthGuard, BusinessOwnershipGuard)
 export class SubscriptionController {
   constructor(private readonly stripeService: StripeService) {}
 
@@ -42,10 +43,7 @@ export class SubscriptionController {
   }
 
   @Post('cancel')
-  async cancelSubscription(
-    @GetUser() user: { uid: string },
-    @Headers('x-business-id') businessId: string,
-  ) {
+  async cancelSubscription(@Headers('x-business-id') businessId: string) {
     if (!businessId) {
       throw new BadRequestException('x-business-id header is required');
     }
@@ -55,10 +53,7 @@ export class SubscriptionController {
   }
 
   @Get('portal')
-  async getBillingPortal(
-    @GetUser() user: { uid: string },
-    @Headers('x-business-id') businessId: string,
-  ) {
+  async getBillingPortal(@Headers('x-business-id') businessId: string) {
     if (!businessId) {
       throw new BadRequestException('x-business-id header is required');
     }
