@@ -23,10 +23,7 @@ export class AdsService {
       businessId: createAdDto.businessId,
       productId: createAdDto.productId,
       createdBy: createAdDto.createdBy,
-      prompt:
-        typeof createAdDto.prompt_inputs.prompt === 'string'
-          ? createAdDto.prompt_inputs.prompt
-          : JSON.stringify(createAdDto.prompt_inputs.prompt),
+      prompt: createAdDto.prompt_inputs.prompt,
       platform: createAdDto.prompt_inputs.platform,
       aspectRatio: createAdDto.veo_config.aspect_ratio,
       durationSec: createAdDto.veo_config.duration_sec,

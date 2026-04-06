@@ -93,10 +93,7 @@ export class AgentOrchestratorService {
     const normalizedRequest = {
       jobId,
       businessId,
-      prompt:
-        typeof promptInputs.prompt === 'string'
-          ? promptInputs.prompt
-          : JSON.stringify(promptInputs.prompt),
+      prompt: promptInputs.prompt,
       platform: this.mapPlatform(promptInputs.platform),
       aspectRatio: veoConfig.aspect_ratio,
       durationSec: veoConfig.duration_sec,
@@ -110,7 +107,7 @@ export class AgentOrchestratorService {
       tone: promptInputs.tone,
       targetAudience: promptInputs.target_audience,
       cta: promptInputs.cta,
-      subtitleStyle: promptInputs.subtitle_style || 'kinetic',
+      subtitleStyle: promptInputs.subtitle_style || 'standard',
       disableBackgroundMusic: false,
       disableCaptions: false,
       disableCtaOverlay: false,
@@ -879,19 +876,9 @@ export class AgentOrchestratorService {
       state.videoGenerationCompletedAt = new Date();
       await this.saveState(state);
 
-      // Increment quota usage on successful completion
-      try {
-        await this.quotaService.incrementUsage(state.businessId);
-        this.structuredLogger.log('Quota usage incremented', {
-          ...context,
-          businessId: state.businessId,
-        });
-      } catch (error) {
-        // Log but don't fail the job if quota increment fails
-        this.logger.error(
-          `Failed to increment quota usage: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
+      // Note: Quota is already incremented atomically at job creation time
+      // by AdsController.createJob() using tryIncrementQuota().
+      // No need to increment again here to avoid double-charging.
 
       timer();
       this.structuredLogger.log('Video generation completed', {

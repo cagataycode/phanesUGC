@@ -19,28 +19,31 @@ describe('SubtitleGeneratorService', () => {
   });
 
   describe('generate', () => {
-    it('should generate subtitles with cumulative timing from script', async () => {
+    it('should generate chunked subtitle phrases from script', async () => {
       const script: AdScript = {
         jobId: 'test-job',
         scenarioId: 1,
         title: 'Test Script',
         hook: 'Test hook',
         voiceoverLines: [
-          { text: 'Line 1', estimatedDurationSec: 2, scene: 1 },
-          { text: 'Line 2', estimatedDurationSec: 3, scene: 1 },
-          { text: 'Line 3', estimatedDurationSec: 3, scene: 1 },
+          {
+            text: 'This is a longer line that should be chunked',
+            estimatedDurationSec: 4,
+            scene: 1,
+          },
+          { text: 'Short line', estimatedDurationSec: 2, scene: 1 },
         ],
         cta: 'Shop now',
-        fullText: 'Line 1 Line 2 Line 3',
+        fullText: 'This is a longer line that should be chunked. Short line',
         visualDescription: 'Test visual',
-        totalEstimatedDuration: 8,
+        totalEstimatedDuration: 6,
         generatedAt: new Date(),
       };
 
       const veoOutput: VeoOutput = {
         jobId: 'test-job',
         gcsPath: 'test/video.mp4',
-        actualDurationSec: 8,
+        actualDurationSec: 6,
         resolution: { width: 1080, height: 1920 },
         fps: 24,
         generatedAt: new Date(),
@@ -49,15 +52,19 @@ describe('SubtitleGeneratorService', () => {
       const result = await service.generate('test-job', script, veoOutput);
 
       expect(result.jobId).toBe('test-job');
-      expect(result.segments).toHaveLength(3);
+      // Should have more segments than voiceover lines due to chunking
+      expect(result.segments.length).toBeGreaterThan(2);
 
-      // Check cumulative timing (before scaling)
+      // First segment should start at 0
       expect(result.segments[0].startSec).toBe(0);
-      expect(result.segments[0].endSec).toBe(2);
-      expect(result.segments[1].startSec).toBe(2);
-      expect(result.segments[1].endSec).toBe(5);
-      expect(result.segments[2].startSec).toBe(5);
-      expect(result.segments[2].endSec).toBe(8);
+
+      // All segments should be contiguous
+      for (let i = 1; i < result.segments.length; i++) {
+        expect(result.segments[i].startSec).toBeCloseTo(
+          result.segments[i - 1].endSec,
+          2,
+        );
+      }
     });
 
     it('should scale subtitle timing to match actual video duration', async () => {
@@ -67,11 +74,11 @@ describe('SubtitleGeneratorService', () => {
         title: 'Test Script',
         hook: 'Test hook',
         voiceoverLines: [
-          { text: 'Line 1', estimatedDurationSec: 4, scene: 1 },
-          { text: 'Line 2', estimatedDurationSec: 4, scene: 1 },
+          { text: 'First line here', estimatedDurationSec: 4, scene: 1 },
+          { text: 'Second line here', estimatedDurationSec: 4, scene: 1 },
         ],
         cta: 'Shop now',
-        fullText: 'Line 1 Line 2',
+        fullText: 'First line here Second line here',
         visualDescription: 'Test visual',
         totalEstimatedDuration: 8,
         generatedAt: new Date(),
@@ -91,11 +98,12 @@ describe('SubtitleGeneratorService', () => {
       // Scaling factor should be 10/8 = 1.25
       expect(result.scalingFactor).toBe(1.25);
 
-      // Check scaled timing
+      // First segment should start at 0
       expect(result.segments[0].startSec).toBe(0);
-      expect(result.segments[0].endSec).toBe(5); // 4 * 1.25
-      expect(result.segments[1].startSec).toBe(5);
-      expect(result.segments[1].endSec).toBe(10); // 8 * 1.25
+
+      // Last segment should end close to actual duration
+      const lastSegment = result.segments[result.segments.length - 1];
+      expect(lastSegment.endSec).toBeCloseTo(10, 1);
     });
 
     it('should handle division by zero with scaling factor of 1', async () => {
@@ -136,13 +144,30 @@ describe('SubtitleGeneratorService', () => {
         title: 'Test Script',
         hook: 'Test hook',
         voiceoverLines: [
-          { text: 'Line 1', estimatedDurationSec: 2, scene: 1 },
-          { text: 'Line 2', estimatedDurationSec: 2, scene: 1 },
-          { text: 'Line 3', estimatedDurationSec: 2, scene: 1 },
-          { text: 'Line 4', estimatedDurationSec: 2, scene: 1 },
+          {
+            text: 'First line with some words',
+            estimatedDurationSec: 2,
+            scene: 1,
+          },
+          {
+            text: 'Second line with more words',
+            estimatedDurationSec: 2,
+            scene: 1,
+          },
+          {
+            text: 'Third line with even more',
+            estimatedDurationSec: 2,
+            scene: 1,
+          },
+          {
+            text: 'Fourth line to finish',
+            estimatedDurationSec: 2,
+            scene: 1,
+          },
         ],
         cta: 'Shop now',
-        fullText: 'Line 1 Line 2 Line 3 Line 4',
+        fullText:
+          'First line with some words Second line with more words Third line with even more Fourth line to finish',
         visualDescription: 'Test visual',
         totalEstimatedDuration: 8,
         generatedAt: new Date(),
@@ -159,13 +184,16 @@ describe('SubtitleGeneratorService', () => {
 
       const result = await service.generate('test-job', script, veoOutput);
 
-      // Last subtitle should end at planned duration (8s)
+      // Last subtitle should end at or very close to planned duration (8s)
       const lastSegment = result.segments[result.segments.length - 1];
-      expect(lastSegment.endSec).toBe(8);
+      expect(lastSegment.endSec).toBeCloseTo(8, 1);
 
       // All segments should be contiguous
       for (let i = 1; i < result.segments.length; i++) {
-        expect(result.segments[i].startSec).toBe(result.segments[i - 1].endSec);
+        expect(result.segments[i].startSec).toBeCloseTo(
+          result.segments[i - 1].endSec,
+          2,
+        );
       }
     });
 
@@ -176,10 +204,14 @@ describe('SubtitleGeneratorService', () => {
         title: 'Test Script',
         hook: 'Test hook',
         voiceoverLines: [
-          { text: 'Test line', estimatedDurationSec: 8, scene: 1 },
+          {
+            text: 'Test line with multiple words here',
+            estimatedDurationSec: 8,
+            scene: 1,
+          },
         ],
         cta: 'Shop now',
-        fullText: 'Test line',
+        fullText: 'Test line with multiple words here',
         visualDescription: 'Test visual',
         totalEstimatedDuration: 8,
         generatedAt: new Date(),
@@ -204,6 +236,9 @@ describe('SubtitleGeneratorService', () => {
       expect(result).toHaveProperty('style');
       expect(result).toHaveProperty('generatedAt');
 
+      // Should have multiple segments due to chunking
+      expect(result.segments.length).toBeGreaterThan(0);
+
       const segment = result.segments[0];
       expect(segment).toHaveProperty('id');
       expect(segment).toHaveProperty('text');
@@ -219,7 +254,11 @@ describe('SubtitleGeneratorService', () => {
         scenarioId: 1,
         hook: 'Test hook',
         voiceoverLines: [
-          { text: 'Line 1', estimatedDurationSec: 2, speaker: 'narrator' },
+          {
+            text: 'Line with some words',
+            estimatedDurationSec: 2,
+            speaker: 'narrator',
+          },
         ],
         cta: 'Test CTA',
         overlayText: [],
@@ -243,7 +282,9 @@ describe('SubtitleGeneratorService', () => {
       );
 
       expect(result.style).toBe('kinetic');
-      expect(result.segments[0].style).toBe('kinetic');
+      result.segments.forEach((segment) => {
+        expect(segment.style).toBe('kinetic');
+      });
     });
   });
 });

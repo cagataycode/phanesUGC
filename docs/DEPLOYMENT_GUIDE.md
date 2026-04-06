@@ -100,6 +100,9 @@ gcloud app deploy app.yaml --project=YOUR_PROJECT_ID
 ### Option B: Cloud Run
 
 ```bash
+# Navigate to backend directory
+cd backend
+
 # Build Docker image
 docker build -t gcr.io/YOUR_PROJECT_ID/backend:latest .
 
@@ -309,9 +312,10 @@ gcloud run services update-traffic backend-production \
 
 ### Issue: IDOR protection failing
 
-1. Verify BusinessOwnershipGuard is applied
+1. Verify RolesGuard is applied to controllers (validates business membership)
 2. Check Firebase Auth tokens are valid
 3. Verify business membership data in Firestore
+4. Ensure businessId consistency checks in AdsController are working
 
 ## Post-Deployment Checklist
 

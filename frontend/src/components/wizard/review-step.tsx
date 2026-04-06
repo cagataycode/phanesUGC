@@ -66,7 +66,7 @@ export function ReviewStep({ onBack, onSubmit }: ReviewStepProps) {
             }
           : undefined,
         aspect_ratio: aspectRatio as '9:16' | '1:1' | '16:9',
-        subtitle_style: 'kinetic' as const,
+        subtitle_style: 'standard' as const,
         brief,
         script,
         scene,

@@ -52,6 +52,7 @@ export class RateLimiterService {
   async checkRateLimit(
     businessId: string,
     tier: SubscriptionTier,
+    correlationId?: string,
   ): Promise<RateLimitStatus> {
     const config = this.rateLimitConfigs[tier];
     const now = new Date();
@@ -103,7 +104,7 @@ export class RateLimiterService {
         );
 
         this.structuredLogger.log('Rate limit exceeded', {
-          correlationId: 'rate-limit-check',
+          correlationId: correlationId || 'rate-limit-check',
           businessId,
           tier,
           requestCount,
@@ -148,6 +149,7 @@ export class RateLimiterService {
   async checkConcurrentJobs(
     businessId: string,
     tier: SubscriptionTier,
+    correlationId?: string,
   ): Promise<boolean> {
     const config = this.rateLimitConfigs[tier];
 
@@ -166,7 +168,7 @@ export class RateLimiterService {
 
       if (activeJobCount >= config.concurrentJobs) {
         this.structuredLogger.log('Concurrent job limit reached', {
-          correlationId: 'concurrent-job-check',
+          correlationId: correlationId || 'concurrent-job-check',
           businessId,
           tier,
           activeJobCount,

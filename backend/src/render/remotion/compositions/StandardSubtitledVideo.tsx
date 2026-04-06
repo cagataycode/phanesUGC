@@ -17,19 +17,19 @@ const containerStyle: React.CSSProperties = {
 };
 
 const captionStyle: React.CSSProperties = {
-  backgroundColor: 'rgba(0, 0, 0, 0.7)',
-  borderRadius: '0.5em',
-  padding: '12px 24px',
+  backgroundColor: 'rgba(0, 0, 0, 0.75)',
+  borderRadius: '8px',
+  padding: '14px 28px',
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
   gap: 8,
-  fontSize: 56,
+  fontSize: 58,
   fontWeight: 700,
   lineHeight: 1.3,
   textAlign: 'center',
   color: '#FFFFFF',
-  textShadow: '1px 1px 4px rgba(0,0,0,0.5)',
+  textShadow: '2px 2px 8px rgba(0,0,0,0.8)',
 };
 
 const lineStyle: React.CSSProperties = {
