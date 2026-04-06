@@ -93,6 +93,60 @@ describe('QuotaService', () => {
       expect(tier).toBe(SubscriptionTier.FREE);
     });
 
+    it('should return FREE tier if subscription status is not active', async () => {
+      const mockDoc = {
+        exists: true,
+        data: () => ({
+          subscription: {
+            tier: SubscriptionTier.PRO,
+            status: 'canceled',
+          },
+        }),
+      };
+
+      firestoreService.get.mockResolvedValue(mockDoc as any);
+
+      const tier = await service.getSubscriptionTier(mockBusinessId);
+
+      expect(tier).toBe(SubscriptionTier.FREE);
+    });
+
+    it('should return FREE tier if subscription status is past_due', async () => {
+      const mockDoc = {
+        exists: true,
+        data: () => ({
+          subscription: {
+            tier: SubscriptionTier.STARTER,
+            status: 'past_due',
+          },
+        }),
+      };
+
+      firestoreService.get.mockResolvedValue(mockDoc as any);
+
+      const tier = await service.getSubscriptionTier(mockBusinessId);
+
+      expect(tier).toBe(SubscriptionTier.FREE);
+    });
+
+    it('should return paid tier if subscription status is active', async () => {
+      const mockDoc = {
+        exists: true,
+        data: () => ({
+          subscription: {
+            tier: SubscriptionTier.PRO,
+            status: 'active',
+          },
+        }),
+      };
+
+      firestoreService.get.mockResolvedValue(mockDoc as any);
+
+      const tier = await service.getSubscriptionTier(mockBusinessId);
+
+      expect(tier).toBe(SubscriptionTier.PRO);
+    });
+
     it('should return FREE tier on error', async () => {
       firestoreService.get.mockRejectedValue(new Error('Firestore error'));
 

@@ -120,26 +120,26 @@
   - [x] 3.2.8 Write unit tests for StripeService
 
 - [x] 3.3 Implement webhook handlers
-  - [ ] 3.3.1 Handle subscription.created event
-  - [ ] 3.3.2 Handle subscription.updated event
-  - [ ] 3.3.3 Handle subscription.deleted event
-  - [ ] 3.3.4 Handle invoice.payment_succeeded event
-  - [ ] 3.3.5 Handle invoice.payment_failed event
-  - [ ] 3.3.6 Update business subscription in Firestore
+  - [x] 3.3.1 Handle subscription.created event
+  - [x] 3.3.2 Handle subscription.updated event
+  - [x] 3.3.3 Handle subscription.deleted event
+  - [x] 3.3.4 Handle invoice.payment_succeeded event
+  - [x] 3.3.5 Handle invoice.payment_failed event
+  - [x] 3.3.6 Update business subscription in Firestore
 
-- [ ] 3.4 Create subscription API endpoints
-  - [ ] 3.4.1 POST /api/v1/subscriptions/checkout
-  - [ ] 3.4.2 POST /api/v1/subscriptions/cancel
-  - [ ] 3.4.3 GET /api/v1/subscriptions/portal
-  - [ ] 3.4.4 POST /api/v1/webhooks/stripe
-  - [ ] 3.4.5 POST /api/v1/promo-codes/validate
+- [x] 3.4 Create subscription API endpoints
+  - [x] 3.4.1 POST /api/v1/subscriptions/checkout
+  - [x] 3.4.2 POST /api/v1/subscriptions/cancel
+  - [x] 3.4.3 GET /api/v1/subscriptions/portal
+  - [x] 3.4.4 POST /api/v1/webhooks/stripe
+  - [x] 3.4.5 POST /api/v1/subscriptions/promo-codes/validate
 
-- [ ] 3.5 Implement promo code system
-  - [ ] 3.5.1 Create promo_codes collection schema
-  - [ ] 3.5.2 Implement promo code validation
-  - [ ] 3.5.3 Track redemption counts
-  - [ ] 3.5.4 Apply promo codes in checkout session
-  - [ ] 3.5.5 Write integration tests for promo codes
+- [x] 3.5 Implement promo code system
+  - [x] 3.5.1 Use Stripe Promotion Codes (not custom Firestore)
+  - [x] 3.5.2 Implement promo code validation
+  - [x] 3.5.3 Track redemption counts (handled by Stripe)
+  - [x] 3.5.4 Apply promo codes in checkout session
+  - [x] 3.5.5 Write integration tests for promo codes
 
 - [ ] 3.6 Update subscription tier resolution
   - [ ] 3.6.1 Update QuotaService to read from subscription document

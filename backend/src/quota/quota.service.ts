@@ -70,6 +70,8 @@ export class QuotaService {
 
   /**
    * Get subscription tier for a business
+   * Handles subscription status: active, canceled, past_due
+   * Downgrades to FREE if subscription is not active
    */
   async getSubscriptionTier(businessId: string): Promise<SubscriptionTier> {
     try {
@@ -86,9 +88,18 @@ export class QuotaService {
       }
 
       const data = businessDoc.data() as
-        | { subscription?: { tier?: string } }
+        | { subscription?: { tier?: string; status?: string } }
         | undefined;
       const tierValue = data?.subscription?.tier;
+      const status = data?.subscription?.status;
+
+      // Check subscription status - only 'active' subscriptions get paid tier access
+      if (status && status !== 'active') {
+        this.logger.log(
+          `Business ${businessId} has non-active subscription status: ${status}, using FREE tier`,
+        );
+        return SubscriptionTier.FREE;
+      }
 
       // Validate tier value
       const validTiers = Object.values(SubscriptionTier);
