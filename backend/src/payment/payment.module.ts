@@ -7,18 +7,12 @@ import { StripeService } from './stripe.service';
 import { SubscriptionController } from './subscription.controller';
 import { WebhookController } from './webhook.controller';
 
-// Conditionally register payment controllers and providers based on ENABLE_PAYMENTS
-// This prevents StripeService from being instantiated when payments are disabled
-const paymentsEnabled = process.env.ENABLE_PAYMENTS === 'true';
-const paymentControllers = paymentsEnabled
-  ? [SubscriptionController, WebhookController]
-  : [];
-const paymentProviders = paymentsEnabled ? [StripeService] : [];
-
+// Always register payment module - StripeService will validate config at runtime
+// and throw clear errors if ENABLE_PAYMENTS=true but Stripe config is missing
 @Module({
   imports: [ConfigModule, FirebaseModule, MonitoringModule, AuthModule],
-  controllers: paymentControllers,
-  providers: paymentProviders,
-  exports: paymentProviders,
+  controllers: [SubscriptionController, WebhookController],
+  providers: [StripeService],
+  exports: [StripeService],
 })
 export class PaymentModule {}

@@ -30,6 +30,18 @@ export class StripeService {
     private readonly firestore: FirestoreService,
     private readonly structuredLogger: StructuredLoggerService,
   ) {
+    // Check if payments are enabled
+    const paymentsEnabled =
+      this.configService.get('ENABLE_PAYMENTS', { infer: true }) === 'true';
+
+    if (!paymentsEnabled) {
+      this.logger.warn(
+        'Stripe service initialized but ENABLE_PAYMENTS=false - payment endpoints will return errors',
+      );
+      // Don't initialize Stripe client when payments are disabled
+      return;
+    }
+
     // Validate required Stripe configuration
     const secretKey = this.configService.get('STRIPE_SECRET_KEY', {
       infer: true,
@@ -47,13 +59,18 @@ export class StripeService {
       'STRIPE_ENTERPRISE_PRICE_ID',
       { infer: true },
     );
+    const billingPortalUrl = this.configService.get(
+      'STRIPE_BILLING_PORTAL_RETURN_URL',
+      { infer: true },
+    );
 
     if (
       !secretKey ||
       !webhookSecret ||
       !starterPriceId ||
       !proPriceId ||
-      !enterprisePriceId
+      !enterprisePriceId ||
+      !billingPortalUrl
     ) {
       throw new Error(
         'Missing required Stripe configuration. Ensure ENABLE_PAYMENTS=true and all STRIPE_* variables are set.',
@@ -73,7 +90,7 @@ export class StripeService {
       enterprise: enterprisePriceId,
     };
 
-    this.logger.log('Stripe service initialized');
+    this.logger.log('Stripe service initialized successfully');
   }
 
   /**
@@ -323,6 +340,12 @@ export class StripeService {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const session = await this.stripe.checkout.sessions.create(sessionParams);
 
+      // Validate session URL (Stripe can return null in some cases)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      if (!session.url) {
+        throw new Error('Stripe checkout session created but URL is missing');
+      }
+
       this.structuredLogger.log('Created Stripe checkout session', {
         correlationId: `stripe-checkout-${userId}`,
         userId,
@@ -557,11 +580,13 @@ export class StripeService {
         webhookSecret,
       );
 
-      // Check for duplicate events (idempotency) using atomic create
-      // NOTE: There's a small concurrency window where two simultaneous webhook deliveries
-      // could both pass the processed check and process the same event. This is acceptable
-      // for MVP as Stripe webhooks are designed to be idempotent and our handlers are safe
-      // to run multiple times. Future improvement: add a "processing" lock with lease timeout.
+      // Check for duplicate events (idempotency) using event ID
+      // Best practice per Stripe docs: Store event ID and check if already processed
+      // This simple approach is recommended over complex locking mechanisms
+      // Reference: https://stripe.com/docs/webhooks/best-practices
+      // NOTE: stripe_events collection will grow over time. Implement cleanup via:
+      // 1. Firestore TTL policy on receivedAt field, OR
+      // 2. Scheduled Cloud Function to delete events older than 30 days
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const eventId = event.id;
       const eventRef = this.firestore
@@ -593,7 +618,8 @@ export class StripeService {
           }
 
           // Event exists but wasn't processed (previous attempt failed)
-          // Continue with processing and retry
+          // Continue with processing and retry - this is safe as Stripe webhooks
+          // are designed to be idempotent and our handlers update the same records
           this.logger.log(
             `Event ${eventId as string} exists but not processed; retrying`,
           );

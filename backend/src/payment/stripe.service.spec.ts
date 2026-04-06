@@ -16,6 +16,7 @@ describe('StripeService', () => {
           useValue: {
             get: jest.fn((key: string) => {
               const config: Record<string, string> = {
+                ENABLE_PAYMENTS: 'true',
                 STRIPE_SECRET_KEY: 'sk_test_mock_key',
                 STRIPE_WEBHOOK_SECRET: 'whsec_mock_secret',
                 STRIPE_STARTER_PRICE_ID: 'price_starter',
