@@ -449,4 +449,329 @@ export class StripeService {
       return { valid: false };
     }
   }
+
+  /**
+   * Handle Stripe webhook events
+   * CRITICAL: Must use raw body for signature verification
+   */
+  async handleWebhook(
+    signature: string,
+    rawBody: Buffer | string,
+  ): Promise<{ received: boolean }> {
+    const webhookSecret = this.configService.get('STRIPE_WEBHOOK_SECRET', {
+      infer: true,
+    });
+
+    try {
+      // Verify webhook signature
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      const event = this.stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
+        webhookSecret,
+      );
+
+      // Check for duplicate events (idempotency)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const eventId = event.id;
+      const eventDoc = await this.firestore
+        .collection('stripe_events')
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        .doc(eventId)
+        .get();
+
+      if (eventDoc.exists) {
+        this.logger.log(`Event ${eventId as string} already processed`);
+        return { received: true };
+      }
+
+      // Process event based on type
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      switch (event.type) {
+        case 'customer.subscription.created':
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          await this.handleSubscriptionCreated(event.data.object);
+          break;
+        case 'customer.subscription.updated':
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          await this.handleSubscriptionUpdated(event.data.object);
+          break;
+        case 'customer.subscription.deleted':
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          await this.handleSubscriptionDeleted(event.data.object);
+          break;
+        case 'invoice.payment_succeeded':
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          this.handlePaymentSucceeded(event.data.object);
+          break;
+        case 'invoice.payment_failed':
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          await this.handlePaymentFailed(event.data.object);
+          break;
+        default:
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          this.logger.log(`Unhandled event type: ${event.type as string}`);
+      }
+
+      // Mark event as processed
+      await this.firestore
+        .collection('stripe_events')
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        .doc(eventId)
+        .set({
+          processed: true,
+          processedAt: new Date(),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+          type: event.type,
+        });
+
+      return { received: true };
+    } catch (error) {
+      this.logger.error(
+        `Webhook error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      // Return 200 to prevent Stripe from retrying
+      // Log the error for investigation
+      return { received: true };
+    }
+  }
+
+  /**
+   * Handle subscription.created event
+   */
+  private async handleSubscriptionCreated(subscription: any): Promise<void> {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const metadata = subscription.metadata as StripeCustomerMetadata;
+      const { businessId } = metadata;
+
+      // Determine tier from price ID
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const priceId = subscription.items.data[0].price.id;
+      const tier = this.getTierFromPriceId(priceId as string);
+
+      await this.firestore
+        .collection('businesses')
+        .doc(businessId)
+        .set(
+          {
+            subscription: {
+              tier,
+              status: 'active',
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+              stripeSubscriptionId: subscription.id,
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+              stripePriceId: priceId,
+              currentPeriodStart: new Date(
+                subscription.current_period_start * 1000, // eslint-disable-line @typescript-eslint/no-unsafe-member-access
+              ),
+              currentPeriodEnd: new Date(
+                subscription.current_period_end * 1000, // eslint-disable-line @typescript-eslint/no-unsafe-member-access
+              ),
+              cancelAtPeriodEnd: false,
+            },
+          },
+          { merge: true },
+        );
+
+      this.structuredLogger.log('Subscription created', {
+        correlationId: `stripe-sub-created-${businessId}`,
+        businessId,
+        tier,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        subscriptionId: subscription.id,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to handle subscription.created: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Handle subscription.updated event
+   */
+  private async handleSubscriptionUpdated(subscription: any): Promise<void> {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const metadata = subscription.metadata as StripeCustomerMetadata;
+      const { businessId } = metadata;
+
+      // Determine tier from price ID
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const priceId = subscription.items.data[0].price.id;
+      const tier = this.getTierFromPriceId(priceId as string);
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const status = subscription.status;
+
+      await this.firestore
+        .collection('businesses')
+        .doc(businessId)
+        .set(
+          {
+            subscription: {
+              tier,
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+              status,
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+              stripePriceId: priceId,
+              currentPeriodStart: new Date(
+                subscription.current_period_start * 1000, // eslint-disable-line @typescript-eslint/no-unsafe-member-access
+              ),
+              currentPeriodEnd: new Date(
+                subscription.current_period_end * 1000, // eslint-disable-line @typescript-eslint/no-unsafe-member-access
+              ),
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+              cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            },
+          },
+          { merge: true },
+        );
+
+      this.structuredLogger.log('Subscription updated', {
+        correlationId: `stripe-sub-updated-${businessId}`,
+        businessId,
+        tier,
+
+        status,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to handle subscription.updated: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Handle subscription.deleted event
+   * Downgrade to Free tier (GDPR compliant - keep data)
+   */
+  private async handleSubscriptionDeleted(subscription: any): Promise<void> {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const metadata = subscription.metadata as StripeCustomerMetadata;
+      const { businessId } = metadata;
+
+      // Downgrade to Free tier but keep data (GDPR compliant)
+      await this.firestore
+        .collection('businesses')
+        .doc(businessId)
+        .set(
+          {
+            subscription: {
+              tier: 'free',
+              status: 'canceled',
+              canceledAt: new Date(),
+            },
+          },
+          { merge: true },
+        );
+
+      this.structuredLogger.log('Subscription canceled - downgraded to Free', {
+        correlationId: `stripe-sub-deleted-${businessId}`,
+        businessId,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        subscriptionId: subscription.id,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to handle subscription.deleted: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Handle invoice.payment_succeeded event
+   */
+  private handlePaymentSucceeded(invoice: any): void {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const subscriptionId = invoice.subscription;
+
+      this.structuredLogger.log('Payment succeeded', {
+        correlationId: `stripe-payment-success-${subscriptionId as string}`,
+
+        subscriptionId,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        amount: invoice.amount_paid,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        currency: invoice.currency,
+      });
+
+      // Payment succeeded - subscription should already be active
+      // No action needed, just log for audit trail
+    } catch (error) {
+      this.logger.error(
+        `Failed to handle payment.succeeded: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Handle invoice.payment_failed event
+   * Immediate downgrade to Free tier (per requirements)
+   */
+  private async handlePaymentFailed(invoice: any): Promise<void> {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const subscriptionId = invoice.subscription;
+
+      // Get subscription to find businessId
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const subscription =
+        await this.stripe.subscriptions.retrieve(subscriptionId); // eslint-disable-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const metadata = subscription.metadata as StripeCustomerMetadata;
+      const { businessId } = metadata;
+
+      // Immediate downgrade to Free tier (per requirements)
+      await this.firestore
+        .collection('businesses')
+        .doc(businessId)
+        .set(
+          {
+            subscription: {
+              tier: 'free',
+              status: 'past_due',
+              paymentFailedAt: new Date(),
+            },
+          },
+          { merge: true },
+        );
+
+      this.structuredLogger.log('Payment failed - downgraded to Free', {
+        correlationId: `stripe-payment-failed-${businessId}`,
+        businessId,
+
+        subscriptionId,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        attemptCount: invoice.attempt_count,
+      });
+
+      // TODO: Send email notification to user about payment failure
+    } catch (error) {
+      this.logger.error(
+        `Failed to handle payment.failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get tier from Stripe price ID
+   */
+  private getTierFromPriceId(
+    priceId: string,
+  ): 'free' | 'starter' | 'pro' | 'enterprise' {
+    if (priceId === this.priceIds.starter) return 'starter';
+    if (priceId === this.priceIds.pro) return 'pro';
+    if (priceId === this.priceIds.enterprise) return 'enterprise';
+    return 'free';
+  }
 }

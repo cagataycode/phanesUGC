@@ -1,4 +1,12 @@
-import { Controller, Post, Headers } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Headers,
+  Req,
+  BadRequestException,
+} from '@nestjs/common';
+import type { RawBodyRequest } from '@nestjs/common';
+import { Request } from 'express';
 import { StripeService } from './stripe.service';
 
 @Controller('api/v1/webhooks/stripe')
@@ -6,12 +14,20 @@ export class WebhookController {
   constructor(private readonly stripeService: StripeService) {}
 
   @Post()
-  handleWebhook() {
-    // TODO: Implement in Phase 4
-    // Parameters will be used when implementing webhook signature verification
-    return {
-      received: true,
-      message: 'Webhook handling - to be implemented',
-    };
+  handleWebhook(
+    @Headers('stripe-signature') signature: string,
+    @Req() request: RawBodyRequest<Request>,
+  ) {
+    if (!signature) {
+      throw new BadRequestException('Missing stripe-signature header');
+    }
+
+    // Get raw body for signature verification
+    const rawBody = request.rawBody;
+    if (!rawBody) {
+      throw new BadRequestException('Missing raw body');
+    }
+
+    return this.stripeService.handleWebhook(signature, rawBody);
   }
 }

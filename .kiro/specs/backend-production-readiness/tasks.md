@@ -109,17 +109,17 @@
   - [x] 3.1.3 Create `backend/src/payment/subscription.controller.ts`
   - [x] 3.1.4 Create `backend/src/payment/webhook.controller.ts`
 
-- [-] 3.2 Implement StripeService
-  - [ ] 3.2.1 Install and configure Stripe SDK
-  - [ ] 3.2.2 Implement createCustomer method
-  - [ ] 3.2.3 Implement createCheckoutSession method
-  - [ ] 3.2.4 Implement handleWebhook method (signature validation)
-  - [ ] 3.2.5 Implement cancelSubscription method
-  - [ ] 3.2.6 Implement getBillingPortalUrl method
-  - [ ] 3.2.7 Implement validatePromoCode method
-  - [ ] 3.2.8 Write unit tests for StripeService
+- [x] 3.2 Implement StripeService
+  - [x] 3.2.1 Install and configure Stripe SDK
+  - [x] 3.2.2 Implement createCustomer method
+  - [x] 3.2.3 Implement createCheckoutSession method
+  - [x] 3.2.4 Implement handleWebhook method (signature validation)
+  - [x] 3.2.5 Implement cancelSubscription method
+  - [x] 3.2.6 Implement getBillingPortalUrl method
+  - [x] 3.2.7 Implement validatePromoCode method
+  - [x] 3.2.8 Write unit tests for StripeService
 
-- [ ] 3.3 Implement webhook handlers
+- [x] 3.3 Implement webhook handlers
   - [ ] 3.3.1 Handle subscription.created event
   - [ ] 3.3.2 Handle subscription.updated event
   - [ ] 3.3.3 Handle subscription.deleted event
