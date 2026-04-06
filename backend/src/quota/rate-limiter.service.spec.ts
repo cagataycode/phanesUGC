@@ -5,7 +5,7 @@ import { StructuredLoggerService } from '../monitoring/structured-logger.service
 import { SubscriptionTier } from './quota.service';
 
 /* eslint-disable @typescript-eslint/no-unsafe-call */
-
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 describe('RateLimiterService', () => {
