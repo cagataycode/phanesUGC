@@ -38,7 +38,15 @@ export class StripeService {
       this.logger.warn(
         'Stripe service initialized but ENABLE_PAYMENTS=false - payment endpoints will return errors',
       );
-      // Don't initialize Stripe client when payments are disabled
+      // Initialize with null/stub values when payments are disabled
+      // This prevents runtime errors when accessing these properties
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      this.stripe = null as any;
+      this.priceIds = {
+        starter: '',
+        pro: '',
+        enterprise: '',
+      };
       return;
     }
 
@@ -94,9 +102,24 @@ export class StripeService {
   }
 
   /**
+   * Check if payments are enabled and throw clear error if not
+   */
+  private assertPaymentsEnabled(): void {
+    const paymentsEnabled =
+      this.configService.get('ENABLE_PAYMENTS', { infer: true }) === 'true';
+
+    if (!paymentsEnabled) {
+      throw new BadRequestException(
+        'Payment functionality is currently disabled',
+      );
+    }
+  }
+
+  /**
    * Get Stripe client instance
    */
   getStripeClient(): StripeInstance {
+    this.assertPaymentsEnabled();
     return this.stripe;
   }
 
@@ -104,6 +127,7 @@ export class StripeService {
    * Get price ID for a subscription tier
    */
   getPriceId(tier: 'starter' | 'pro' | 'enterprise'): string {
+    this.assertPaymentsEnabled();
     return this.priceIds[tier];
   }
 
@@ -116,6 +140,8 @@ export class StripeService {
     businessId: string,
     email?: string,
   ): Promise<string> {
+    this.assertPaymentsEnabled();
+
     try {
       // Check if customer already exists in Firestore
       const businessDoc = await this.firestore
@@ -212,6 +238,8 @@ export class StripeService {
     successUrl?: string,
     cancelUrl?: string,
   ): Promise<{ sessionId: string; url: string }> {
+    this.assertPaymentsEnabled();
+
     try {
       // Validate redirect URLs to prevent open redirects
       const allowedDomains = ['app.phanes.ai', 'localhost'];
@@ -376,6 +404,8 @@ export class StripeService {
     success: boolean;
     endsAt: Date;
   }> {
+    this.assertPaymentsEnabled();
+
     try {
       // Get subscription ID from Firestore
       const businessDoc = await this.firestore
@@ -441,6 +471,8 @@ export class StripeService {
    * Get Stripe Billing Portal URL
    */
   async getBillingPortalUrl(businessId: string): Promise<string> {
+    this.assertPaymentsEnabled();
+
     try {
       // Get customer ID from Firestore
       const businessDoc = await this.firestore
@@ -488,6 +520,8 @@ export class StripeService {
    * Validate a promo code
    */
   async validatePromoCode(code: string): Promise<boolean> {
+    this.assertPaymentsEnabled();
+
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const promoCodes = await this.stripe.promotionCodes.list({
@@ -516,6 +550,8 @@ export class StripeService {
       value: number;
     };
   }> {
+    this.assertPaymentsEnabled();
+
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const promoCodes = await this.stripe.promotionCodes.list({
@@ -567,6 +603,8 @@ export class StripeService {
     signature: string,
     rawBody: Buffer | string,
   ): Promise<{ received: boolean }> {
+    this.assertPaymentsEnabled();
+
     const webhookSecret = this.configService.get('STRIPE_WEBHOOK_SECRET', {
       infer: true,
     });
@@ -605,24 +643,23 @@ export class StripeService {
       } catch (error: any) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         if (error.code === 6 || error.code === 'already-exists') {
-          // Event document already exists - check if it was processed
+          // Event document already exists - do not continue processing here,
+          // because concurrent deliveries could otherwise process the same
+          // event at the same time before `processed` is updated.
           const existingEvent = await eventRef.get();
           const existingEventData = existingEvent.data() as
             | { processed?: boolean }
             | undefined;
 
           if (existingEventData?.processed === true) {
-            // Event was already successfully processed
             this.logger.log(`Event ${eventId as string} already processed`);
-            return { received: true };
+          } else {
+            this.logger.log(
+              `Event ${eventId as string} already claimed or pending; skipping duplicate delivery`,
+            );
           }
 
-          // Event exists but wasn't processed (previous attempt failed)
-          // Continue with processing and retry - this is safe as Stripe webhooks
-          // are designed to be idempotent and our handlers update the same records
-          this.logger.log(
-            `Event ${eventId as string} exists but not processed; retrying`,
-          );
+          return { received: true };
         } else {
           throw error;
         }
@@ -710,14 +747,25 @@ export class StripeService {
       const priceId = subscription.items.data[0].price.id;
       const tier = this.getTierFromPriceId(priceId as string);
 
+      // Use actual subscription status from Stripe
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const status = subscription.status;
+
+      // Only grant access for valid states (active, trialing)
+      // Other states: incomplete, incomplete_expired, past_due, canceled, unpaid
+      const validStates = ['active', 'trialing'];
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      const shouldGrantAccess = validStates.includes(status);
+
       await this.firestore
         .collection('businesses')
         .doc(businessId)
         .set(
           {
             subscription: {
-              tier,
-              status: 'active',
+              tier: shouldGrantAccess ? tier : 'free',
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+              status,
               // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
               stripeSubscriptionId: subscription.id,
               // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -737,7 +785,9 @@ export class StripeService {
       this.structuredLogger.log('Subscription created', {
         correlationId: `stripe-sub-created-${businessId}`,
         businessId,
-        tier,
+        tier: shouldGrantAccess ? tier : 'free',
+
+        status,
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         subscriptionId: subscription.id,
       });

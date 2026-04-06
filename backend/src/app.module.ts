@@ -17,9 +17,9 @@ import { RenderModule } from './render/render.module';
 import { ScraperModule } from './scraper/scraper.module';
 
 /**
- * Create app module imports with conditional PaymentModule
- * Always imports PaymentModule - the module itself will conditionally register
- * Stripe-related providers based on ENABLE_PAYMENTS config
+ * Create the application module imports.
+ * PaymentModule is always imported; when ENABLE_PAYMENTS is disabled,
+ * StripeService will not initialize and payment endpoints will return errors.
  */
 function createAppModuleImports(): any[] {
   return [
