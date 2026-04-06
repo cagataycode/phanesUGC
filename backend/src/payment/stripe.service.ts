@@ -546,11 +546,26 @@ export class StripeService {
       } catch (error: any) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         if (error.code === 6 || error.code === 'already-exists') {
-          // Event already processed
-          this.logger.log(`Event ${eventId as string} already processed`);
-          return { received: true };
+          // Event document already exists - check if it was processed
+          const existingEvent = await eventRef.get();
+          const existingEventData = existingEvent.data() as
+            | { processed?: boolean }
+            | undefined;
+
+          if (existingEventData?.processed === true) {
+            // Event was already successfully processed
+            this.logger.log(`Event ${eventId as string} already processed`);
+            return { received: true };
+          }
+
+          // Event exists but wasn't processed (previous attempt failed)
+          // Continue with processing and retry
+          this.logger.log(
+            `Event ${eventId as string} exists but not processed; retrying`,
+          );
+        } else {
+          throw error;
         }
-        throw error;
       }
 
       // Process event based on type
